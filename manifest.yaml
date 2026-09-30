@@ -64,6 +64,7 @@ security_notes: >-
   Page Spec image paths and Scene assets are confined to their specification directories.
   Exported PPTX embeds referenced assets.
 files:
+  - manifest.yaml
   - SKILL.md
   - install.py
   - README.md

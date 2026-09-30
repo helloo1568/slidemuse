@@ -9,6 +9,7 @@
 ### Fixed
 
 - Installer success output uses an ASCII status label so Windows GBK output does not raise a UnicodeEncodeError after a successful installation.
+- Release archives include their manifest so the bundled installer can register every required runtime root. A regression test installs from the exact manifest-packaged ZIP rather than only from the source checkout.
 
 ## [2.6.0] - 2026-09-30
 
