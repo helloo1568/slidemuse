@@ -225,7 +225,7 @@ def emit(result: dict[str, object], as_json: bool) -> None:
     if result.get("dry_run"):
         print(f"{BRAND_NAME} installer dry run")
     else:
-        print(f"✓ {BRAND_NAME} installed successfully")
+        print(f"[OK] {BRAND_NAME} installed successfully")
     print(f"  Client: {result['client']}")
     print(f"  Skill:  ${result['skill']}")
     print(f"  Path:   {result['target']}")

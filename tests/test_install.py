@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import subprocess
 import sys
@@ -10,6 +11,18 @@ import pytest
 import install as installer
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_success_output_supports_windows_gbk(monkeypatch) -> None:
+    buffer = io.BytesIO()
+    stdout = io.TextIOWrapper(buffer, encoding="gbk")
+    monkeypatch.setattr(sys, "stdout", stdout)
+    installer.emit({"client": "codex", "skill": "slidemuse",
+                    "target": "C:/用户/.agents/skills/slidemuse"}, as_json=False)
+    stdout.flush()
+    output = buffer.getvalue().decode("gbk")
+    assert "SlideMuse installed successfully" in output
+    assert "C:/用户/.agents/skills/slidemuse" in output
 
 
 def test_skill_frontmatter_uses_slidemuse() -> None:
