@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-09-30
+
+### Added
+
+- Content-depth reference with a reviewable slide-by-slide draft, purpose-specific guidance, traceable evidence, interpretation boundaries, and a worked example of repairing an unsupported claim.
+- A semantic content-quality review before style selection, with versioned findings and repairs recorded separately from user approval or explicit content delegation. It is not an automated depth score.
+
+### Changed
+
+- Step 1A and the deck specification now include the deck's central question and answer, narrative progression, actual visible copy/chart content, and optional speaker notes. Covers and transitions remain concise without universal word counts or text ratios.
+- Style previews, Page Spec creation, and image prompts preserve approved supporting explanations and qualifications instead of reducing the draft to titles and large numbers. Content updates repeat only affected reviews and retain existing authorization.
+- Bilingual documentation and the Codex starter prompt describe content review and the subsequent approval gate. The new reference is included in release packages and runtime installations.
+
 ## [2.6.1] - 2026-09-30
 
 ### Fixed

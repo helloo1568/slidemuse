@@ -1,10 +1,10 @@
 name: slidemuse
 display_name: SlideMuse
-version: 2.6.1
+version: 2.7.0
 description: >-
   SlideMuse 是视觉优先的 AI PPT Skill，重点适用于挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛 PPT，同时适用于电影质感 PPT、比赛答辩、创新创业路演、学术汇报、论文答辩、项目汇报、课程展示和图片转可编辑 PPT。
   按固定三阶段流程将材料制作成图片版 PPT，并在明确授权后还原为可编辑 PPTX：
-  需求确认与内容大纲确认 → 四套幻灯片浏览视图选型 → Page Spec 驱动的逐页图片生成 →
+  需求确认与逐页内容稿自检/确认 → 四套幻灯片浏览视图选型 → Page Spec 驱动的逐页图片生成 →
   Scene v1 可编辑重建。
   默认不得自行推断缺失需求、跳过选型或改走编辑优先路线。最佳推荐 Codex + GPT Image 2.5；
   也可在其他 Agent 中调用该 Agent 自身的生图能力。宿主 Agent 负责内容、识别与生图，
@@ -79,6 +79,7 @@ files:
   - requirements.txt
   - agents/openai.yaml
   - references/prompts.md
+  - references/content-outline.md
   - references/style-options.md
   - references/deck-spec-template.md
   - references/models.md
