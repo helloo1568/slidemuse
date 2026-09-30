@@ -181,3 +181,9 @@ Local scripts perform no network requests and need no API key. Host AI services 
 Exclude private source documents and credentials from shared outputs.
 
 [MIT](../LICENSE) © 2026 风清云影（helloo1568）
+
+## Chart reliability (2.8.0)
+
+Review numeric labels and geometry separately. Stop repeating image repairs after two consecutive checks fail for the same geometric issue. The precise horizontal-bar region fallback respects host image-edit permissions; the geometry audit checks independently recorded bar/column endpoints without performing image recognition. See [chart reliability](../references/chart-reliability.md).
+
+Full scorecards use visual review v1.2 with source/value, label/unit, scale/geometry or table alignment checks plus a per-page data-visual inventory. Recheck the new items when migrating historical v1.1 reviews. Point colors, negative inversion, label placement, plot layout and doughnut settings are now declared and audited in [Scene](../references/scene-format.md).

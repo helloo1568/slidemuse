@@ -53,6 +53,7 @@ Step 2 的 `page-spec.json` 是上游语义契约，保存已确认文字、数�
 
 颜色格式 #RRGGBB，shape 的 fill/line 可设 null 表示无填充/无边框。
 shape 支持 rect、roundRect、ellipse、triangle、diamond、chevron、rightArrow。
+`roundRect` 可设置 `corner_radius`（0–0.5 的 Office 调整值，非像素半径），其他形状不能使用。
 文本 align 为 left/center/right；valign 为 top/middle/bottom。
 文本换行写 \n。富文本分段样式暂未实现，必要时拆成多个稳定命名的文本框。
 
@@ -64,6 +65,23 @@ pie/doughnut 只接受单组非负且总和大于 0 的数据。原生图表包�
 不支持的统计图不可谎称已实现，可用独立图片保真并说明数据不可编辑。
 
 图表可设置 `value_axis_min`、`value_axis_max`、`major_gridlines`、`major_gridline_color`、`tick_label_color` 和 `data_label_color`，导出后由对象审查核对。前五项只适用于有坐标轴的图表；网格线颜色会自动启用主网格线，`data_label_color` 要求 `data_labels: true`。其他 Scene v1 未表达的图表外观若用后处理调整，必须随交付保存可复现脚本，并说明单独编译 Scene 无法完全还原这些设置。后处理完成后重新执行对象审查和实际渲染；不要将未支持的属性写入 Scene。
+
+从 2.8.0 起以下外观也由 Scene 编译与审查，无需后处理：
+
+|设置|范围与用途|
+|---|---|
+|`data_label_position`|`outside_end`、`inside_end`、`center`、`above`、`below`、`best_fit`；需 `data_labels: true`，按图型选择并实际渲染检查|
+|`data_label_font_size`|正数 pt；需启用数据标签|
+|`category_axis_visible`、`value_axis_visible`|有轴图表的轴/刻度标签可见性|
+|`category_reverse_order`|有轴图表的类别顺序|
+|`gap_width`|条形/柱状图的类别间距百分比，整数 0–500|
+|`series[].point_colors`|与类别等长的颜色数组；可用于各类别/扇区配色|
+|`series[].invert_if_negative`|仅条形/柱状图；显式控制系列及各数据点的负值反色，`false` 保持指定颜色|
+|`hole_size`|仅环形图，孔径百分比，整数 10–90|
+|`first_slice_angle`|饼/环形图起始角度，整数 0–360|
+|`plot_layout`|`{x,y,w,h}` 为外部图表框内的归一化内绘图区，全部 0–1，宽高正数且不能越界；为外侧标签预留空间|
+
+这些设置只保证原生对象配置可复现，不代替 PowerPoint/LibreOffice 渲染核对。修改数据后仍需检查标签和原图差异。
 
 ## 检查和局部修改
 

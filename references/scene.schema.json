@@ -258,6 +258,11 @@
             "line_width": {
               "type": "number",
               "minimum": 0
+            },
+            "corner_radius": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.5
             }
           },
           "required": [
@@ -622,6 +627,16 @@
                   },
                   "color": {
                     "$ref": "#/$defs/color"
+                  },
+                  "point_colors": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "$ref": "#/$defs/color"
+                    }
+                  },
+                  "invert_if_negative": {
+                    "type": "boolean"
                   }
                 }
               }
@@ -660,6 +675,76 @@
             },
             "data_label_color": {
               "$ref": "#/$defs/color"
+            },
+            "data_label_position": {
+              "enum": [
+                "outside_end",
+                "inside_end",
+                "center",
+                "above",
+                "below",
+                "best_fit"
+              ]
+            },
+            "data_label_font_size": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "category_axis_visible": {
+              "type": "boolean"
+            },
+            "value_axis_visible": {
+              "type": "boolean"
+            },
+            "category_reverse_order": {
+              "type": "boolean"
+            },
+            "gap_width": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 500
+            },
+            "hole_size": {
+              "type": "integer",
+              "minimum": 10,
+              "maximum": 90
+            },
+            "first_slice_angle": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 360
+            },
+            "plot_layout": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "x",
+                "y",
+                "w",
+                "h"
+              ],
+              "properties": {
+                "x": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "y": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "w": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1
+                },
+                "h": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 1
+                }
+              }
             }
           },
           "required": [

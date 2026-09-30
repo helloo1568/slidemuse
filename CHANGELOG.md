@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-09-30
+
+### Added
+
+- Separate chart source/label/geometry checks and a per-page data-visual inventory in hash-bound visual review v1.2. Missing checks keep delivery incomplete; failed subchecks and unlisted data visuals fail delivery.
+- A finite-retry chart repair workflow, a hash-bound audit of independently observed zero-based single-series bar/column geometry, and a precise horizontal-bar raster region fallback that preserves pixels outside an explicitly selected rectangle. Host image-edit authorization still applies.
+- Scene-native chart point colors, negative-value inversion, label position/size, axis visibility/order, bar gaps, doughnut hole/angle, normalized inner plot layout, and rounded rectangle adjustment. Exported settings are audited without reapplying them.
+
+### Changed
+
+- Image prompts forbid decorative unsupported data visuals, including unlabeled curves/scatter/axes on research-proposal slides. Numeric labels and geometry are reviewed separately.
+- Default presentation of artifacts avoids redisplaying tool-visible images, historical drafts, and intermediate repair previews; all inspection evidence remains saved.
+- Legacy v1.1 reviews remain historical evidence and require actual additional checks in a new v1.2 template; no version-only migration. Content-depth and approval gates retain their scope.
+
 ## [2.7.0] - 2026-09-30
 
 ### Added

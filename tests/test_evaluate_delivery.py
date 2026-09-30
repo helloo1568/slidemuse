@@ -51,6 +51,7 @@ def test_scorecard_needs_visual_review_and_current_artifacts(tmp_path):
     assert result["content"]["issues"] == 0
     reviewed = json.loads(review.read_text(encoding="utf-8"))
     reviewed["slides"][0]["status"] = "pass"
+    reviewed["slides"][0]["data_visual_inventory"].update(status="pass", notes="No data visuals observed", observed_element_ids=[])
     review.write_text(json.dumps(reviewed), encoding="utf-8")
     assert evaluate_delivery.evaluate(spec, render, review, [observation])["status"] == "pass"
     Image.new("RGB", (160, 90), "black").save(rendered)
@@ -70,6 +71,9 @@ def test_scorecard_rejects_render_without_current_page_spec(tmp_path):
 def mark_visual_pass(review_path):
     review = json.loads(review_path.read_text(encoding="utf-8"))
     review["slides"][0]["status"] = "pass"
+    review["slides"][0]["data_visual_inventory"].update(
+        status="pass", notes="Observed only declared data visuals",
+        observed_element_ids=[item["element_id"] for item in review["slides"][0]["data_reviews"]])
     review_path.write_text(json.dumps(review), encoding="utf-8")
     return review
 
@@ -134,6 +138,8 @@ def test_data_needs_independent_review_and_records_findings(tmp_path, kind):
     review.write_text(json.dumps(reviewed), encoding="utf-8")
     assert evaluate_delivery.evaluate(spec, render, review, [observation])["status"] == "fail"
     reviewed["slides"][0]["data_reviews"][0].update(status="pass", notes="Checked values 12 and 15, units and source report/table-1")
+    entry = reviewed["slides"][0]["data_reviews"][0]
+    entry["checks"] = dict.fromkeys(entry["checks"], "pass")
     review.write_text(json.dumps(reviewed), encoding="utf-8")
     result = evaluate_delivery.evaluate(spec, render, review, [observation])
     assert result["status"] == "pass"
@@ -160,3 +166,33 @@ def test_invalid_data_review_cannot_pass(tmp_path, change):
     review.write_text(json.dumps(reviewed), encoding="utf-8")
     with pytest.raises(ValueError, match="data review|Data review"):
         evaluate_delivery.evaluate(spec, render, review, [observation])
+
+
+@pytest.mark.parametrize("check_status,expected", [("pending", "incomplete"), ("fail", "fail"), ("pass", "pass")])
+def test_correct_labels_do_not_bypass_geometry_review(tmp_path, check_status, expected):
+    spec, render, review, observation, _ = make_case(tmp_path, "chart")
+    reviewed = mark_visual_pass(review)
+    item = reviewed["slides"][0]["data_reviews"][0]
+    item.update(status="pass", notes="Source and text labels correct; geometric scale checked separately")
+    item["checks"].update(source_values="pass", labels_units="pass", scale_geometry=check_status)
+    review.write_text(json.dumps(reviewed), encoding="utf-8")
+    assert evaluate_delivery.evaluate(spec, render, review, [observation])["status"] == expected
+
+
+def test_unlisted_chart_on_a_text_page_fails_inventory_review(tmp_path):
+    spec, render, review, observation, _ = make_case(tmp_path)
+    reviewed = mark_visual_pass(review)
+    reviewed["slides"][0]["data_visual_inventory"].update(
+        observed_element_ids=["invented-trend"], notes="An extra unapproved trend chart was observed")
+    review.write_text(json.dumps(reviewed), encoding="utf-8")
+    result = evaluate_delivery.evaluate(spec, render, review, [observation])
+    assert result["status"] == "fail"
+    assert result["data_visual_inventory"]["failed"]
+
+
+def test_missing_inventory_cannot_pass_even_when_text_and_layout_pass(tmp_path):
+    spec, render, review, observation, _ = make_case(tmp_path)
+    reviewed = mark_visual_pass(review)
+    reviewed["slides"][0].pop("data_visual_inventory")
+    review.write_text(json.dumps(reviewed), encoding="utf-8")
+    assert evaluate_delivery.evaluate(spec, render, review, [observation])["status"] == "incomplete"
