@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-09-30
+
+### Fixed
+
+- Installer success output uses an ASCII status label so Windows GBK output does not raise a UnicodeEncodeError after a successful installation.
+
 ## [2.6.0] - 2026-09-30
 
 ### Fixed
