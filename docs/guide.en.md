@@ -2,10 +2,11 @@
 
 [← Back to home](../README.en.md) · [中文指南](guide.md)
 
-## Workflow contract in 2.1.0
+## Current workflow contract
 
 - One main path: new source material must become an image deck before editable reconstruction. Do not replace the workflow with editable-first authoring.
-- Two approval gates: present the content outline separately, then wait only if confirmation or explicit authority to decide it is missing; do not create the full deck before style selection.
+- Content quality review: expand the outline into a slide-by-slide draft with claims, support, evidence, interpretation, and actual visible content. Fix content issues before style selection.
+- Two approval gates: after content review, present the draft separately and wait only if approval or explicit authority to decide the content is missing. Record the agent's quality judgment separately from user authorization.
 - Deterministic style exemptions: only an explicit locked reference, preview skip, or delegated choice can change the four-option flow.
 - Page Spec bridge: preserve approved text, data, sources, stable IDs, and semantic intent while generating images so reconstruction does not repeat OCR or guess known content.
 - Explicit fast-forwarding: only clear instructions such as “skip previews,” “choose for me,” or “decide missing details” waive the corresponding gate.
@@ -93,7 +94,7 @@ Remove duplicated content from the background and include the scene and assets.
 ```text
 Confirm source, style reference, audience/use case, page count, and delivery scope
   ↓
-Step 1A Present content outline → wait if approval or delegated authority is missing
+Step 1A Draft each slide → review/fix content → present draft → wait if approval or authority is missing
   ↓
 Step 1B Four slide-sorter overviews → wait for selection
   ↓ explicit locked-reference/skip/delegation rules only
@@ -103,6 +104,17 @@ Step 3  Page Spec + slide images → scene.json → native editable PPTX → str
 ```
 
 Ordinary requests do not waive gates. Explicit authorization is interpreted narrowly.
+
+### How detailed should the outline be?
+
+State the audience's central question, the answer supported by the material, and how the slides build that answer. Content slides include a claim, distinct supporting points, traceable sources, interpretation, and necessary qualifications. Specify the actual visible copy and chart content; optional speaker notes cannot hide essential evidence. A title list or isolated numbers are insufficient. Covers, transitions, and chart-led slides follow their purpose without a fixed word count, text ratio, or bullet count.
+
+Review goal coverage, narrative progression, reasoning depth, factual scope, visible-content completeness, and fit within the requested length. Record the reviewed version, reasons, issue pages, and repairs. Stay in S1 while blocking issues remain; narrow unsupported claims rather than inventing mechanisms. Page Spec validation and delivery scoring do not establish narrative depth. See the [content-depth reference](../references/content-outline.md) and [draft template](../references/deck-spec-template.md) (Chinese).
+
+Honor clear authorization already given in context without requiring exact phrases. A standalone “continue” does not grant authority over every stage. Style overviews and final images must preserve approved explanations and qualifications. If content does not fit, use the change workflow rather than silently dropping it.
+
+### Style and image production
+
 Use the task's slide aspect ratio in all four overviews. Show every slide for decks of up to eight pages; otherwise select the same six to eight representative pages. A one-slide deck has one page per option; never invent extra pages.
 Each overview is a landscape thumbnail grid, not a vertical strip of full pages. For three pages, use a 2-by-2 grid with one empty position. `style-options.json` lists only the four current candidates; retries replace their original option number. Run `validate_style_options.py` before selection, then visually inspect the actual thumbnail grid and content. See [overview validation](../references/style-options.md).
 If text is still incorrect after two attempts, generate a text-free page retaining all subjects and graphics, then overlay accurate text. Subject removal belongs to Step 3.

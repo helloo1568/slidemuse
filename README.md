@@ -10,7 +10,7 @@
 重点面向**挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛**，也适用于**学术汇报、论文答辩、项目路演、课程展示与电影质感 PPT**，支持图片转可编辑 PPT。
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.6.1-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.7.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -131,11 +131,13 @@ python slidemuse/install.py
 
 | 01 · 内容与风格 | 02 · 图片版 PPT | 03 · 可编辑还原（按需） |
 | :--- | :--- | :--- |
-| 提炼材料，确认逐页大纲 | 保存 Page Spec，逐页生成 | 结合规格与页面图分层重建 |
+| 提炼逐页内容稿，自检后确认 | 保存 Page Spec，逐页生成 | 结合规格与页面图分层重建 |
 | 四套总览，选定视觉方向 | 检查文字与视觉，合并 PPTX | 编译原生对象，审查并渲染核对 |
 | **得到：确认后的制作方案** | **得到：页面图片 + 图片版 PPTX** | **得到：可编辑 PPTX + Scene + 素材** |
 
 默认先确认内容，再选择风格。仅在明确要求可编辑版时进入第三步；已有幻灯片图片或扫描 PDF 的还原任务可直接从第三步开始。跳过预览、代选等规则见[完整流程](docs/guide.md)。
+
+内容大纲须展开成可审阅的逐页内容稿：结论、支撑、可定位证据、解释与页面实际展示内容。进入风格阶段前先自检内容质量，再获得用户确认或明确内容代定授权；后续生图保留已确认的分析和必要边界。封面与过渡页按作用简化，不设统一字数或文字占比，详见[内容深度规范](references/content-outline.md)。
 
 <a id="quick-start"></a>
 

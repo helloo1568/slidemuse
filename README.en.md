@@ -11,7 +11,7 @@ Especially strong for **university competition presentations**—including Chall
 Reconstruct slide images as native editable PowerPoint (PPTX) when needed.
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.6.1-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.7.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -132,11 +132,13 @@ Also useful for **大创 (undergraduate innovation and entrepreneurship training
 
 | 01 · Content & style | 02 · Image deck | 03 · Editable reconstruction (optional) |
 | :--- | :--- | :--- |
-| Extract content and approve the outline | Save Page Spec and generate each slide | Reconstruct layers from the spec and images |
+| Draft each slide, review content, then approve | Save Page Spec and generate each slide | Reconstruct layers from the spec and images |
 | Compare four overviews and choose a style | Review text and visuals; assemble the PPTX | Compile native objects, audit, and render |
 | **Approved production plan** | **Slide images + image-only PPTX** | **Editable PPTX + Scene + assets** |
 
 Content approval precedes style selection by default. Stage 3 requires an explicit editable-deck request. Existing slide images or scanned PDFs can enter reconstruction directly. Preview skips and delegated choices follow the [full workflow rules](docs/guide.en.md).
+
+The outline includes a reviewable draft for each slide: its claim, support, traceable evidence, interpretation, and actual visible content. Before style selection, the agent reviews content quality, then obtains approval or explicit authority to decide the content. Image generation preserves approved analysis and necessary qualifications. Covers and transitions stay concise; there is no universal word count or text ratio. See the [content-depth reference](references/content-outline.md) (Chinese).
 
 <a id="quick-start"></a>
 
