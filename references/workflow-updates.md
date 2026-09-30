@@ -15,7 +15,7 @@ python "<skill-dir>/scripts/plan_deck_update.py" snapshot "<work>/page-spec.json
 python "<skill-dir>/scripts/plan_deck_update.py" plan "<work>/snapshots/baseline.json" "<work>/page-spec.json" "<work>/update-plan.json"
 ```
 
-计划把页面分为 `reuse`、`review_existing`、`regenerate`。全局风格、参考图像素或总页数变化会影响所有页；单页内容变化只影响该页，除非页码或总页数也变了。`stale_approval: true` 表示语义已变而 Page Spec 仍写 `approved`，必须按实际交付范围修正状态并重新验收。计划不修改用户授权、Page Spec 或图片；可编辑版局部修改仍按下文保留历史基准。
+计划把页面分为 `reuse`、`review_existing`、`regenerate`。全局风格或风格参考图像素变化会影响所有页；追加或删除末页可复用其余未变页面，但仍须重建导出文件。页码/页序、单页内容变化只影响对应页。对包含总页数或依赖整套页数构图的页面，在 Page Spec 设置 `depends_on_slide_count: true`，页数变化时重做这些页。未设置该字段的旧任务默认不依赖总页数；规划前核对旧页面并补齐依赖标记及实际可见文字，避免遗漏 `1/10` 等内容。`stale_approval: true` 表示语义已变而 Page Spec 仍写 `approved`，必须按实际交付范围修正状态并重新验收。计划不修改用户授权、Page Spec 或图片；可编辑版局部修改仍按下文保留历史基准。
 
 ## 变更影响表
 

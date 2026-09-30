@@ -100,6 +100,7 @@
       "properties": {
         "id": {"$ref": "#/$defs/id"},
         "page_number": {"type": "integer", "minimum": 1},
+        "depends_on_slide_count": {"type": "boolean"},
         "title": {"type": "string", "minLength": 1},
         "core_message": {"type": "string", "minLength": 1},
         "visual_brief": {"type": "string", "minLength": 1},

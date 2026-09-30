@@ -9,10 +9,14 @@ from PIL import Image
 from pptx import Presentation
 
 
-def make_case(tmp_path):
+def make_case(tmp_path, data_kind=None):
     spec = json.loads((Path(__file__).resolve().parents[1] / "examples/page-spec.example.json").read_text(encoding="utf-8"))
     slide = spec["slides"][0]
     slide["image_status"] = "approved"
+    if data_kind:
+        slide["elements"].append({"id": "results", "kind": data_kind, "role": "results",
+                                  "native_intent": "native", "source_ref": "report/table-1",
+                                  "confirmation_status": "source-verified", "data": {"values": [12, 15]}})
     image_path = tmp_path / slide["image_file"]
     image_path.parent.mkdir()
     Image.new("RGB", (160, 90), "white").save(image_path)
@@ -26,7 +30,8 @@ def make_case(tmp_path):
     Image.new("RGB", (160, 90), "white").save(rendered)
     report = {"deck": str(deck), "deck_sha256": render_deck.sha256(deck),
               "page_spec_sha256": render_deck.sha256(spec_path), "backend": "test",
-              "slides": [{"slide": 1, "rendered": str(rendered), "rendered_sha256": render_deck.sha256(rendered)}]}
+              "slides": [{"slide": 1, "rendered": str(rendered), "rendered_sha256": render_deck.sha256(rendered),
+                          "reference": str(image_path), "reference_sha256": render_deck.sha256(image_path)}]}
     render_path = tmp_path / "render-report.json"
     render_path.write_text(json.dumps(report), encoding="utf-8")
     review = evaluate_delivery.review_template(spec, report)
@@ -59,4 +64,99 @@ def test_scorecard_rejects_render_without_current_page_spec(tmp_path):
     report.pop("page_spec_sha256")
     render.write_text(json.dumps(report), encoding="utf-8")
     with pytest.raises(ValueError, match="lacks the current Page Spec hash"):
+        evaluate_delivery.evaluate(spec, render, review, [observation])
+
+
+def mark_visual_pass(review_path):
+    review = json.loads(review_path.read_text(encoding="utf-8"))
+    review["slides"][0]["status"] = "pass"
+    review_path.write_text(json.dumps(review), encoding="utf-8")
+    return review
+
+
+def test_changed_reference_rejects_old_render_even_with_new_observations(tmp_path):
+    spec, render, review, observation, _ = make_case(tmp_path)
+    mark_visual_pass(review)
+    approved = json.loads(spec.read_text(encoding="utf-8"))
+    reference = tmp_path / approved["slides"][0]["image_file"]
+    Image.new("RGB", (160, 90), "red").save(reference)
+    observations = json.loads(observation.read_text(encoding="utf-8"))
+    observations["slides"][0]["image_sha256"] = render_deck.sha256(reference)
+    observation.write_text(json.dumps(observations), encoding="utf-8")
+    with pytest.raises(ValueError, match="Reference slide 1 changed"):
+        evaluate_delivery.evaluate(spec, render, review, [observation])
+    # Even if a new render has identical pixels, its old visual approval is stale.
+    report = json.loads(render.read_text(encoding="utf-8"))
+    report["slides"][0]["reference_sha256"] = render_deck.sha256(reference)
+    render.write_text(json.dumps(report), encoding="utf-8")
+    with pytest.raises(ValueError, match="Visual review is stale"):
+        evaluate_delivery.evaluate(spec, render, review, [observation])
+
+
+@pytest.mark.parametrize("field,value", [("reference_sha256", None), ("reference", "wrong.png")])
+def test_missing_or_mismatched_reference_evidence_is_rejected(tmp_path, field, value):
+    spec, render, review, observation, _ = make_case(tmp_path)
+    report = json.loads(render.read_text(encoding="utf-8"))
+    report["slides"][0][field] = value
+    render.write_text(json.dumps(report), encoding="utf-8")
+    with pytest.raises(ValueError, match="Reference slide 1 changed or lacks a hash"):
+        evaluate_delivery.evaluate(spec, render, review, [observation])
+
+
+@pytest.mark.parametrize("change", ["spec", "backend", "legacy-review"])
+def test_old_visual_review_cannot_approve_changed_review_context(tmp_path, change):
+    spec, render, review, observation, _ = make_case(tmp_path)
+    reviewed = mark_visual_pass(review)
+    report = json.loads(render.read_text(encoding="utf-8"))
+    if change == "spec":
+        approved = json.loads(spec.read_text(encoding="utf-8"))
+        approved["content_version"] = "outline-v2"
+        spec.write_text(json.dumps(approved), encoding="utf-8")
+        report["page_spec_sha256"] = render_deck.sha256(spec)
+    elif change == "backend":
+        report["backend"] = "different-renderer"
+    else:
+        reviewed["version"] = "1.0"
+        review.write_text(json.dumps(reviewed), encoding="utf-8")
+    render.write_text(json.dumps(report), encoding="utf-8")
+    with pytest.raises(ValueError, match="create a new --init-review template"):
+        evaluate_delivery.evaluate(spec, render, review, [observation])
+
+
+@pytest.mark.parametrize("kind", ["chart", "table"])
+def test_data_needs_independent_review_and_records_findings(tmp_path, kind):
+    spec, render, review, observation, _ = make_case(tmp_path, kind)
+    reviewed = mark_visual_pass(review)
+    result = evaluate_delivery.evaluate(spec, render, review, [observation])
+    assert result["status"] == "incomplete"
+    assert result["data"]["pending"][0]["element_id"] == "results"
+    reviewed["slides"][0]["data_reviews"][0].update(status="fail", notes="Rendered value is 13, expected 12")
+    review.write_text(json.dumps(reviewed), encoding="utf-8")
+    assert evaluate_delivery.evaluate(spec, render, review, [observation])["status"] == "fail"
+    reviewed["slides"][0]["data_reviews"][0].update(status="pass", notes="Checked values 12 and 15, units and source report/table-1")
+    review.write_text(json.dumps(reviewed), encoding="utf-8")
+    result = evaluate_delivery.evaluate(spec, render, review, [observation])
+    assert result["status"] == "pass"
+    assert result["data"]["passed"] == 1
+    assert result["data"]["reviews"][0]["notes"].startswith("Checked values")
+    reviewed["slides"][0].pop("data_reviews")
+    review.write_text(json.dumps(reviewed), encoding="utf-8")
+    assert evaluate_delivery.evaluate(spec, render, review, [observation])["status"] == "incomplete"
+
+
+@pytest.mark.parametrize("change", ["duplicate", "unknown", "empty-notes", "invalid-status"])
+def test_invalid_data_review_cannot_pass(tmp_path, change):
+    spec, render, review, observation, _ = make_case(tmp_path, "chart")
+    reviewed = mark_visual_pass(review)
+    entries = reviewed["slides"][0]["data_reviews"]
+    if change == "duplicate":
+        entries.append(dict(entries[0]))
+    elif change == "unknown":
+        entries[0]["element_id"] = "missing"
+    elif change == "empty-notes":
+        entries[0].update(status="pass", notes="  ")
+    else:
+        entries[0]["status"] = "complete"
+    review.write_text(json.dumps(reviewed), encoding="utf-8")
+    with pytest.raises(ValueError, match="data review|Data review"):
         evaluate_delivery.evaluate(spec, render, review, [observation])

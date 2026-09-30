@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-09-30
+
+### Fixed
+
+- Delivery evaluation verifies each current Page Spec reference image against the render report hash, rejecting replaced images even when new content observations are supplied with an old deck and review.
+- Visual review v1.1 binds Page Spec, reference image hashes and the render backend as well as the deck and rendered PNGs. Legacy evidence must be recreated and reviewed instead of silently passing.
+
+### Added
+
+- Chart and table elements have independent data-review entries with required notes for pass/fail. Missing or pending data reviews keep delivery incomplete; failed data reviews fail delivery. Scorecards retain per-element findings.
+- Optional Page Spec `depends_on_slide_count` marks pages displaying total-page counts or depending on deck size.
+
+### Changed
+
+- Appending or removing pages no longer regenerates every unchanged image. Updates target new pages, changed content/order and explicit total-count dependencies while still rebuilding exported decks.
+
 ## [2.5.0] - 2026-09-24
 
 ### Added
