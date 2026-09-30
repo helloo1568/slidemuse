@@ -24,6 +24,7 @@
 - `style.decision` 记录 `selected`、`locked-reference`、`skipped` 或 `delegated`，并保留相关授权原文。
 - `slides[].elements` 使用稳定 ID。准确文字写 `text`，表格/图表原始值写 `data`，来源写 `source_ref`。
 - 图表或图片上必须直接读出的数字、日期、单位可加入该页 `required_visible_values`；不要求把未打印在图上的底层图表数据当作可见文字。
+- 页面包含总页数（如 `1/10`）、目录总量或依赖整套页数的构图时，设置 `depends_on_slide_count: true`。页数变化会使这些页面重新生成；未设置或为 `false` 时，计划按本页内容、页序和图片是否变化判断是否复用。所有实际可见的页码和总页数也应写入文字元素或 `required_visible_values`，不能只留在提示词里。
 - `confirmation_status` 区分用户确认、来源可验证和未解决内容；直接还原中的低置信度文字必须标为 `unresolved` 并记录 `confidence`，不能伪装成已确认。
 - `native_intent` 表示 Step 3 期望的输出：`native`、`raster` 或 `either`。
 - `bbox_hint` 是 `[x, y, w, h]` 的整页画布坐标提示；它可以在图片页验收后更新，但不能冒充最终 Scene 坐标。

@@ -84,7 +84,9 @@ def plan(previous: dict, spec: dict, root: Path) -> dict:
     results = []
     for slide in spec["slides"]:
         prior = old.get(slide["id"])
-        reasons = list(global_change)
+        reasons = [reason for reason in global_change if reason != "slide_count_changed"]
+        if "slide_count_changed" in global_change and slide.get("depends_on_slide_count", False):
+            reasons.append("slide_count_changed")
         if prior is None:
             reasons.append("new_slide")
         else:

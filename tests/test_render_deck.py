@@ -33,5 +33,7 @@ def test_render_deck_writes_every_slide_and_comparison(tmp_path, monkeypatch):
     assert len(report["slides"]) == 2
     assert report["slides"][0]["mean_absolute_difference"] == 0
     assert report["slides"][1]["mean_absolute_difference"] == 255
+    assert report["slides"][0]["reference_sha256"] == render_deck.sha256(tmp_path / "source-1.png")
+    assert report["slides"][1]["reference_sha256"] == render_deck.sha256(tmp_path / "source-2.png")
     assert (tmp_path / "review/review.png").is_file()
     assert all((tmp_path / "review" / f"{index:03d}.png").is_file() for index in (1, 2))

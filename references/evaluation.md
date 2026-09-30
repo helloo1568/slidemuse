@@ -6,11 +6,12 @@
 
 | 维度 | 证据 | 通过条件 |
 |---|---|---|
-| 内容 | Page Spec、批准图片、逐页看图或 OCR 后人工校对的 `observations*.json` | 每页记录为 `complete`，已确认文字及 `required_visible_values` 均可见；图表/表格数据另行目视核对 |
+| 内容 | Page Spec、批准图片、逐页看图或 OCR 后人工校对的 `observations*.json` | 每页记录为 `complete`，已确认文字及 `required_visible_values` 均可见 |
+| 数据 | `visual-review.json` 中逐个图表/表格的 `data_reviews` | 每个元素均记录 `pass` 并填写核对说明，检查数字、单位、标签和数据来源 |
 | 视觉 | 实际 PPTX 渲染的逐页 PNG、`review.png`、`visual-review.json` | 每页人工检查布局、画幅、裁切、字体、数字、主视觉和来源图差异，记录 `pass` 或 `fail` |
 | 可编辑性 | 当前 PPTX、`scene.json` | 可编辑版传 `--scene`，结构审查没有错误，仍须按技能流程抽查实际编辑行为 |
 
-`pass` 表示上述**已提供**证据均通过；没有 Scene 的图片版可通过且报告显示 `editability.checked: false`。可编辑版只有传入 `--scene` 才能称可编辑性已纳入评分。`fail` 表示发现内容、视觉或结构错误；`incomplete` 表示缺少逐页内容观察或视觉复核。像素差异均值只帮助定位变化，不设自动通过阈值。若 PowerPoint 与 LibreOffice 渲染结果不同，记录所用后端并目视复查；不能混用不同后端的旧复核记录。
+`pass` 表示上述**已提供**证据均通过；没有 Scene 的图片版可通过且报告显示 `editability.checked: false`。可编辑版只有传入 `--scene` 才能称可编辑性已纳入评分。`fail` 表示发现内容、数据、视觉或结构错误；`incomplete` 表示缺少逐页内容观察、视觉复核或图表/表格数据核验。像素差异均值只帮助定位变化，不设自动通过阈值。若 PowerPoint 与 LibreOffice 渲染结果不同，记录所用后端并目视复查；不能混用不同后端的旧复核记录。
 
 ## 操作
 
@@ -23,10 +24,14 @@ python scripts/evaluate_delivery.py work/page-spec.json output/review/render-rep
 
 打开 `output/review/review.png` 和每页渲染 PNG，对照批准图片逐页复核。填写 `visual-review.json` 中每页的 `status`（`pass`、`fail`、`pending`）及简短 `notes`。只有真正看过本次渲染结果，才能标为 `pass`。然后汇总；`--observations` 可重复传入，覆盖所有页面：
 
+模板版本为 `1.1`，绑定 PPTX、Page Spec、参考图片、渲染 PNG 和所用后端。含图表/表格的页面会自动生成 `data_reviews`，按 `element_id` 逐项记录 `status` 和 `notes`。例如核对通过后写 `{"element_id": "revenue", "status": "pass", "notes": "已对照 report/table-1 核对 12、15 万及系列标签"}`。`pass`、`fail` 必须填写核对说明；记录缺失或仍为 `pending` 时，整套评分保持 `incomplete`，即使页面视觉状态已为 `pass`。核验结果属于人工证据，脚本不会自动证明来源可靠。
+
 ```sh
 python scripts/evaluate_delivery.py work/page-spec.json output/review/render-report.json work/visual-review.json \
   --observations work/observations-s01.json --observations work/observations-s02.json \
   --scene work/scene.json --output output/scorecard.json
 ```
 
-图片版省略 `--scene`。输出报告保存 PPTX、Page Spec、渲染报告、视觉复核、观察记录和可选 Scene 的 SHA-256，方便回溯本次评分依据。命令仅在 `pass` 时返回 0；`fail` 或 `incomplete` 返回 1。PPTX、Page Spec、渲染 PNG 或批准图片变更后，重新渲染并重新复核；哈希不匹配会被拒绝。不要把旧评分卡沿用到新文件。
+图片版省略 `--scene`。输出报告保存 PPTX、Page Spec、参考图片、渲染报告、视觉复核、观察记录和可选 Scene 的 SHA-256，并保留逐元素的数据核验结果，方便回溯本次评分依据。命令仅在 `pass` 时返回 0；`fail` 或 `incomplete` 返回 1。PPTX、Page Spec、渲染 PNG 或批准图片变更后，重新渲染并重新复核；哈希不匹配会被拒绝。不要把旧评分卡沿用到新文件。
+
+从 2.5.0 或更早版本升级后，旧渲染报告缺少参考图片哈希，旧 `1.0` 视觉复核也缺少必要绑定。保留旧证据用于历史追溯，使用新的输出目录重新渲染，再用 `--init-review` 创建新的复核文件并实际核验；不能只修改版本号或补写哈希沿用旧的 `pass`。

@@ -93,6 +93,7 @@ def build_review(images: list[Path], output: Path, references: list[Path] | None
                 source = ImageOps.pad(ImageOps.exif_transpose(opened).convert("RGB"), (thumb_w, thumb_h), method=Image.Resampling.LANCZOS, color="white")
             diff = ImageChops.difference(rendered, source)
             item["reference"] = str(references[index - 1])
+            item["reference_sha256"] = sha256(references[index - 1])
             item["mean_absolute_difference"] = round(sum(ImageStat.Stat(diff).mean) / 3, 2)
             parts = [source, rendered, diff]
         row = Image.new("RGB", (thumb_w * len(parts), thumb_h + 28), "#f3f4f6")

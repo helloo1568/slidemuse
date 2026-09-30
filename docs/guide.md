@@ -147,6 +147,7 @@ overlay.json 可参考 examples/overlay-spec.example.json，先填入实际背�
 渲染器在 Windows 优先调用已安装的 PowerPoint；否则使用 `soffice` 和 `pdftoppm`。输出目录须为空，复查同一目录时传 `--overwrite`。`review.png` 可逐页查看；指定 Page Spec 时按“基准 / 新渲染 / 像素差异”排列。`render-report.json` 给出逐页尺寸和差异均值，数值只用于定位变化，不能代替人工判断。可编辑版已授权局部修改时，历史基准可标为 `revision`，对照图会显示预期变化。
 内容观察模板创建后，把图片中实际可见文字填入 `observed_text`，完整转录时设为 `complete`；运行 `audit_page_content.py ... --require-complete --output work/content-audit.json`。它会标出缺失项，图片变化时拒绝旧转录；OCR 结果不能覆盖已确认内容。变更规划命令见[变更与恢复规则](../references/workflow-updates.md)，只输出影响范围，不自动修改 Page Spec 或生成图片。
 质量回归或发布时，再按[交付评测](../references/evaluation.md)对所有页面填写内容观察和渲染视觉复核，运行 `evaluate_delivery.py` 生成评分卡。只有 `pass` 且可编辑版包含 Scene 审查时，才可声称完成该版本的完整评测。
+2.6.0 起，渲染和视觉复核同时绑定参考图片哈希；旧报告需重新生成并核验。图表、表格须逐元素填写 `data_reviews`，未检查的数据不能随页面视觉通过而自动通过。追加/删除页面仅重做受影响页；显示总页数或依赖整套页数构图的页面须设置 `depends_on_slide_count: true`。
 Page Spec 导出自动严格验证，只使用清单中的已批准图片，目录中额外的旧稿不参与导出。默认沿用画布比例；`--width` / `--height` 可调整物理尺寸，同时指定时须保持该比例。重复图片路径、缺图、未批准图片或错误画幅会阻止导出，并保留既有输出。没有 Page Spec 的独立合并仍可使用 `python scripts/build_image_ppt.py work/slides output/image-deck.pptx`。
 遮挡、透明度、背景清理见 [重建指南](../references/reconstruction.md)。
 本版不提供通用 SVG 导入、合并表格单元格、自动吸附连线或富文本段内样式。
