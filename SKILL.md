@@ -3,7 +3,7 @@ name: slidemuse
 description: 将书籍、PDF、论文、报告或文字材料制作成视觉优先的图片版 PPT，适用于竞赛、答辩、路演、课程展示和读书分享；在用户明确要求时按 Scene v1 还原可编辑 PPTX。流程包含需求和大纲确认、四套风格选型及逐页生图；不用于直接修改已有可编辑 PPTX。
 ---
 
-# SlideMuse · 2.7.0
+# SlideMuse · 2.8.0
 
 本技能只有一条主流程：**内容提炼 → 图片 PPT 生成 → 可编辑 PPTX 还原**。
 用户负责确认内容与风格，Agent 负责按已确认规格执行；不得把流程改写成“先做原生信息层”的编辑优先路线。
@@ -106,7 +106,7 @@ python "<skill-dir>/scripts/validate_style_options.py" "<work>/style-options.jso
 
 ## Step 2：生成图片版 PPT（S5）
 
-进入后读取 [Prompt 2](references/prompts.md)、[Page Spec](references/page-spec.md) 和 [模型说明](references/models.md)。
+进入后读取 [Prompt 2](references/prompts.md)、[Page Spec](references/page-spec.md) 和 [模型说明](references/models.md)。含定量图表时读取[图表可靠性](references/chart-reliability.md)。
 
 1. 把确认后内容稿中所有页面展示内容与锁定视觉规范写入 `page-spec.json`，保留支撑结论的解释和必要边界，不能缩回“标题 + 大数字”；可选讲稿留在 `deck-spec.md`。新任务把配色、字体字号、网格间距和图片处理写入 `style.tokens`，保留可读的 `visual_spec`；若有已选参考图，写入 `reference_images`。每页为所有已知文字、数据、视觉主体和图表分配稳定 ID；位置可先写 `bbox_hint`。
 2. 生成第一张图片前必须运行：
@@ -118,6 +118,7 @@ python "<skill-dir>/scripts/validate_page_spec.py" "<work>/page-spec.json" --str
 3. 按 `01-title.png`、`02-title.png` 的零填充序号逐页生成。每次提示包含锁定视觉规范、Page Spec 中的准确内容、页码和总页数。
 4. 每页立即检查画幅、文字、数据、裁切、溢出和跨页一致性。含关键数字、日期、专名或必现图表标签的页面，可按 [Page Spec 内容核对](references/page-spec.md)建立绑定当前图片哈希的看图记录，并运行 `audit_page_content.py`；缺失项修复后才能批准该页。脚本只比对观察记录，不负责 OCR；图表数据及未识别的小字仍需视觉核对。通过后更新最终图片路径、状态、提示词和必要的 `bbox_hint`。失败只重做对应页。
 5. 同一页文字连续两次不准确时停止重试：按 Prompt 2A 生成保留全部主视觉的无字页面，再用 `scripts/overlay_text.py` 叠加准确文字并栅格化；叠字前后核对主视觉未丢失。Step 2 不提前移除 Step 3 才需拆分的主体。
+   图表数字与几何分别检查，并检查未声明的数据视觉。同一几何问题连续两次检查失败时停止生图重试，按图表可靠性参考准备精确区域修复；程序改图须遵守当前宿主工具的授权要求，既有授权覆盖时不重复询问。
 6. 全部页面通过后运行交付验证和合并：
 
 ```sh
@@ -160,6 +161,7 @@ python "<skill-dir>/scripts/render_deck.py" "<work>/output/editable.pptx" "<work
 - **可编辑版**：在图片版基础上增加 `editable.pptx`、`scene.json`、引用的 `assets/`、`editability.json` 和渲染预览。
 - 说明字体替代、低置信度识别、AI 补全、独立栅格对象和待人工处理项。
 - 不能把整页截图加少量文本框、整页 SVG 或未拆分背景称作“每个元素可编辑”。
+- 默认不反复展示检查图、初稿和修复稿；工具已显示的图片不再重复嵌入。风格选择只列每套最新验收版，最终只列批准版本及一个清晰预览。用户需要比较或某页需决策时，明确页码/版本后展示相关图；检查与历史证据仍保存到任务目录。
 - 无渲染器时写明“仅完成结构验证”，不能声称视觉验收通过。
 
 ## 资源路由
@@ -172,6 +174,7 @@ python "<skill-dir>/scripts/render_deck.py" "<work>/output/editable.pptx" "<work
 - [models.md](references/models.md)：S3/S5 生图，以及 S6 需要背景清理/主体分离时读取。
 - [reconstruction.md](references/reconstruction.md) 与 [scene-format.md](references/scene-format.md)：仅 S6 读取。
 - [evaluation.md](references/evaluation.md)：仅质量回归、版本发布或需要可复跑评分卡时读取。
+- [chart-reliability.md](references/chart-reliability.md)：S5 定量图表检查、有限修复或完整评测时读取；包括几何观察与精确水平条形区域兜底。
 - `validate_page_spec.py`：验证内容确认、页序、稳定 ID、画布边界和图片交付状态。
 - `overlay_text.py`：仅作为 Step 2 图片页的准确文字兜底。
 - `build_image_ppt.py`：仅用于 Step 2 图片版合并。

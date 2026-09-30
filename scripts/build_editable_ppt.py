@@ -10,6 +10,7 @@ import os
 import tempfile
 from pathlib import Path
 
+from chart_style import apply_style
 from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
@@ -139,6 +140,8 @@ def add_element(shapes, e, base, sx, sy):
     elif kind == "shape":
         shape = shapes.add_shape(SHAPES[e["shape"]], *box)
         fill_and_line(shape, e)
+        if "corner_radius" in e:
+            shape.adjustments[0] = e["corner_radius"]
     elif kind == "image":
         shape = add_picture(shapes, e, base, box)
     elif kind == "line":
@@ -242,6 +245,7 @@ def add_element(shapes, e, base, sx, sy):
                 series.format.fill.solid()
                 series.format.fill.fore_color.rgb = rgb(spec["color"])
                 series.format.line.color.rgb = rgb(spec["color"])
+        apply_style(chart, e)
     else:
         raise ValueError(f"Unsupported element type: {kind}")
     shape.name = f"{e['id']} | {e.get('name', kind)}"

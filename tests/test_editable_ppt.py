@@ -412,3 +412,60 @@ def test_native_data_can_be_changed_after_export(scene_file):
     assert any("chart data differs" in e for e in errors)
     assert any("table content differs" in e for e in errors)
     assert any("geometry differs" in e for e in errors)
+
+
+def test_negative_point_colors_and_plot_layout_survive_export_and_are_audited(scene_file):
+    from chart_style import NS
+    from pptx.enum.chart import XL_LABEL_POSITION
+    scene, _ = load_scene(scene_file)
+    chart = scene["slides"][0]["elements"][-1]
+    chart.update(chart_type="bar", category_axis_visible=False, value_axis_visible=False,
+                 category_reverse_order=True, gap_width=78, data_labels=True,
+                 data_label_position="inside_end", data_label_font_size=18,
+                 plot_layout={"x": 0, "y": 0, "w": 0.9, "h": 1})
+    chart["series"][0].update(values=[3.2, -5.5], point_colors=["#9582DE", "#B8A8E2"], invert_if_negative=False)
+    scene["slides"][0]["elements"][2]["children"][0]["corner_radius"] = 0.04
+    scene_file.write_text(json.dumps(scene), encoding="utf-8")
+    output = scene_file.with_suffix(".pptx")
+    build_deck(scene_file, output)
+    assert audit(output, scene_file)["errors"] == []
+    prs = Presentation(output)
+    native = prs.slides[0].shapes[-1].chart
+    assert native.plots[0].data_labels.position == XL_LABEL_POSITION.INSIDE_END
+    point = native.series[0].points[1]
+    assert str(point.format.fill.fore_color.rgb) == "B8A8E2"
+    assert point.format._element.find(NS + "invertIfNegative").get("val") == "0"
+    point.format._element.find(NS + "invertIfNegative").set("val", "1")
+    prs.save(output)
+    assert any("point 1 negative fill" in error for error in audit(output, scene_file)["errors"])
+
+
+def test_doughnut_hole_angle_and_colors_are_scene_settings(scene_file):
+    from chart_style import NS
+    scene, _ = load_scene(scene_file)
+    chart = scene["slides"][0]["elements"][-1]
+    chart.update(chart_type="doughnut", hole_size=70, first_slice_angle=20)
+    chart["series"][0]["point_colors"] = ["#9582DE", "#DCD9EA"]
+    scene_file.write_text(json.dumps(scene), encoding="utf-8")
+    output = scene_file.with_suffix(".pptx")
+    build_deck(scene_file, output)
+    assert audit(output, scene_file)["errors"] == []
+    prs = Presentation(output)
+    plot = prs.slides[0].shapes[-1].chart.plots[0]
+    assert plot._element.find(NS + "holeSize").get("val") == "70"
+    plot._element.find(NS + "holeSize").set("val", "30")
+    prs.save(output)
+    assert any("hole_size" in error for error in audit(output, scene_file)["errors"])
+
+
+@pytest.mark.parametrize("change", [
+    {"hole_size": 70}, {"first_slice_angle": 10}, {"gap_width": 600},
+    {"plot_layout": {"x": 0.5, "y": 0, "w": 0.8, "h": 1}},
+    {"data_labels": False, "data_label_position": "center"},
+    {"series": [{"name": "bad", "values": [1, 2], "point_colors": ["#123456"]}]},
+])
+def test_invalid_native_chart_settings_are_rejected(scene_file, change):
+    scene, _ = load_scene(scene_file)
+    scene["slides"][0]["elements"][-1].update(change)
+    with pytest.raises(ValueError):
+        validate_scene(scene, scene_file.parent)

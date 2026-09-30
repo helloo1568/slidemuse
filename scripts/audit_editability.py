@@ -10,6 +10,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from chart_style import style_errors
 from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
@@ -195,6 +196,8 @@ def audit(pptx: Path, scene_path: Path | None = None) -> dict:
                         errors.append(f"{label}: image flip differs from scene")
                 if e["type"] == "text" and shape.text != e["text"]:
                     errors.append(f"{label}: text differs from scene")
+                if e["type"] == "shape" and "corner_radius" in e and abs(shape.adjustments[0] - e["corner_radius"]) > 1.1e-5:
+                    errors.append(f"{label}: corner radius differs from scene")
                 if e["type"] == "group":
                     if not group_transform_matches(shape, wanted_box):
                         errors.append(f"{label}: group transform differs from scene")
@@ -255,6 +258,8 @@ def audit(pptx: Path, scene_path: Path | None = None) -> dict:
                             )
                     if style_differs:
                         errors.append(f"{label}: chart style differs from scene")
+                    errors.extend(f"{label}: chart style differs from scene ({finding})"
+                                  for finding in style_errors(chart, e))
                 if e["type"] == "image" and e.get("role") == "reference":
                     errors.append(f"{label}: reference image packaged as slide content")
             if [s.name.split(" | ", 1)[0] for s in slide.shapes] != [

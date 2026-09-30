@@ -2,17 +2,23 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 TEXT_SUFFIXES = {".md", ".txt", ".yaml", ".yml", ".py", ".json", ".svg"}
+
+
+def published_text_files():
+    # Inspect the distributed skill, not local ignored task outputs or old installers.
+    manifest = yaml.safe_load((ROOT / "manifest.yaml").read_text(encoding="utf-8"))
+    return [ROOT / name for name in manifest["files"] if Path(name).suffix.lower() in TEXT_SUFFIXES]
 
 
 def test_no_legacy_repository_url_remains() -> None:
     legacy = "github.com/helloo1568/" + "image-ppt"
     hits: list[str] = []
 
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or ".git" in path.parts or path.suffix.lower() not in TEXT_SUFFIXES:
-            continue
+    for path in published_text_files():
         text = path.read_text(encoding="utf-8")
         if legacy in text:
             hits.append(str(path.relative_to(ROOT)))
@@ -37,9 +43,7 @@ def test_legacy_project_name_only_exists_in_compatibility_history() -> None:
     allowed = {"CHANGELOG.md", "install.py", "tests/test_branding.py"}
     hits: list[str] = []
 
-    for path in ROOT.rglob("*"):
-        if not path.is_file() or ".git" in path.parts or path.suffix.lower() not in TEXT_SUFFIXES:
-            continue
+    for path in published_text_files():
         rel = path.relative_to(ROOT).as_posix()
         if rel in allowed:
             continue
