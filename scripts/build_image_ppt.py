@@ -15,6 +15,7 @@ from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.util import Inches
+from speaker_notes import canonical_notes, check_notes
 from validate_page_spec import load_page_spec
 
 DEFAULT_EXTENSIONS = (".png", ".jpg", ".jpeg")
@@ -160,6 +161,8 @@ def build_deck(args: argparse.Namespace) -> dict[str, object]:
             add_fitted_picture(
                 slide, embed_path, slide_width, slide_height, args.fit, name=image_path.stem
             )
+            if spec and "speaker_notes" in spec["slides"][index]:
+                slide.notes_slide.notes_text_frame.text = canonical_notes(spec["slides"][index]["speaker_notes"])
         output.parent.mkdir(parents=True, exist_ok=True)
         fd, temp_output = tempfile.mkstemp(suffix=".pptx", dir=output.parent)
         os.close(fd)
@@ -168,6 +171,8 @@ def build_deck(args: argparse.Namespace) -> dict[str, object]:
             verification = Presentation(temp_output)
             if len(verification.slides) != len(images):
                 raise RuntimeError("Saved deck slide count does not match approved image count")
+            if spec and (errors := check_notes(verification, spec["slides"])):
+                raise ValueError("; ".join(errors))
             os.replace(temp_output, output)
         finally:
             Path(temp_output).unlink(missing_ok=True)

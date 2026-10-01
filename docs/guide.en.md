@@ -187,3 +187,9 @@ Exclude private source documents and credentials from shared outputs.
 Review numeric labels and geometry separately. Stop repeating image repairs after two consecutive checks fail for the same geometric issue. The precise horizontal-bar region fallback respects host image-edit permissions; the geometry audit checks independently recorded bar/column endpoints without performing image recognition. See [chart reliability](../references/chart-reliability.md).
 
 Full scorecards use visual review v1.2 with source/value, label/unit, scale/geometry or table alignment checks plus a per-page data-visual inventory. Recheck the new items when migrating historical v1.1 reviews. Point colors, negative inversion, label placement, plot layout and doughnut settings are now declared and audited in [Scene](../references/scene-format.md).
+
+## Speaker notes and material-specific review (2.9.0)
+
+When the content draft has presenter notes, preserve them in Page Spec/Scene `speaker_notes`. Both PPTX exports retain them; editable `--page-spec` verifies upstream order and declared notes. Delivery evaluation reads actual PPTX notes. Notes-only edits rebuild exports while reusing images. `export_speaker_notes.py` optionally writes a source-referenced Markdown companion; see [speaker notes](../references/speaker-notes.md).
+
+Paper review covers formula variables, input/operation/output, experimental scope and source conflicts. Long-form review distinguishes targets, actions, support conditions and observed effects; see [material reading](../references/material-reading.md). Note fidelity does not prove semantic depth.

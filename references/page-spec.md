@@ -29,6 +29,7 @@
 - `native_intent` 表示 Step 3 期望的输出：`native`、`raster` 或 `either`。
 - `bbox_hint` 是 `[x, y, w, h]` 的整页画布坐标提示；它可以在图片页验收后更新，但不能冒充最终 Scene 坐标。
 - `separate_asset: true` 表示该视觉对象在可编辑版中需要独立移动或替换。
+- `slides[].speaker_notes` 保存已确定的可选讲稿，允许明确空字符串，缺失表示未声明；`notes` 工作记录不会自动导出。讲稿不参与图片提示/必现文字，但写入图片版 PPTX，重建时沿用到 Scene；见[讲稿保留](speaker-notes.md)。
 
 ## 验证
 

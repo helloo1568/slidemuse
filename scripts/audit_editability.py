@@ -16,6 +16,7 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.util import Inches
 from scene import asset_path, load_scene, walk
+from speaker_notes import check_notes
 
 
 def objects(shapes):
@@ -111,6 +112,8 @@ def audit(pptx: Path, scene_path: Path | None = None) -> dict:
     prs = Presentation(pptx)
     scene, warnings = load_scene(scene_path) if scene_path else (None, [])
     errors, pages = [], []
+    if scene:
+        errors.extend(check_notes(prs, scene["slides"], scene=True))
     if scene and len(prs.slides) != len(scene["slides"]):
         errors.append("Slide count differs from scene")
     if scene:

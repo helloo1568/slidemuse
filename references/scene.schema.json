@@ -65,6 +65,9 @@
           "notes": {
             "type": "string"
           },
+          "speaker_notes": {
+            "type": "string"
+          },
           "elements": {
             "type": "array",
             "minItems": 1,

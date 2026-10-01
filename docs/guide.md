@@ -201,3 +201,9 @@ CI 覆盖 Windows / Linux、Python 3.10 / 3.12 / 3.13。
 数值标签与几何比例分别核对；同一几何问题连续两次检查失败就停止生图修复。精确水平条形区域可用 `build_chart_image.py` 生成，程序替换遵守宿主权限；`audit_chart_geometry.py` 检查实际观察的条形/柱状起止坐标，不负责视觉识别。详见[图表可靠性](../references/chart-reliability.md)。
 
 完整评分使用 v1.2：逐元素填写来源/数值、标签/单位、图表几何或表格行列对应，每页填写实际数据视觉清单。旧 v1.1 复核须实际补查新增项目。原生图表的逐点颜色、负值反色、标签位置、绘图区与环形孔径等直接写入 [Scene](../references/scene-format.md)，不再为这些受支持项另写后处理。
+
+## 讲稿与论文/长文审阅（2.9.0）
+
+内容稿已有讲稿时，将最终文本写入 Page Spec/Scene 的 `speaker_notes`，图片版与可编辑版均保留为演讲备注。可编辑编译传 `--page-spec` 核对上游，交付评测读取实际备注；只改讲稿会重建导出而复用图片。按需用 `export_speaker_notes.py` 导出附来源的讲稿，详见[讲稿保留](../references/speaker-notes.md)。
+
+论文审阅展开公式变量、输入/运算/输出和实验口径；长文区分目标、行动、支撑和效果，来源冲突记录后核验或缩小范围。见[按材料审阅](../references/material-reading.md)。备注保真检查不能证明大纲深度。

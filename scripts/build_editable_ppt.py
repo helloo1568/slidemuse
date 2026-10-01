@@ -21,6 +21,7 @@ from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.xmlchemy import OxmlElement
 from pptx.util import Inches, Pt
 from scene import asset_path, load_scene
+from speaker_notes import check_notes, check_scene_notes, scene_notes
 
 SHAPES = {
     "rect": MSO_SHAPE.RECTANGLE,
@@ -257,11 +258,16 @@ def add_element(shapes, e, base, sx, sy):
     return shape
 
 
-def build_deck(scene_path: Path, output: Path) -> dict:
+def build_deck(scene_path: Path, output: Path, page_spec_path: Path | None = None) -> dict:
     scene_path, output = scene_path.resolve(), output.resolve()
     if output.suffix.lower() != ".pptx":
         raise ValueError("Output must have .pptx extension")
     scene, warnings = load_scene(scene_path)
+    if page_spec_path:
+        from validate_page_spec import load_page_spec
+        spec, _ = load_page_spec(page_spec_path)
+        if errors := check_scene_notes(spec, scene):
+            raise ValueError("; ".join(errors))
     canvas = scene["canvas"]
     prs = Presentation()
     prs.slide_width = Inches(canvas.get("width_inches", 13.333333))
@@ -274,7 +280,7 @@ def build_deck(scene_path: Path, output: Path) -> dict:
         slide.background.fill.fore_color.rgb = rgb(spec.get("background", "#FFFFFF"))
         for e in spec["elements"]:
             add_element(slide.shapes, e, scene_path.parent, sx, sy)
-        slide.notes_slide.notes_text_frame.text = spec.get("notes", "")
+        slide.notes_slide.notes_text_frame.text = scene_notes(spec)
     output.parent.mkdir(parents=True, exist_ok=True)
     # Save/reopen before replacing an existing deck; failed builds leave it intact.
     fd, tmp = tempfile.mkstemp(suffix=".pptx", dir=output.parent)
@@ -284,6 +290,8 @@ def build_deck(scene_path: Path, output: Path) -> dict:
         verified = Presentation(tmp)
         if len(verified.slides) != len(scene["slides"]):
             raise RuntimeError("Slide count changed during export")
+        if errors := check_notes(verified, scene["slides"], scene=True):
+            raise ValueError("; ".join(errors))
         os.replace(tmp, output)
     finally:
         Path(tmp).unlink(missing_ok=True)
@@ -299,9 +307,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("scene", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--page-spec", type=Path, help="Verify declared notes and slide order against the upstream Page Spec")
     args = parser.parse_args()
     try:
-        result = build_deck(args.scene, args.output)
+        result = build_deck(args.scene, args.output, args.page_spec)
     except (ValueError, OSError) as error:
         parser.exit(2, f"build_editable_ppt: {error}\n")
     print(json.dumps(result, ensure_ascii=True, indent=2))

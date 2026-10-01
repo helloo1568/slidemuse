@@ -3,6 +3,14 @@
 核验日期：2026-09-15。以下是来源项目公开文档描述，不是本项目实测排名。
 不使用随时变化的 Star 数或未经复现的相似度数字作为性能承诺。
 
+## 2.9.0：Slidev 与 Marp 的讲稿/公式处理
+
+再次核验：2026-10-01。查阅 [Slidev 导出](https://sli.dev/guide/exporting.html)、[逐页讲稿](https://sli.dev/guide/syntax.html#notes)、[LaTeX](https://sli.dev/features/latex)，及 [Marp Core Markdown](https://github.com/marp-team/marp-core/blob/main/docs/markdown.md)。
+
+Slidev 将逐页讲稿保留到图片型及可编辑 PPTX；其导出文档也明确公式等复杂元素可能作为独立图片。Marp 使用数学排版插件并提供部分块的水平缩放，同时说明底部仍可能溢出。上述是官方文档能力，未在本项目环境中安装或做性能比较。
+
+SlideMuse 本轮独立实现 `speaker_notes` 的图片/原生导出、实际备注核对、带来源的讲稿文件及讲稿变更时复用图片。论文审阅保留准确公式和可见解释，复杂公式允许独立栅格并如实说明编辑限制；不声称已支持 KaTeX、原生 Office 公式或通用自动排版。没有复制第三方源码或改变图片优先流程。
+
 ## PPT Master（重点参考）
 
 项目：[hugohe3/ppt-master](https://github.com/hugohe3/ppt-master)，作者 Hugo He，MIT。
