@@ -3,7 +3,7 @@ name: slidemuse
 description: 将书籍、PDF、论文、报告或文字材料制作成视觉优先的图片版 PPT，适用于竞赛、答辩、路演、课程展示和读书分享；在用户明确要求时按 Scene v1 还原可编辑 PPTX。流程包含需求和大纲确认、四套风格选型及逐页生图；不用于直接修改已有可编辑 PPTX。
 ---
 
-# SlideMuse · 2.8.0
+# SlideMuse · 2.9.0
 
 本技能只有一条主流程：**内容提炼 → 图片 PPT 生成 → 可编辑 PPTX 还原**。
 用户负责确认内容与风格，Agent 负责按已确认规格执行；不得把流程改写成“先做原生信息层”的编辑优先路线。
@@ -72,7 +72,7 @@ description: 将书籍、PDF、论文、报告或文字材料制作成视觉优�
 
 ## Step 1A：内容提炼与确认（S1 → S2）
 
-进入后读取 [Prompt 1A](references/prompts.md) 和[内容深度与自检](references/content-outline.md)。
+进入后读取 [Prompt 1A](references/prompts.md) 和[内容深度与自检](references/content-outline.md)。论文和长篇报告/政策按需读取[材料审阅](references/material-reading.md)，核对方法解释、实验口径、来源冲突及目标与观测的区别。
 
 1. 阅读材料，明确受众需要理解或决定的问题、整套回答和页间推进关系；按场景组织，避免只有目录和数据罗列。
 2. 把完整页序和逐页内容稿写入 `deck-spec.md`。内容页写出主要结论、支撑要点、可定位的证据、解释及适用边界；区分页面实际展示的文字/图表与可选讲稿。封面、过渡等页面按其作用处理。
@@ -115,6 +115,8 @@ python "<skill-dir>/scripts/validate_style_options.py" "<work>/style-options.jso
 python "<skill-dir>/scripts/validate_page_spec.py" "<work>/page-spec.json" --strict
 ```
 
+内容稿已有可选讲稿时，按[讲稿保留](references/speaker-notes.md)同步到 `slides[].speaker_notes`，不加入生图可见文案；图片版构建器会保存已声明讲稿。
+
 3. 按 `01-title.png`、`02-title.png` 的零填充序号逐页生成。每次提示包含锁定视觉规范、Page Spec 中的准确内容、页码和总页数。
 4. 每页立即检查画幅、文字、数据、裁切、溢出和跨页一致性。含关键数字、日期、专名或必现图表标签的页面，可按 [Page Spec 内容核对](references/page-spec.md)建立绑定当前图片哈希的看图记录，并运行 `audit_page_content.py`；缺失项修复后才能批准该页。脚本只比对观察记录，不负责 OCR；图表数据及未识别的小字仍需视觉核对。通过后更新最终图片路径、状态、提示词和必要的 `bbox_hint`。失败只重做对应页。
 5. 同一页文字连续两次不准确时停止重试：按 Prompt 2A 生成保留全部主视觉的无字页面，再用 `scripts/overlay_text.py` 叠加准确文字并栅格化；叠字前后核对主视觉未丢失。Step 2 不提前移除 Step 3 才需拆分的主体。
@@ -143,7 +145,7 @@ python "<skill-dir>/scripts/render_deck.py" "<work>/output/image-deck.pptx" "<wo
 5. 按 [JSON Schema](references/scene.schema.json) 编写 `scene.json`，然后编译和审查：
 
 ```sh
-python "<skill-dir>/scripts/build_editable_ppt.py" "<work>/scene.json" "<work>/output/editable.pptx"
+python "<skill-dir>/scripts/build_editable_ppt.py" "<work>/scene.json" "<work>/output/editable.pptx" --page-spec "<work>/page-spec.json"
 python "<skill-dir>/scripts/audit_editability.py" "<work>/output/editable.pptx" --scene "<work>/scene.json" --output "<work>/output/editability.json"
 ```
 
@@ -168,6 +170,8 @@ python "<skill-dir>/scripts/render_deck.py" "<work>/output/editable.pptx" "<work
 
 - [prompts.md](references/prompts.md)：进入对应 Step 后只读该阶段提示词。
 - [content-outline.md](references/content-outline.md)：S1/S2 创建、审阅和修改逐页内容稿时读取；提供深度判断、反例和内容自检，不以字数或字段齐全替代语义审阅。
+- [material-reading.md](references/material-reading.md)：S1 阅读论文或长篇报告/政策时按需读取，审阅机制解释、实验口径、实施关系与来源冲突。
+- [speaker-notes.md](references/speaker-notes.md)：有可选讲稿的 S5/S6 或仅修改讲稿时读取；保留演讲备注、核对实际 PPTX，按需导出独立讲稿。
 - [style-options.md](references/style-options.md)：仅 S3 生成、修正和验收四套缩略图总览时读取。
 - [page-spec.md](references/page-spec.md)：仅 S5/S6 创建或更新 Page Spec 时读取。
 - [workflow-updates.md](references/workflow-updates.md)：仅用户改需求、交付后修改或跨版本恢复时读取。

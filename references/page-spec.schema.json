@@ -127,7 +127,8 @@
           "minItems": 1,
           "items": {"$ref": "#/$defs/element"}
         },
-        "notes": {"type": "string"}
+        "notes": {"type": "string"},
+        "speaker_notes": {"type": "string"}
       }
     },
     "element": {

@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-10-01
+
+### Added
+
+- Optional Page Spec/Scene `speaker_notes` preserved in image and editable PPTX, checked after save/reopen. Editable compilation can verify upstream slide IDs/order and declared notes with `--page-spec`.
+- Exact-note auditing of actual PPTX and optional Scene, integrated into delivery scorecards and object auditing. Explicit empty notes reject residual text; old Page Specs without declared notes remain compatible, and legacy Scene notes remain supported.
+- A hash-bound Markdown speaker-note companion with recorded source references, preserving text without inferring presenter content from work records.
+- Material-specific semantic review for research mechanisms/formulas, experiment scope, source conflicts, policy targets and observed effects, informed by official Slidev/Marp documentation.
+
+### Changed
+
+- Notes-only updates rebuild exports while reusing approved page images. Visible copy/layout changes retain the existing regeneration and approval rules.
+- Production notes are separated from Page Spec work records. Notes fidelity is not a semantic depth score and does not replace required visible evidence or user approval.
+
 ## [2.8.0] - 2026-09-30
 
 ### Added

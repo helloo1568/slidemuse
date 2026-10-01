@@ -27,6 +27,7 @@ python "<skill-dir>/scripts/plan_deck_update.py" plan "<work>/snapshots/baseline
 | 增删或重排页面 | 用户给定的新顺序直接采用；新增内容未确定时先回 S1/S2，否则 S5 | 保留既有 slide/element ID，重编 `page_number`；新页及页码/总页数等可见内容变化的页面设为 `revision`，重做相关图片与导出 |
 | 已有 Scene 的可编辑版局部修改 | 保持或恢复 S6，具体修改无需再次确认 | 同步当前 Page Spec、Scene 或素材；重新编译、审查和渲染。受影响旧图片设为 `revision`，仅保留作历史基准 |
 | 只改变交付范围 | 按已有授权继续 S5/S6 或结束 | 无内容/视觉变更时保留已验收页面，不重复确认已完成阶段 |
+| 只修改可选讲稿 `speaker_notes` | 同步内容稿中的明确修改及 Page Spec/Scene 讲稿；可见内容未变时保留图片验收 | 计划返回图片 `reuse` 和 `export_reasons: [speaker_notes_changed]`；重建 PPTX、独立讲稿及备注核对，旧评分卡失效；不重复生图 |
 
 S5 失效页面重新验收后才能恢复 `approved`。若内容或风格确认被撤回，在 `deck-spec.md` 记录待确认状态，停止相应阶段；不要把未经确认的内容写成 `content_approved: true`。已交付版本保留版本标识，不再作为当前版本交付。
 

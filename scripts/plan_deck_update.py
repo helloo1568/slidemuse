@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 
+from speaker_notes import canonical_notes
 from validate_page_spec import load_page_spec
 
 
@@ -42,7 +43,7 @@ def style_fingerprint(spec: dict, root: Path) -> str:
 
 
 def slide_fingerprint(slide: dict) -> str:
-    ignored = {"image_file", "image_status", "generation_prompt", "prompt_record"}
+    ignored = {"image_file", "image_status", "generation_prompt", "prompt_record", "speaker_notes"}
     semantic = {key: value for key, value in slide.items() if key not in ignored}
     if "elements" in semantic:
         semantic["elements"] = [
@@ -50,6 +51,11 @@ def slide_fingerprint(slide: dict) -> str:
             for element in semantic["elements"]
         ]
     return fingerprint(semantic)
+
+
+def notes_fingerprint(slide: dict) -> str:
+    return fingerprint({"declared": "speaker_notes" in slide,
+                        "text": canonical_notes(slide.get("speaker_notes", ""))})
 
 
 def snapshot(spec_path: Path) -> dict:
@@ -63,6 +69,7 @@ def snapshot(spec_path: Path) -> dict:
         "slides": [
             {"id": slide["id"], "page_number": slide["page_number"],
              "semantic_hash": slide_fingerprint(slide),
+             "speaker_notes_hash": notes_fingerprint(slide),
              "image_file": slide["image_file"],
              "image_sha256": digest_bytes(contained_path(root, slide["image_file"]))}
             for slide in spec["slides"]
@@ -95,6 +102,7 @@ def plan(previous: dict, spec: dict, root: Path) -> dict:
             if prior["page_number"] != slide["page_number"]:
                 reasons.append("page_order_changed")
         path = contained_path(root, slide["image_file"])
+        notes_changed = prior is not None and prior.get("speaker_notes_hash", notes_fingerprint({})) != notes_fingerprint(slide)
         current_hash = digest_bytes(path) if path.is_file() else None
         if reasons:
             action = "regenerate"
@@ -108,12 +116,13 @@ def plan(previous: dict, spec: dict, root: Path) -> dict:
             action = "reuse"
         results.append({"id": slide["id"], "page_number": slide["page_number"],
                         "action": action, "reasons": reasons,
+                        "export_reasons": ["speaker_notes_changed"] if notes_changed else [],
                         "stale_approval": action != "reuse" and slide["image_status"] == "approved"})
     removed = sorted(set(old) - {slide["id"] for slide in spec["slides"]})
     return {"version": "1.0", "global_changes": global_change, "slides": results,
             "removed_slide_ids": removed,
-            "rebuild_image_deck": bool(removed) or any(item["action"] != "reuse" for item in results),
-            "rebuild_editable_deck": bool(removed) or any(item["action"] != "reuse" for item in results),
+            "rebuild_image_deck": bool(removed) or any(item["action"] != "reuse" or item["export_reasons"] for item in results),
+            "rebuild_editable_deck": bool(removed) or any(item["action"] != "reuse" or item["export_reasons"] for item in results),
             "note": "A plan does not approve images or change Page Spec. Confirm authorized changes and revalidate affected outputs."}
 
 

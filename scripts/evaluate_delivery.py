@@ -9,6 +9,7 @@ from pathlib import Path
 from audit_chart_geometry import audit as audit_geometry
 from audit_editability import audit as audit_editability
 from audit_page_content import audit as audit_content
+from audit_speaker_notes import audit as audit_notes
 from render_deck import reference_files, sha256
 from validate_page_spec import load_page_spec
 
@@ -140,8 +141,9 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
     inventory_pending = [item["id"] for item in review["slides"] if item["data_visual_inventory"]["status"] == "pending"]
     geometry = audit_geometry(spec_path, chart_observation_path) if chart_observation_path else None
     editability = audit_editability(deck, scene_path) if scene_path else None
+    speaker_notes = audit_notes(spec_path, deck, scene_path)
     edit_errors = editability["errors"] if editability else []
-    if content["issues"] or visual_failed or data_failed or edit_errors or inventory_failed or (geometry and geometry["status"] == "fail"):
+    if content["issues"] or visual_failed or data_failed or edit_errors or inventory_failed or speaker_notes["errors"] or (geometry and geometry["status"] == "fail"):
         status = "fail"
     elif content["incomplete"] or visual_pending or data_pending or inventory_pending or (geometry and geometry["status"] == "incomplete"):
         status = "incomplete"
@@ -171,6 +173,7 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
         "data_visual_inventory": {"failed": inventory_failed, "pending": inventory_pending,
                                   "reviews": [{"slide_id": item["id"], **item["data_visual_inventory"]} for item in review["slides"]]},
         "chart_geometry": geometry or {"checked": False},
+        "speaker_notes": speaker_notes,
         "editability": {"checked": bool(editability), "errors": edit_errors,
                         "warnings": editability["warnings"] if editability else []},
         "note": "A pass reflects recorded checks for this artifact version; pixel difference is diagnostic, not a quality threshold.",
