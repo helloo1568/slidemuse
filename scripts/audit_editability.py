@@ -7,8 +7,12 @@ import argparse
 import hashlib
 import io
 import json
+import posixpath
+import re
 from collections import Counter
 from pathlib import Path
+from xml.etree import ElementTree as ET
+from zipfile import BadZipFile, ZipFile
 
 from chart_style import style_errors
 from PIL import Image, ImageOps
@@ -17,6 +21,77 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.util import Inches
 from scene import asset_path, load_scene, walk
 from speaker_notes import check_notes
+
+
+def workbook_data_matches(chart, expected):
+    """Read the cells referenced by the chart, rather than trusting its caches."""
+    part = chart.part.chart_workbook.xlsx_part
+    if part is None:
+        return False
+    ns = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+          "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"}
+    try:
+        with ZipFile(io.BytesIO(part.blob)) as archive:
+            workbook = ET.fromstring(archive.read("xl/workbook.xml"))
+            relationships = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+            targets = {item.get("Id"): item.get("Target") for item in relationships
+                       if item.get("TargetMode") != "External"}
+            sheets = {}
+            for sheet in workbook.findall("s:sheets/s:sheet", ns):
+                target = targets[sheet.get("{" + ns["r"] + "}id")]
+                path = target.lstrip("/") if target.startswith("/") else posixpath.normpath("xl/" + target)
+                sheets[sheet.get("name")] = ET.fromstring(archive.read(path))
+            shared = []
+            if "xl/sharedStrings.xml" in archive.namelist():
+                strings = ET.fromstring(archive.read("xl/sharedStrings.xml"))
+                shared = ["".join(item.itertext()) for item in strings]
+
+            def cells(formula, count):
+                match = re.fullmatch(r"(?:'((?:[^']|'')+)'|([^'!]+))!\$?([A-Z]+)\$?(\d+)(?::\$?([A-Z]+)\$?(\d+))?", formula or "")
+                if match is None:
+                    raise ValueError("Unsupported chart workbook reference")
+                quoted, plain, col, row, last_col, last_row = match.groups()
+                sheet = sheets[quoted.replace("''", "'") if quoted else plain]
+                row, last_row = int(row), int(last_row or row)
+                if (last_col or col) != col or last_row - row + 1 != count:
+                    raise ValueError("Chart workbook range differs")
+                addresses = {cell.get("r"): cell for cell in sheet.findall("s:sheetData/s:row/s:c", ns)}
+                values = []
+                for number in range(row, last_row + 1):
+                    cell = addresses[f"{col}{number}"]
+                    # Scene-generated data are literal editable cells; stale formula
+                    # results cannot establish data equivalence.
+                    if cell.find("s:f", ns) is not None:
+                        raise ValueError("Unverified formula in chart workbook")
+                    value = cell.findtext("s:v", namespaces=ns)
+                    if cell.get("t") == "s":
+                        value = shared[int(value)]
+                    elif cell.get("t") == "inlineStr":
+                        value = "".join(cell.find("s:is", ns).itertext())
+                    elif cell.get("t") in ("b", "e"):
+                        raise ValueError("Non-data cell in chart workbook")
+                    elif cell.get("t") != "str":
+                        value = float(value)
+                    values.append(value)
+                return values
+
+            series = chart._chartSpace.xpath(".//c:ser")
+            if len(series) != len(expected["series"]):
+                return False
+            for actual, wanted in zip(series, expected["series"]):
+                def reference(path, actual=actual):
+                    nodes = actual.xpath(path)
+                    if len(nodes) != 1:
+                        raise ValueError("Missing or ambiguous chart reference")
+                    return nodes[0].text
+
+                if (cells(reference("./c:tx/c:strRef/c:f"), 1) != [wanted["name"]]
+                        or cells(reference("./c:cat/*/c:f"), len(expected["categories"])) != expected["categories"]
+                        or cells(reference("./c:val/c:numRef/c:f"), len(wanted["values"])) != wanted["values"]):
+                    return False
+            return True
+    except (BadZipFile, ET.ParseError, KeyError, ValueError, TypeError, IndexError, AttributeError):
+        return False
 
 
 def objects(shapes):
@@ -229,6 +304,8 @@ def audit(pptx: Path, scene_path: Path | None = None) -> dict:
                         errors.append(
                             f"{label}: chart has no embedded editable workbook"
                         )
+                    elif not workbook_data_matches(chart, e):
+                        errors.append(f"{label}: embedded chart workbook data differs or cannot be verified")
                     style_differs = False
                     if "data_label_color" in e:
                         style_differs |= (

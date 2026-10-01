@@ -178,6 +178,7 @@ python "<skill-dir>/scripts/render_deck.py" "<work>/output/editable.pptx" "<work
 - [models.md](references/models.md)：S3/S5 生图，以及 S6 需要背景清理/主体分离时读取。
 - [reconstruction.md](references/reconstruction.md) 与 [scene-format.md](references/scene-format.md)：仅 S6 读取。
 - [evaluation.md](references/evaluation.md)：仅质量回归、版本发布或需要可复跑评分卡时读取。
+- [benchmark.md](references/benchmark.md)：仅跨材料评测时读取；冻结全部案例、保留首次与修复后成绩、验证实际产物证据并按类别/划分汇总。
 - [chart-reliability.md](references/chart-reliability.md)：S5 定量图表检查、有限修复或完整评测时读取；包括几何观察与精确水平条形区域兜底。
 - `validate_page_spec.py`：验证内容确认、页序、稳定 ID、画布边界和图片交付状态。
 - `overlay_text.py`：仅作为 Step 2 图片页的准确文字兜底。
