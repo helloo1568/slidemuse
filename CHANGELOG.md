@@ -4,6 +4,23 @@
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-10-01
+
+### Added
+
+- Multi-material benchmark records with a frozen source registry and rubric, hash-bound evidence, append-only delivery history, separate first/final results, and all registered materials in the denominator. Actual delivery checks and editing exercises are rerun; missing or changed evidence cannot become a pass.
+- A verified content-contract projection for independent review that excludes generation prompts and author work judgments. Review input isolation and actual source/visual judgments remain the reviewer's responsibility.
+
+### Fixed
+
+- Native chart auditing now checks the actual embedded workbook cells referenced by each series, category and label. Changing only the display cache cannot pass as an editable data update.
+- Benchmark evidence includes reference images actually consumed by Scene auditing, including references used by editing exercises.
+- Data-update review covers dependent differences, percentages, conclusions and presenter notes; native cell changes alone do not establish a consistent edited page.
+
+### Scope
+
+- These tools support evaluation; they do not prove semantic correctness or reviewer identity. A development prototype or passing software tests do not demonstrate the 30-material acceptance target.
+
 ## [2.9.0] - 2026-10-01
 
 ### Added

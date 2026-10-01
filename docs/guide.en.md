@@ -193,3 +193,9 @@ Full scorecards use visual review v1.2 with source/value, label/unit, scale/geom
 When the content draft has presenter notes, preserve them in Page Spec/Scene `speaker_notes`. Both PPTX exports retain them; editable `--page-spec` verifies upstream order and declared notes. Delivery evaluation reads actual PPTX notes. Notes-only edits rebuild exports while reusing images. `export_speaker_notes.py` optionally writes a source-referenced Markdown companion; see [speaker notes](../references/speaker-notes.md).
 
 Paper review covers formula variables, input/operation/output, experimental scope and source conflicts. Long-form review distinguishes targets, actions, support conditions and observed effects; see [material reading](../references/material-reading.md). Note fidelity does not prove semantic depth.
+
+## Multi-material evaluation (2.10.0)
+
+Freeze the source registry and rubric before execution. Preserve each complete delivery attempt and report first and final results separately. Missing, changed or unreviewed cases remain in the denominator; repairs require new attempts. `evaluate_benchmark.py review-contract` exports a content contract without generation prompts and verifies its binding to the source. Separate objective invocation transactions from author quality judgments before independent review; see [benchmark records](../references/benchmark.md).
+
+Native chart auditing checks both display caches and embedded workbook cells so Edit Data cannot silently restore older values. Tool checks and software tests do not replace actual source, visual or reviewer-independence judgments.

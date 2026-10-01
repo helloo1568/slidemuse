@@ -1,8 +1,10 @@
 import copy
+import io
 import json
 import subprocess
 import sys
 from pathlib import Path
+from xml.etree import ElementTree as ET
 from zipfile import ZipFile
 
 import pytest
@@ -13,6 +15,57 @@ from PIL import Image
 from pptx import Presentation
 from pptx.util import Inches
 from scene import load_scene, validate_scene
+
+
+@pytest.mark.parametrize("mutation", ["cache_only", "workbook_only", "formula"])
+def test_audit_checks_editable_chart_workbook_not_only_display_cache(scene_file, mutation):
+    output = scene_file.with_suffix(".pptx")
+    build_deck(scene_file, output)
+    with ZipFile(output) as archive:
+        entries = {name: archive.read(name) for name in archive.namelist()}
+    if mutation == "cache_only":
+        # Display and Scene agree, but Edit Data would restore the old value.
+        scene = json.loads(scene_file.read_text(encoding="utf-8"))
+        scene["slides"][0]["elements"][-1]["series"][0]["values"][0] = 99
+        scene_file.write_text(json.dumps(scene), encoding="utf-8")
+        xml = ET.fromstring(entries["ppt/charts/chart1.xml"])
+        ns = {"c": "http://schemas.openxmlformats.org/drawingml/2006/chart"}
+        xml.find(".//c:val/c:numRef/c:numCache/c:pt/c:v", ns).text = "99"
+        entries["ppt/charts/chart1.xml"] = ET.tostring(xml)
+    else:
+        name = next(name for name in entries if name.startswith("ppt/embeddings/"))
+        with ZipFile(io.BytesIO(entries[name])) as archive:
+            workbook = {part: archive.read(part) for part in archive.namelist()}
+        xml = ET.fromstring(workbook["xl/worksheets/sheet1.xml"])
+        ns = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        cell = xml.find(".//s:c[@r='B2']", ns)
+        if mutation == "workbook_only":
+            cell.find("s:v", ns).text = "99"
+        else:
+            # A cached formula result is not the literal Scene data contract.
+            ET.SubElement(cell, "{" + ns["s"] + "}f").text = "99"
+        workbook["xl/worksheets/sheet1.xml"] = ET.tostring(xml)
+        buffer = io.BytesIO()
+        with ZipFile(buffer, "w") as archive:
+            for part, data in workbook.items():
+                archive.writestr(part, data)
+        entries[name] = buffer.getvalue()
+    with ZipFile(output, "w") as archive:
+        for part, data in entries.items():
+            archive.writestr(part, data)
+    errors = audit(output, scene_file)["errors"]
+    assert any("embedded chart workbook data differs" in error for error in errors)
+
+
+def test_audit_checks_all_series_and_unicode_workbook_labels(scene_file):
+    scene = json.loads(scene_file.read_text(encoding="utf-8"))
+    chart = scene["slides"][0]["elements"][-1]
+    chart["categories"] = ["第一期", "第二期"]
+    chart["series"].append({"name": "另一组", "values": [-1.5, 0]})
+    scene_file.write_text(json.dumps(scene), encoding="utf-8")
+    output = scene_file.with_suffix(".pptx")
+    build_deck(scene_file, output)
+    assert audit(output, scene_file)["errors"] == []
 
 
 @pytest.fixture
