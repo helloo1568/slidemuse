@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-10-02
+
+### Added
+
+- Offline per-page review panel with embedded source/render images, current tasks, visual notes, content observations, data subchecks and actual data-visual inventory.
+- Download/load review drafts and explicitly import them through `review_panel.py`; exact current input/artifact/record bindings reject stale or concurrently changed evidence.
+- Import archives prior records and invalidates the old scorecard. A checked journal completes interrupted two-file commits before subsequent scoring; external evidence remains read-only.
+
+### Changed
+
+- Pipeline summaries link to the current panel; pending and failed checks remain explicit and require a new evaluation after import.
+- Pipeline JSON writes use deterministic LF bytes for cross-platform import recovery hashes.
+
 ## [2.13.0] - 2026-10-02
 
 ### Added

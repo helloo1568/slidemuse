@@ -6,6 +6,8 @@
 
 已准备好的 Page Spec/Scene 可通过 [run_deck.py 流水线](pipeline.md)统一生成当前模板和待办，并在实际审阅后重新评分。流水线不会代填通过结论。
 
+默认任务可在 [离线逐页审阅面板](review-panel.md) 对照实际画面填写，下载并导入当前绑定的记录，再运行原命令评分；导入不会自动填写通过结论或跳过检查分项。
+
 | 维度 | 证据 | 通过条件 |
 |---|---|---|
 | 内容 | Page Spec、批准图片、逐页看图或 OCR 后人工校对的 `observations*.json` | 每页记录为 `complete`，已确认文字及 `required_visible_values` 均可见 |
