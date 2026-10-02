@@ -17,3 +17,5 @@ The original After total is 190, North share 47.4%, and total change -5.0%. Chan
 The output Page Spec is a review draft with content approval invalidated. Follow `references/data-bindings.md` to review the changes under the task's authorization, rebuild and inspect; old slide images and quality evidence cannot establish the new version's correctness.
 
 Chart images are standalone deterministic data figures. `--replace-region` is a separate operation subject to host image-edit permissions. Construction geometry is not independent visual evidence.
+
+`job.json` demonstrates the resumable pipeline. Copy the fixture into a task directory, supply and approve its slide images, then run `python scripts/run_deck.py task/job.json task-output`. Its original image paths are pending placeholders and will correctly block delivery until prepared. See `references/pipeline.md` for actual review requirements.
