@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-10-02
+
+### Added
+
+- `init_deck.py` generates portable image/editable job configuration with exclusive creation; existing jobs, source files and approval states are preserved.
+- Read-only `run_deck.py --check` collects missing page images, approval states, invalid specifications/assets/notes, workspace ownership and renderer environment problems before execution.
+- Chinese status labels, page-specific review tasks with current file/image paths, retained original diagnostics and a readable Chinese summary. Stable machine status/kind fields remain compatible.
+- Actual per-stage tool timings for validation, build/object checks, rendering/template preparation and evaluation; preparation and human review are explicitly outside these timings.
+
+### Fixed
+
+- A stopped stage summary no longer describes the entire delivery as passed.
+- UTF-8 BOM job files are accepted consistently with Page Spec inputs.
+- Review-sheet thumbnails adapt to the actual page aspect ratio, making portrait source pages readable without a fixed landscape thumbnail box.
+
 ## [2.12.0] - 2026-10-02
 
 ### Added

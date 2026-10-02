@@ -4,6 +4,18 @@
 
 把 `job.json` 放在任务材料目录，工作目录另建在旁边。所有配置路径相对于 `job.json`，不能越出其所在目录。
 
+从 2.13.0 起，可以先生成配置并运行只读预检：
+
+```bash
+python scripts/init_deck.py task --mode editable
+python scripts/run_deck.py task/job.json task-output --check
+python scripts/run_deck.py task/job.json task-output
+```
+
+生成器默认是 `image` 模式；可编辑任务明确指定 `--mode editable`。默认读取 `page-spec.json` 和 `scene.json`，可用 `--page-spec` / `--scene` 指定其他名称。`--output` 默认 `job.json`，已存在时拒绝覆盖；也不会修改图片状态、内容或风格确认。配置生成后仍可能以退出码 1 提示缺图或待确认：修复输入后对已生成配置再次运行 `--check`，无需重复生成。数据依赖和外部证据字段按任务需要自行补充，不自动推断。
+
+预检逐页收集缺图、图片状态、规格/素材/页序/讲稿、工作目录和渲染环境问题。它不编译、不渲染，也不产生验收通过。Windows 环境检查读取程序路径及 PowerPoint 注册信息；这不能保证 Office 启动成功，仍需真实渲染。`--check`、`--status` 不能与执行/刷新参数混用。预检不写工作目录，结果显示在标准输出。
+
 ```json
 {
   "version": "1.0",
@@ -25,6 +37,10 @@ python scripts/run_deck.py task/job.json task-output
 ```
 
 首次运行检查输入、编译、渲染并生成当前哈希绑定的待审模板。查看 `review.png`，实际审查后填写 `visual-review.json` 和 `content-observations.json`，再运行同一条命令。数据页还需逐项记录数值、标签、单位、几何/对齐和实际数据对象清单。模板字段与规则见 [交付评估](evaluation.md)；图表端点审查见 [图表可靠性](chart-reliability.md)。缺失、失败和待审项会集中进入 `summary.json` 的 `actions` 和 `summary.md`。
+
+摘要和待办采用中文，保留稳定的英文 `status` / `kind` 供脚本使用。页级待办提供页码、稳定 ID、记录文件和当前渲染路径；错误保留原始诊断。`timings_seconds` 记录输入检查、编译/对象检查、渲染/模板准备和评分阶段的真实工具用时，不包括材料准备和人工审阅。指定阶段停止只表示已保存检查点，不表示完整交付通过。
+
+核对总览的缩略页按实际画幅适配，竖版页面不会缩进固定横向框；文字较密时仍需查看待办链接的原尺寸渲染图和源图片。
 
 | 状态 | 含义 | 退出码 |
 |---|---|---|

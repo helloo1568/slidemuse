@@ -10,7 +10,7 @@
 重点面向**挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛**，也适用于**学术汇报、论文答辩、项目路演、课程展示与电影质感 PPT**，支持图片转可编辑 PPT。
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.12.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.13.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -21,6 +21,8 @@
 </div>
 
 ## 可恢复交付
+
+用 `python scripts/init_deck.py task --mode editable` 生成任务配置，再运行 `python scripts/run_deck.py task/job.json task-output --check` 提前定位缺图、路径和环境问题。中文待办给出页码、对应文件和修复方向，摘要记录工具阶段耗时。
 
 已确认的 Page Spec 和 Scene 可用 `python scripts/run_deck.py task/job.json task-output` 统一编译、渲染和检查。中断后重复命令即可继续；改一页只重渲染受影响页，待审事项集中在摘要中，实际审阅完成后再验收。配置、退出码和缓存边界见[流水线说明](references/pipeline.md)。
 
