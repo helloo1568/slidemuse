@@ -175,6 +175,7 @@ python "<skill-dir>/scripts/render_deck.py" "<work>/output/editable.pptx" "<work
 - [style-options.md](references/style-options.md)：仅 S3 生成、修正和验收四套缩略图总览时读取。
 - [page-spec.md](references/page-spec.md)：仅 S5/S6 创建或更新 Page Spec 时读取。
 - [workflow-updates.md](references/workflow-updates.md)：仅用户改需求、交付后修改或跨版本恢复时读取。
+- [data-bindings.md](references/data-bindings.md)：修改表格/图表数据及其依赖正文、百分比、差额和讲稿时读取；提供可选契约、差异预览、独立待审草稿与交付检查，不代替来源和语义复核。
 - [models.md](references/models.md)：S3/S5 生图，以及 S6 需要背景清理/主体分离时读取。
 - [reconstruction.md](references/reconstruction.md) 与 [scene-format.md](references/scene-format.md)：仅 S6 读取。
 - [evaluation.md](references/evaluation.md)：仅质量回归、版本发布或需要可复跑评分卡时读取。

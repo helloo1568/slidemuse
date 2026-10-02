@@ -59,6 +59,27 @@ def test_scorecard_needs_visual_review_and_current_artifacts(tmp_path):
         evaluate_delivery.evaluate(spec, render, review, [observation])
 
 
+def test_scorecard_cannot_pass_stale_declared_dependency_or_different_document(tmp_path):
+    spec, render, review, observation, _ = make_case(tmp_path)
+    mark_visual_pass(review)
+    contract = {"version": "1.0", "documents": {"page_spec": spec.name},
+                "inputs": {"n": {"value": 150, "unit": "count", "source_ref": "synthetic"}},
+                "formulas": {}, "bindings": [{"document": "page_spec", "pointer": "/slides/0/elements/0/text",
+                                               "template": "Old count {n:.0f}"}]}
+    bindings = tmp_path / "data-bindings.json"
+    bindings.write_text(json.dumps(contract), encoding="utf-8")
+    result = evaluate_delivery.evaluate(spec, render, review, [observation], data_bindings_path=bindings)
+    assert result["status"] == "fail"
+    assert result["data_dependencies"]["errors"]
+    assert result["evidence"]["data_bindings_sha256"] == render_deck.sha256(bindings)
+    other = tmp_path / "other.json"
+    other.write_bytes(spec.read_bytes())
+    contract["documents"]["page_spec"] = other.name
+    bindings.write_text(json.dumps(contract), encoding="utf-8")
+    with pytest.raises(ValueError, match="different page_spec"):
+        evaluate_delivery.evaluate(spec, render, review, [observation], data_bindings_path=bindings)
+
+
 def test_scorecard_rejects_render_without_current_page_spec(tmp_path):
     spec, render, review, observation, _ = make_case(tmp_path)
     report = json.loads(render.read_text(encoding="utf-8"))

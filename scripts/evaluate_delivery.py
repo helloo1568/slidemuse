@@ -11,6 +11,7 @@ from audit_editability import audit as audit_editability
 from audit_page_content import audit as audit_content
 from audit_speaker_notes import audit as audit_notes
 from render_deck import reference_files, sha256
+from update_data_bindings import inspect as inspect_bindings
 from validate_page_spec import load_page_spec
 
 
@@ -120,7 +121,8 @@ def verified_visual_review(review_path: Path, spec: dict, render: dict) -> dict:
 
 def evaluate(spec_path: Path, render_path: Path, review_path: Path,
              observation_paths: list[Path], scene_path: Path | None = None,
-             chart_observation_path: Path | None = None) -> dict:
+             chart_observation_path: Path | None = None,
+             data_bindings_path: Path | None = None) -> dict:
     spec, _ = load_page_spec(spec_path)
     render, deck = verified_render(render_path, spec_path, len(spec["slides"]))
     review = verified_visual_review(review_path, spec, render)
@@ -142,8 +144,9 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
     geometry = audit_geometry(spec_path, chart_observation_path) if chart_observation_path else None
     editability = audit_editability(deck, scene_path) if scene_path else None
     speaker_notes = audit_notes(spec_path, deck, scene_path)
+    dependencies = inspect_bindings(data_bindings_path, spec_path, scene_path) if data_bindings_path else None
     edit_errors = editability["errors"] if editability else []
-    if content["issues"] or visual_failed or data_failed or edit_errors or inventory_failed or speaker_notes["errors"] or (geometry and geometry["status"] == "fail"):
+    if content["issues"] or visual_failed or data_failed or edit_errors or inventory_failed or speaker_notes["errors"] or (geometry and geometry["status"] == "fail") or (dependencies and dependencies["status"] == "fail"):
         status = "fail"
     elif content["incomplete"] or visual_pending or data_pending or inventory_pending or (geometry and geometry["status"] == "incomplete"):
         status = "incomplete"
@@ -159,7 +162,8 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
                      "reference_sha256": {slide["id"]: page["reference_sha256"]
                                           for slide, page in zip(spec["slides"], render["slides"])},
                      "scene_sha256": sha256(scene_path) if scene_path else None,
-                     "chart_observations_sha256": sha256(chart_observation_path) if chart_observation_path else None},
+                     "chart_observations_sha256": sha256(chart_observation_path) if chart_observation_path else None,
+                     "data_bindings_sha256": sha256(data_bindings_path) if data_bindings_path else None},
         "slides": len(spec["slides"]),
         "render_backend": render["backend"],
         "content": {"issues": content["issues"], "incomplete": content["incomplete"],
@@ -174,6 +178,7 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
                                   "reviews": [{"slide_id": item["id"], **item["data_visual_inventory"]} for item in review["slides"]]},
         "chart_geometry": geometry or {"checked": False},
         "speaker_notes": speaker_notes,
+        "data_dependencies": dependencies or {"checked": False},
         "editability": {"checked": bool(editability), "errors": edit_errors,
                         "warnings": editability["warnings"] if editability else []},
         "note": "A pass reflects recorded checks for this artifact version; pixel difference is diagnostic, not a quality threshold.",
@@ -189,6 +194,7 @@ def main() -> None:
     parser.add_argument("--observations", type=Path, action="append", default=[])
     parser.add_argument("--scene", type=Path, help="Audit current PPTX editability against this Scene")
     parser.add_argument("--chart-observations", type=Path, help="Include independently observed bar geometry checks")
+    parser.add_argument("--data-bindings", type=Path, help="Verify declared numeric, prose and notes dependencies")
     parser.add_argument("--output", type=Path, help="Write the evaluation JSON")
     args = parser.parse_args()
     spec_path = args.page_spec.resolve()
@@ -206,7 +212,8 @@ def main() -> None:
     result = evaluate(spec_path, render_path, review_path,
                       [path.resolve() for path in args.observations],
                       args.scene.resolve() if args.scene else None,
-                      args.chart_observations.resolve() if args.chart_observations else None)
+                      args.chart_observations.resolve() if args.chart_observations else None,
+                      args.data_bindings.resolve() if args.data_bindings else None)
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")

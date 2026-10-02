@@ -4,6 +4,25 @@
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-10-02
+
+### Added
+
+- Precise standalone grouped horizontal bar and vertical column figures with named series, legends, shared zero axes, signed values, bounded labels, atomic PNG writes and optional authorized region replacement.
+- Independent observed endpoint checks for grouped bar/column charts; category and series identity and numeric-axis direction are checked. Existing single-series observations remain supported.
+- Optional explicit numeric dependency contracts for Page Spec/Scene chart/table leaves, derived arithmetic, visible prose and speaker notes. Preview changes without writes, or export a separate asset-preserving review draft; reject stale bindings, cycles, unsafe expressions, zero division and nonfinite results.
+- Optional `evaluate_delivery.py --data-bindings` checks with hash-bound contract/document evidence; inconsistent declared prose, data or notes fail delivery.
+- A reproducible two-page synthetic transport example with grouped charts and 26 bindings, demonstrating a data change propagated to 14 targets.
+
+### Changed
+
+- Visible-content draft exports invalidate Page Spec approval and affected image status; old source files and quality records remain unchanged. Source/semantic review and fresh rendering are still required under the task's existing authorization.
+- Standalone construction geometry uses region coordinates, while replaced-page geometry uses page coordinates. Construction values are not independent observations.
+
+### Scope
+
+- Stacked/logarithmic charts, external workbook formula evaluation and automatic semantic dependency discovery remain unsupported. New example figures are synthetic engineering checks, not a general first-pass reliability claim or new formal holdout acceptance.
+
 ## [2.10.0] - 2026-10-01
 
 ### Added

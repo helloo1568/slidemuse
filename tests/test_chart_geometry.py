@@ -1,5 +1,7 @@
 import copy
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -134,3 +136,86 @@ def test_fallback_rejects_invalid_replacement_without_modifying_existing_file(ch
     with pytest.raises(ValueError):
         render(path, layout_path, output, replace_region=True)
     assert output.read_bytes() == original
+
+
+@pytest.mark.parametrize("orientation", ["bar", "column"])
+def test_grouped_geometry_distinguishes_series_and_measures_real_pixels(chart_case, orientation):
+    path, spec, observation, _, _ = chart_case
+    data = spec["slides"][0]["elements"][-1]["data"]
+    data.update(chart_type=orientation, categories=["A", "B"])
+    data["series"] = [{"name": "Before", "values": [3, -2]}, {"name": "After", "values": [4, 0]}]
+    path.write_text(json.dumps(spec), encoding="utf-8")
+    layout_path, layout = layout_for(chart_case)
+    layout.update(plot=[130, 65, 560, 270], axis_min=-4, axis_max=6, ticks=[-4, 0, 6],
+                  decimals=0, signed=False, suffix="", series_colors=["#ff0000", "#0000ff"])
+    layout_path.write_text(json.dumps(layout), encoding="utf-8")
+    output = path.parent / "grouped.png"
+    report = render(path, layout_path, output)
+    spec["slides"][0]["image_file"] = output.name
+    path.write_text(json.dumps(spec), encoding="utf-8")
+    observations = template(path, spec)
+    entry = observations["charts"][0]
+    entry["status"] = "complete"
+    # Independently fixed axis coordinates from the configured region and scale.
+    entry["axis"] = ([{"value": -4, "pixel": 130}, {"value": 6, "pixel": 690}] if orientation == "bar"
+                     else [{"value": -4, "pixel": 335}, {"value": 6, "pixel": 65}])
+    zero = 354 if orientation == "bar" else 227
+    with Image.open(output) as image:
+        for index, bar in enumerate(entry["bars"]):
+            cross = round(report["construction_geometry"][index]["cross_center"])
+            color = (255, 0, 0) if bar["series"] == "Before" else (0, 0, 255)
+            pixels = [p for p in range(850 if orientation == "bar" else 450)
+                      if image.getpixel((p, cross) if orientation == "bar" else (cross, p)) == color]
+            value = data["series"][index % 2]["values"][index // 2]
+            bar["start"] = zero
+            bar["end"] = (max(pixels) if (value > 0) == (orientation == "bar") else min(pixels)) if value else zero
+    observation.write_text(json.dumps(observations), encoding="utf-8")
+    assert audit(path, observation)["status"] == "pass"
+    entry["bars"][0]["end"] = zero  # Correct values cannot hide a missing real bar.
+    observation.write_text(json.dumps(observations), encoding="utf-8")
+    assert audit(path, observation)["status"] == "fail"
+    entry["bars"][0]["series"] = "After"
+    observation.write_text(json.dumps(observations), encoding="utf-8")
+    with pytest.raises(ValueError, match="category and series"):
+        audit(path, observation)
+
+
+@pytest.mark.parametrize("mutation", ["duplicate-series", "stacked", "axis-direction", "color-shortage", "nan-value"])
+def test_grouped_invalid_data_and_axes_are_rejected(chart_case, mutation):
+    path, spec, observation, observed, _ = chart_case
+    data = spec["slides"][0]["elements"][-1]["data"]
+    if mutation == "axis-direction":
+        observed["charts"][0]["axis"] = [{"value": -6, "pixel": 700}, {"value": 4, "pixel": 200}]
+        observation.write_text(json.dumps(observed), encoding="utf-8")
+        with pytest.raises(ValueError, match="direction"):
+            audit(path, observation)
+        return
+    if mutation == "duplicate-series":
+        data["series"].append(copy.deepcopy(data["series"][0]))
+    elif mutation == "stacked":
+        data["stacked"] = True
+    elif mutation == "nan-value":
+        data["series"][0]["values"][0] = float("nan")
+    else:
+        data["series"].append({"name": "Other", "values": [1, 2, 3]})
+    path.write_text(json.dumps(spec), encoding="utf-8")
+    layout_path, layout = layout_for(chart_case)
+    if mutation == "color-shortage":
+        layout["series_colors"] = ["#ff0000"]
+        layout_path.write_text(json.dumps(layout), encoding="utf-8")
+    with pytest.raises(ValueError):
+        render(path, layout_path, path.parent / "invalid.png")
+
+
+def test_chart_report_cannot_overwrite_input_before_rendering(chart_case):
+    path, _, _, _, image = chart_case
+    layout_path, _ = layout_for(chart_case)
+    output = path.parent / "new.png"
+    original = image.read_bytes()
+    result = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] / "scripts/build_chart_image.py"),
+                             str(path), str(layout_path), str(output), "--report", str(image)],
+                            capture_output=True, text=True, check=False)
+    assert result.returncode == 2
+    assert "Report must not overwrite" in result.stderr
+    assert not output.exists()
+    assert image.read_bytes() == original
