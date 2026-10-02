@@ -119,7 +119,9 @@ def reference_files(spec_path: Path, count: int) -> list[Path]:
 
 
 def build_review(images: list[Path], output: Path, references: list[Path] | None) -> list[dict]:
-    thumb_w, thumb_h = 640, 360
+    with Image.open(images[0]) as first:
+        thumb_w = max(1, min(640, round(960 * first.width / first.height)))
+        thumb_h = max(1, min(960, round(thumb_w * first.height / first.width)))
     rows = []
     report = []
     for index, path in enumerate(images, 1):

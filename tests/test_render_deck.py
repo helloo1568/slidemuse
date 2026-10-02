@@ -10,6 +10,7 @@ from pptx import Presentation
 def test_render_deck_writes_every_slide_and_comparison(tmp_path, monkeypatch):
     deck = tmp_path / "deck.pptx"
     presentation = Presentation()
+    presentation.slide_height = presentation.slide_width * 9 // 16
     presentation.slides.add_slide(presentation.slide_layouts[6])
     presentation.slides.add_slide(presentation.slide_layouts[6])
     presentation.save(deck)
@@ -69,3 +70,16 @@ def test_selected_render_keeps_original_index_and_checks_dimensions(tmp_path, mo
     with pytest.raises(RuntimeError, match="incorrect dimensions"):
         render_deck.render_selected(deck, tmp_path / "wrong", 320, "powerpoint", [1])
     assert not (tmp_path / "wrong/001.png").exists()
+
+
+def test_portrait_review_preserves_readable_page_proportions(tmp_path):
+    rendered = tmp_path / "portrait.png"
+    Image.new("RGB", (612, 792), "white").save(rendered)
+    output = tmp_path / "review"
+    output.mkdir()
+    report = render_deck.build_review([rendered], output, [rendered])
+    with Image.open(output / "review.png") as sheet:
+        assert sheet.width == 1920
+        # The page area remains portrait instead of shrinking into a 360px landscape row.
+        assert sheet.height > 800
+    assert report[0]["mean_absolute_difference"] == 0
