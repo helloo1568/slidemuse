@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [2.14.1] - 2026-10-02
+
+### Changed
+
+- Clarify in both READMEs that the review panel is optional, records findings and issue locations, and does not require users to fill every page manually. Agents may record checks after actual visual inspection or use the existing JSON workflow.
+- Document the exported-text fallback and the requirement to rerun evaluation after importing review records.
+
 ## [2.14.0] - 2026-10-02
 
 ### Added

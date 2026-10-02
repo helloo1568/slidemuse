@@ -10,7 +10,7 @@
 重点面向**挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛**，也适用于**学术汇报、论文答辩、项目路演、课程展示与电影质感 PPT**，支持图片转可编辑 PPT。
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.14.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.14.1-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -107,7 +107,7 @@ python slidemuse/install.py
 
 图表需要精确比例时，可生成单系列或分组条形图、柱状图的[精确参考](references/chart-reliability.md)。数据修改可通过[可选依赖契约](references/data-bindings.md)预览并同步图表、衍生数值、正文和讲稿；[两页合成交通示例](examples/data-update/README.md)提供可运行命令。
 
-完成渲染后，可打开[离线逐页审阅面板](references/review-panel.md)，对照源图与当前画面填写记录，下载并导入后重新评分。
+完成渲染后，可打开[离线逐页审阅面板](references/review-panel.md)，对照源图与当前画面，保存检查结果和问题位置，并防止页面更新后沿用过期结论。**面板是可选入口，用户无需逐页手动填写；具备视觉能力的 Agent 可以实际看图、核对后记录，也可直接使用原有 JSON 流程。** 使用面板时，下载记录（或复制完整导出文本保存为 JSON），导入后重新评分；填写“通过”不会自动产生交付通过结论。
 
 ## 适合制作哪些 PPT
 
