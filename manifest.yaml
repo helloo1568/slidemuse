@@ -1,6 +1,6 @@
 name: slidemuse
 display_name: SlideMuse
-version: 2.11.0
+version: 2.12.0
 description: >-
   SlideMuse 是视觉优先的 AI PPT Skill，重点适用于挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛 PPT，同时适用于电影质感 PPT、比赛答辩、创新创业路演、学术汇报、论文答辩、项目汇报、课程展示和图片转可编辑 PPT。
   按固定三阶段流程将材料制作成图片版 PPT，并在明确授权后还原为可编辑 PPTX：
@@ -98,6 +98,7 @@ files:
   - references/benchmark.md
   - references/chart-reliability.md
   - references/data-bindings.md
+  - references/pipeline.md
   - scripts/scene.py
   - scripts/validate_page_spec.py
   - scripts/validate_style_options.py
@@ -108,6 +109,7 @@ files:
   - scripts/build_image_ppt.py
   - scripts/overlay_text.py
   - scripts/render_deck.py
+  - scripts/run_deck.py
   - scripts/render_powerpoint.ps1
   - scripts/audit_page_content.py
   - scripts/plan_deck_update.py
@@ -121,6 +123,7 @@ files:
   - scripts/audit_speaker_notes.py
   - scripts/export_speaker_notes.py
   - examples/data-update/README.md
+  - examples/data-update/job.json
   - examples/data-update/page-spec.json
   - examples/data-update/scene.json
   - examples/data-update/data-bindings.json

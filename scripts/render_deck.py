@@ -23,18 +23,20 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def render_powerpoint(deck: Path, output: Path, width: int, height: int) -> None:
+def render_powerpoint(deck: Path, output: Path, width: int, height: int, slides: list[int] | None = None) -> None:
     shell = shutil.which("powershell.exe") or shutil.which("powershell")
     if not shell:
         raise RuntimeError("PowerPoint renderer requires Windows PowerShell")
     subprocess.run(
         [shell, "-NoProfile", "-NonInteractive", "-File", str(Path(__file__).with_name("render_powerpoint.ps1")),
-         "-Deck", str(deck), "-OutputDir", str(output), "-Width", str(width), "-Height", str(height)],
+         "-Deck", str(deck), "-OutputDir", str(output), "-Width", str(width), "-Height", str(height),
+         *(["-SlideNumbers", ",".join(str(n) for n in slides)] if slides is not None else [])],
         check=True, capture_output=True, text=True,
     )
 
 
-def render_libreoffice(deck: Path, output: Path, width: int, height: int, count: int) -> None:
+def render_libreoffice(deck: Path, output: Path, width: int, height: int, count: int,
+                      slides: list[int] | None = None) -> None:
     office = shutil.which("soffice") or shutil.which("libreoffice")
     raster = shutil.which("pdftoppm")
     if not office or not raster:
@@ -48,16 +50,54 @@ def render_libreoffice(deck: Path, output: Path, width: int, height: int, count:
         pdf = temp_dir / (deck.stem + ".pdf")
         if not pdf.is_file():
             raise RuntimeError("LibreOffice did not produce a PDF")
-        subprocess.run(
-            [raster, "-f", "1", "-l", str(count), "-png", "-r", "144", str(pdf), str(temp_dir / "slide")],
-            check=True, capture_output=True, text=True,
-        )
-        pages = sorted(temp_dir.glob("slide-*.png"), key=lambda path: int(path.stem.rsplit("-", 1)[1]))
-        if len(pages) != count:
+        wanted = slides if slides is not None else list(range(1, count + 1))
+        for first, last in ([(1, count)] if slides is None else [(n, n) for n in wanted]):
+            subprocess.run(
+                [raster, "-f", str(first), "-l", str(last), "-png", "-r", "144", str(pdf), str(temp_dir / "slide")],
+                check=True, capture_output=True, text=True,
+            )
+        pages = {int(path.stem.rsplit("-", 1)[1]): path for path in temp_dir.glob("slide-*.png")}
+        if set(pages) != set(wanted):
             raise RuntimeError(f"LibreOffice rendered {len(pages)} of {count} slides")
-        for index, page in enumerate(pages, 1):
+        for index in wanted:
+            page = pages[index]
             with Image.open(page) as image:
                 ImageOps.pad(image.convert("RGB"), (width, height), method=Image.Resampling.LANCZOS, color="white").save(output / f"{index:03d}.png")
+
+
+def render_selected(deck: Path, output: Path, width: int, backend: str,
+                    slides: list[int]) -> str:
+    """Render selected current-deck indices into a fresh directory, preserving indices."""
+    presentation = Presentation(deck)
+    count = len(presentation.slides)
+    if (not slides or len(set(slides)) != len(slides)
+            or any(isinstance(n, bool) or not isinstance(n, int) or not 1 <= n <= count for n in slides)):
+        raise ValueError("Selected slide indices must be unique and inside the deck")
+    if backend not in ("auto", "powerpoint", "libreoffice"):
+        raise ValueError("Unknown render backend")
+    if output.exists() and any(output.iterdir()):
+        raise ValueError("Selected render output must be empty")
+    output.mkdir(parents=True, exist_ok=True)
+    height = round(width * presentation.slide_height / presentation.slide_width)
+    candidates = [backend] if backend != "auto" else (["powerpoint", "libreoffice"] if os.name == "nt" else ["libreoffice"])
+    errors = []
+    for candidate in candidates:
+        try:
+            if candidate == "powerpoint":
+                render_powerpoint(deck, output, width, height, slides)
+            else:
+                render_libreoffice(deck, output, width, height, count, slides)
+            for n in slides:
+                with Image.open(output / f"{n:03d}.png") as page:
+                    if page.size != (width, height):
+                        raise ValueError("Selected renderer produced incorrect dimensions")
+                    page.verify()
+            return candidate
+        except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as error:
+            errors.append(f"{candidate}: {error}")
+            for n in slides:
+                (output / f"{n:03d}.png").unlink(missing_ok=True)
+    raise RuntimeError("No presentation renderer succeeded: " + "; ".join(errors))
 
 
 def reference_files(spec_path: Path, count: int) -> list[Path]:

@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-10-02
+
+### Added
+
+- Unified `run_deck.py` command for validated image/editable builds, rendering, review templates, live evaluation and a consolidated action queue.
+- Atomic checkpoints, process-released workspace locking, hash-verified artifacts and resumable stages, including recovery after actual process termination.
+- Per-page render keys and conservative migration of genuine recorded reviews for unchanged pages. Changed pages stay pending; whole-deck scorecards are regenerated each run.
+- Selected-slide PowerPoint export and selected-page LibreOffice rasterization, with full PDF conversion retained. Backend changes invalidate all cached renders.
+- Read-only status, deliberate stage stops and forced rendering refresh after font or renderer environment changes.
+- Pipeline configuration example and documentation covering approval prerequisites, cache boundaries, external evidence preservation and exit codes.
+
+### Changed
+
+- Runtime and schema changes invalidate cached work; speaker-note-only changes rebuild the deck and recheck notes while retaining unchanged page images.
+- Superseded scorecards and review records are archived before replacement, so interrupted work does not leave an old pass as the current result.
+
 ## [2.11.0] - 2026-10-02
 
 ### Added
