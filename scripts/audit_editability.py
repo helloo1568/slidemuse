@@ -21,6 +21,7 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.util import Inches
 from scene import asset_path, load_scene, walk
 from speaker_notes import check_notes
+from text_layout import inspect_deck, risk_warning
 
 
 def workbook_data_matches(chart, expected):
@@ -187,6 +188,8 @@ def audit(pptx: Path, scene_path: Path | None = None) -> dict:
     prs = Presentation(pptx)
     scene, warnings = load_scene(scene_path) if scene_path else (None, [])
     errors, pages = [], []
+    text_layout = inspect_deck(prs, [s['id'] for s in scene['slides']] if scene else None)
+    warnings.extend(risk_warning(finding) for finding in text_layout if finding['status'] == 'risk')
     if scene:
         errors.extend(check_notes(prs, scene["slides"], scene=True))
     if scene and len(prs.slides) != len(scene["slides"]):
@@ -382,6 +385,8 @@ def audit(pptx: Path, scene_path: Path | None = None) -> dict:
         "slides": pages,
         "errors": errors,
         "warnings": sorted(set(warnings)),
+        "text_layout": text_layout,
+        "text_layout_scope": "Conservative estimates of explicit native text/table styles; no_obvious_risk is not proof of fit. Fonts, shaping, word breaking and Office layout still require actual rendering.",
         "visual_review": "not performed by this script",
         "scope": "Checks declared objects, not recovery of every source pixel or visual fidelity.",
     }

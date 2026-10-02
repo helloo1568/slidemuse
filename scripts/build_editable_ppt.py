@@ -22,6 +22,7 @@ from pptx.oxml.xmlchemy import OxmlElement
 from pptx.util import Inches, Pt
 from scene import asset_path, load_scene
 from speaker_notes import check_notes, check_scene_notes, scene_notes
+from text_layout import inspect_deck, risk_warning
 
 SHAPES = {
     "rect": MSO_SHAPE.RECTANGLE,
@@ -295,10 +296,13 @@ def build_deck(scene_path: Path, output: Path, page_spec_path: Path | None = Non
         os.replace(tmp, output)
     finally:
         Path(tmp).unlink(missing_ok=True)
+    text_layout = inspect_deck(verified, [s['id'] for s in scene['slides']])
+    warnings.extend(risk_warning(item) for item in text_layout if item['status'] == 'risk')
     return {
         "output": str(output),
         "slides": len(prs.slides),
         "warnings": warnings,
+        "text_layout": text_layout,
         "visual_review": "required: render and inspect in a presentation renderer",
     }
 

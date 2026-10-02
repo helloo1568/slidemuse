@@ -180,7 +180,8 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
         "speaker_notes": speaker_notes,
         "data_dependencies": dependencies or {"checked": False},
         "editability": {"checked": bool(editability), "errors": edit_errors,
-                        "warnings": editability["warnings"] if editability else []},
+                        "warnings": editability["warnings"] if editability else [],
+                        "text_layout": editability["text_layout"] if editability else []},
         "note": "A pass reflects recorded checks for this artifact version; pixel difference is diagnostic, not a quality threshold.",
     }
 

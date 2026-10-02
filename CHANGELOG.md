@@ -4,10 +4,18 @@
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-10-02
+
+### Added
+
+- Conservative native text layout estimates in editable compilation, object auditing and delivery scorecards, including individual table cells and grouped objects.
+- Page/element-specific Chinese overflow tasks in pipeline summaries and the existing review panel. Explicit current visual review resolves tasks while retaining estimates in reports.
+
 ### Changed
 
 - Reorganize both READMEs around installation and current capabilities, including speaker notes, linked data updates, resumable delivery, and optional review tooling.
 - Document rendering prerequisites, prepared-task CLI usage, output files, and pending-review semantics; remove duplicated installation instructions and the fixed installation-time claim.
+- Unresolved inheritance, auto-fit, transformed groups and unsupported text layouts remain explicitly unverified. Estimates neither modify content nor replace actual rendering and visual review.
 
 ## [2.14.1] - 2026-10-02
 

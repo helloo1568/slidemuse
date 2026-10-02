@@ -11,7 +11,7 @@ Especially strong for **university competition presentations**—including Chall
 Reconstruct slide images as native editable PowerPoint (PPTX) when needed.
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.14.1-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.15.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -44,7 +44,7 @@ For manual installation and requirements, see [Quick start](#quick-start).
 | Continue an existing task | Input preflight, resumable stages, affected-page rendering, and a consolidated per-page action queue. |
 | Review the deliverable | Object and content checks, scorecards bound to current files, and an optional offline per-page review panel. |
 
-Current version: **2.14.1**. See the [changelog](CHANGELOG.md) for details. These tools support production and validation; actual content and visuals still need review.
+Current version: **2.15.0**. See the [changelog](CHANGELOG.md) for details. These tools support production and validation; actual content and visuals still need review.
 
 ---
 
@@ -108,6 +108,8 @@ A competition presentation that connects the problem, solution, and craft techno
 > **How it runs:** SlideMuse is an agent skill. The host reads materials, interprets images, and generates artwork; local scripts assemble, crop, compile, and audit. End-to-end production requires those host capabilities. See [runtime and model notes](references/models.md).
 
 For accurate quantitative figures, generate [precise single-series or grouped bar/column references](references/chart-reliability.md). Optional [data dependency contracts](references/data-bindings.md) preview and synchronize chart values, derived arithmetic, prose and speaker notes; the [two-page synthetic transport example](examples/data-update/README.md) includes runnable commands.
+
+Editable exports include [text overflow warnings](references/text-layout.md) for potentially crowded text boxes and table cells. The agent inspects actual renders before making changes; text is not automatically shrunk or removed. Conservative estimates do not replace visual review.
 
 After rendering, the [offline per-page review panel](references/review-panel.md) lets you compare source and rendered images, save findings and issue locations, and avoid reusing stale conclusions after a slide changes. **The panel is optional; users do not need to fill it out slide by slide. An agent with visual capabilities can record checks after actually inspecting the images, or continue using the existing JSON workflow.** When using the panel, download the record (or copy the full exported text into a JSON file), import it, then rerun evaluation. Marking a check as passed does not automatically approve the deliverable.
 
