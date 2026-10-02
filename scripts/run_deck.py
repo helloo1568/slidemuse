@@ -51,7 +51,7 @@ def write(path, value):
     fd, temporary = tempfile.mkstemp(prefix=".pipeline-", dir=path.parent)
     os.close(fd)
     try:
-        Path(temporary).write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        Path(temporary).write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
         os.replace(temporary, path)
     finally:
         Path(temporary).unlink(missing_ok=True)
@@ -61,6 +61,11 @@ def runtime_key():
     paths = [*sorted((ROOT / "scripts").glob("*.py")), *sorted((ROOT / "scripts").glob("*.ps1")),
              *sorted((ROOT / "references").glob("*.schema.json"))]
     return digest({str(p.relative_to(ROOT)): sha256(p) for p in paths})
+
+
+def build_key(inputs):
+    return digest({"spec": sha256(inputs["spec_path"]), "scene": sha256(inputs["scene_path"]) if inputs["scene_path"] else None,
+                   "assets": inputs["assets"], "mode": inputs["config"]["mode"], "runtime": inputs["runtime"]})
 
 
 def load_inputs(config_path, work):
@@ -183,6 +188,9 @@ def locked_workspace(config_path, work):
                     raise ValueError("Workspace belongs to a different job")
             else:
                 write(owner, {"version": "1.0", "config": str(config_path)})
+            if (work / ".review-import.json").exists():
+                from review_panel import recover_import
+                recover_import(config_path, work)
             yield
         finally:
             lock.seek(0)
@@ -258,16 +266,26 @@ def timing_stage(result, stage=None):
 
 def summary(work, result):
     timing_stage(result)
+    if result.get("review_sheet"):
+        from review_panel import generate_panel
+        try:
+            owner = read(work / "owner.json")
+            result["review_panel"] = str(generate_panel(Path(owner["config"]), work, result.get("actions", [])))
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            (work / "review-panel.html").unlink(missing_ok=True)
+            result["panel_note"] = "审阅面板未生成：" + str(error)
     result["status_label"] = STATUS_LABELS[result["status"]]
     write(work / "summary.json", result)
     labels = {"validate": "输入检查", "build": "编译与对象检查", "render": "渲染与审阅准备", "evaluate": "当前交付评分"}
     values = {"pass": "通过", "built": "已编译", "reused": "已复用", "rendered": "已渲染", "fail": "失败", "failed": "失败", "incomplete": "待补充"}
     lines = ["# SlideMuse 交付待办", "", "当前状态：" + result["status_label"], "", "| 阶段 | 结果 | 用时（秒） |", "|---|---|---:|"]
     lines += [f"| {labels.get(name, name)} | {values.get(value, value)} | {result.get('timings_seconds', {}).get(name, '')} |" for name, value in result.get("stages", {}).items()]
-    for key, label in (("deck", "当前 PPTX"), ("review_sheet", "画面核对总览")):
+    for key, label in (("deck", "当前 PPTX"), ("review_sheet", "画面核对总览"), ("review_panel", "本地逐页审阅面板")):
         if result.get(key):
             lines += ["", f"{label}：[{Path(result[key]).name}](<{result[key]}>)"]
     lines += ["", "## 接下来处理", ""]
+    if result.get("panel_note"):
+        lines.append(result["panel_note"])
     for item in result.get("actions", []):
         page = f"第 {item['page_number']} 页（{item.get('slide_id', '')}）：" if item.get("page_number") else ""
         lines.append(f"- {page}{item['message']}")
@@ -305,22 +323,21 @@ def run(config_path, work, stop_after=None, refresh_render=False):
                 result["status"] = "stopped"
                 save_state(work, state)
                 return summary(work, result)
-            build_key = digest({"spec": sha256(inputs["spec_path"]), "scene": sha256(inputs["scene_path"]) if inputs["scene_path"] else None,
-                                "assets": inputs["assets"], "mode": config["mode"], "runtime": inputs["runtime"]})
+            current_build_key = build_key(inputs)
             current_stage = "build"
             timing_stage(result, current_stage)
-            if valid_artifact(state.get("build"), build_key, work):
+            if valid_artifact(state.get("build"), current_build_key, work):
                 deck = Path(state["build"]["path"])
                 result["stages"]["build"] = "reused"
             else:
-                deck = work / "cache" / ("deck-" + build_key + ".pptx")
+                deck = work / "cache" / ("deck-" + current_build_key + ".pptx")
                 if config["mode"] == "editable":
                     build_editable(inputs["scene_path"], deck, inputs["spec_path"])
                 else:
                     build_image(argparse.Namespace(input_dir=inputs["spec_path"], output=deck, width=None, height=None,
                                                     fit="cover", background="FFFFFF", title="", max_width=0, jpeg_quality=0,
                                                     extensions=DEFAULT_EXTENSIONS))
-                state["build"] = artifact(deck, build_key)
+                state["build"] = artifact(deck, current_build_key)
                 result["stages"]["build"] = "built"
                 save_state(work, state)
             result["deck"] = str(deck)
