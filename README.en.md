@@ -21,13 +21,7 @@ Reconstruct slide images as native editable PowerPoint (PPTX) when needed.
 
 </div>
 
-## Resumable delivery
-
-Generate a job with `python scripts/init_deck.py task --mode editable`, then preflight with `python scripts/run_deck.py task/job.json task-output --check`. Page-specific Chinese tasks locate missing inputs and review files; summaries retain machine-readable statuses and record actual tool-stage timings.
-
-Run `python scripts/run_deck.py task/job.json task-output` for an approved Page Spec and prepared Scene. Repeat the command to resume; changed pages are rendered again, while verified unchanged pages can reuse their recorded reviews. The summary lists pending work. Human review remains required. See [pipeline configuration and cache boundaries](references/pipeline.md).
-
-## Install in 30 seconds
+## Start with one message
 
 **Recommended: send this one message to Codex, Claude Code, or OpenCode:**
 
@@ -38,12 +32,19 @@ Run the repository's install.py to register the skill, install isolated dependen
 
 Then say: `Use $slidemuse to turn this PDF into a 10-slide competition presentation.`
 
-Manual install is also just:
+For manual installation and requirements, see [Quick start](#quick-start).
 
-```sh
-git clone https://github.com/helloo1568/slidemuse.git slidemuse
-python slidemuse/install.py
-```
+### What the current version supports
+
+| Your task | Available capabilities |
+| :--- | :--- |
+| Create a presentation from source material | Slide-by-slide content drafts, four style overviews, image-based PPTX, and optional reconstruction into editable objects. |
+| Keep your speaking content | Speaker notes in both image and editable decks, with optional source-linked Markdown export. |
+| Revise chart data | Precise single-series or grouped bar/column figures; explicit data bindings synchronize declared charts, prose, and notes. |
+| Continue an existing task | Input preflight, resumable stages, affected-page rendering, and a consolidated per-page action queue. |
+| Review the deliverable | Object and content checks, scorecards bound to current files, and an optional offline per-page review panel. |
+
+Current version: **2.14.1**. See the [changelog](CHANGELOG.md) for details. These tools support production and validation; actual content and visuals still need review.
 
 ---
 
@@ -154,16 +155,15 @@ The outline includes a reviewable draft for each slide: its claim, support, trac
 
 ## Quick start
 
-### 1. Recommended: ask your agent to install it
+### 1. Check the requirements
 
-Requires **Python 3.10+** and an agent with skill-file support, document reading, image generation, and local file tools.
+| Stage | What you need |
+| :--- | :--- |
+| Installation and local scripts | **Python 3.10+**, plus Git for the clone command below. The installer creates an isolated environment and installs Python dependencies. |
+| Source understanding and image generation | An agent with skill-file support, document reading, vision, image generation, and local file tools. The host provides the models and services. |
+| PPTX rendering and visual review | Installed **PowerPoint** on Windows, or **LibreOffice + Poppler** with `soffice` and `pdftoppm` on PATH. The installer does not install these rendering tools. |
 
-Send this to Codex, Claude Code, or another skill-capable agent:
-
-```text
-Install the SlideMuse skill from https://github.com/helloo1568/slidemuse .
-Use the repository's install.py to register the skill, install dependencies, and verify the setup.
-```
+Use the installation prompt above, or follow the manual steps below.
 
 ### 2. Manual install: clone, then run one command
 
@@ -228,12 +228,39 @@ and deliver the Scene, assets, and editability report.
 
 Complex artwork remains raster within each image. Recognition, segmentation, and background repair depend on host tools; the local scripts include no automatic OCR or segmentation model. Structural audits do not replace visual review or guarantee recovery of occluded information. See [capabilities and validation](docs/guide.en.md).
 
+## Existing tasks: check, run, and resume
+
+These commands operate on prepared specifications and assets. The host agent still handles content approval, image generation, and actual review; the pipeline coordinates compilation, rendering, and checks.
+
+Run from the repository or installed skill root using a Python interpreter with the dependencies installed. The installed interpreter path is recorded in `.skill-python`. The example requires an existing `task/` directory containing `page-spec.json`, its referenced images, and, for editable mode, `scene.json` and its assets.
+
+```sh
+python scripts/init_deck.py task --mode editable
+python scripts/run_deck.py task/job.json task-output --check
+python scripts/run_deck.py task/job.json task-output
+```
+
+Use `--mode image` for image decks; no Scene is needed. Initialization refuses to overwrite an existing `job.json`. Missing images or approvals produce actionable diagnostics; fix them and rerun `--check` against the existing job. Repeat the last command after an interruption to resume. Unchanged pages can reuse renders and valid review records when cache conditions are met.
+
+| Output | Purpose |
+| :--- | :--- |
+| `summary.md` / `summary.json` | Current status, per-page tasks, actual PPTX path, and tool-stage timings. |
+| `review.png` / `render-report.json` | Page previews, reference comparisons, and rendering records; open full-size pages for details. |
+| `review-panel.html` | Optional offline panel for the default review-record workflow, showing source and rendered images together. |
+| `visual-review.json` / `content-observations.json` | Actual visual checks and text observations, which an agent can record directly. |
+| `scorecard.json` | Current delivery-check results; editable mode also produces `object-audit.json`. |
+
+`awaiting_review` (exit code 3) means review evidence is still pending. **Users do not need to fill out every page manually**: an agent with vision can record checks after actually inspecting the images. When using the panel, download or copy its exported JSON, import it, then rerun the original command to evaluate again. `complete` means the declared checks passed; it does not establish source truth or semantic correctness. Summaries and action descriptions are in Chinese, with stable machine-readable status fields. See [pipeline configuration, cache conditions, and exit codes](references/pipeline.md) and [review-panel import steps](references/review-panel.md).
+
 ## Documentation & community
 
 | Your next step | Resource |
 | :--- | :--- |
 | Installation, workflow, commands, and validation | [Usage & technical guide](docs/guide.en.md) |
 | Agent instructions | [SKILL.md](SKILL.md) |
+| Preserve speaker notes and export a script | [Speaker notes](references/speaker-notes.md) |
+| Build precise charts and update linked data | [Chart reliability](references/chart-reliability.md) · [Data bindings](references/data-bindings.md) · [Runnable example](examples/data-update/README.md) |
+| Resume tasks and review delivery | [Pipeline](references/pipeline.md) · [Review panel](references/review-panel.md) · [Delivery evaluation](references/evaluation.md) |
 | Content contracts and editable objects | [Page Spec](references/page-spec.md) · [Scene v1](references/scene-format.md) · [Reconstruction](references/reconstruction.md) |
 | Versions and design references | [Changelog](CHANGELOG.md) · [Research](references/research.md) |
 | Bug reports, suggestions, and code contributions | [Discussions](https://github.com/helloo1568/slidemuse/discussions) · [Contributing](CONTRIBUTING.md) |

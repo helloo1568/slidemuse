@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Reorganize both READMEs around installation and current capabilities, including speaker notes, linked data updates, resumable delivery, and optional review tooling.
+- Document rendering prerequisites, prepared-task CLI usage, output files, and pending-review semantics; remove duplicated installation instructions and the fixed installation-time claim.
+
 ## [2.14.1] - 2026-10-02
 
 ### Changed

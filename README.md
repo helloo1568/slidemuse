@@ -20,13 +20,7 @@
 
 </div>
 
-## 可恢复交付
-
-用 `python scripts/init_deck.py task --mode editable` 生成任务配置，再运行 `python scripts/run_deck.py task/job.json task-output --check` 提前定位缺图、路径和环境问题。中文待办给出页码、对应文件和修复方向，摘要记录工具阶段耗时。
-
-已确认的 Page Spec 和 Scene 可用 `python scripts/run_deck.py task/job.json task-output` 统一编译、渲染和检查。中断后重复命令即可继续；改一页只重渲染受影响页，待审事项集中在摘要中，实际审阅完成后再验收。配置、退出码和缓存边界见[流水线说明](references/pipeline.md)。
-
-## 30 秒安装
+## 一句话开始
 
 **推荐：直接把这一句话发给 Codex / Claude Code / OpenCode：**
 
@@ -37,12 +31,19 @@
 
 安装后直接说：`使用 $slidemuse，把这份 PDF 做成 10 页竞赛 PPT。`
 
-手动安装也只需：
+手动安装与运行条件见[快速开始](#quick-start)。
 
-```sh
-git clone https://github.com/helloo1568/slidemuse.git slidemuse
-python slidemuse/install.py
-```
+### 当前版本能做什么
+
+| 需求 | 已有能力 |
+| :--- | :--- |
+| 从材料开始制作 | 逐页内容稿、四套风格总览、图片版 PPTX，按需重建可编辑对象。 |
+| 保留演讲内容 | 图片版和可编辑版均支持演讲备注，可另行导出带来源的 Markdown 讲稿。 |
+| 修改图表数据 | 精确生成单系列或分组条形图、柱状图；通过显式数据依赖同步已声明的图表、正文与讲稿。 |
+| 接着上次继续做 | 输入预检、断点恢复、受影响页重渲染，以及集中列出的逐页待办。 |
+| 核对交付质量 | 对象与内容检查、当前文件绑定的评分卡，以及可选的离线逐页审阅面板。 |
+
+当前版本 **2.14.1**。完整变更见 [CHANGELOG](CHANGELOG.md)；这些工具辅助制作与核验，实际内容和画面仍需审阅。
 
 ---
 
@@ -153,16 +154,15 @@ python slidemuse/install.py
 
 ## 快速开始
 
-### 1. 推荐：直接让 Agent 安装
+### 1. 确认运行条件
 
-需要 **Python 3.10+**，以及支持技能文件、材料读取、图像生成和本地文件操作的 Agent。
+| 环节 | 需要准备 |
+| :--- | :--- |
+| 安装与本地脚本 | **Python 3.10+**；使用下方克隆命令时还需 Git。安装器创建隔离环境并安装 Python 依赖。 |
+| 材料理解与页面生成 | 支持技能文件、材料读取、视觉理解、生图和本地文件操作的 Agent。宿主提供相应模型与服务。 |
+| PPTX 渲染与视觉核对 | Windows 可使用已安装的 **PowerPoint**；或准备 **LibreOffice + Poppler**，确保 `soffice`、`pdftoppm` 在 PATH 中。安装器不安装这些渲染工具。 |
 
-把下面这句话发给你的 Codex、Claude Code 或其他支持技能的 Agent：
-
-```text
-安装 SlideMuse 这个 skill，地址是 https://github.com/helloo1568/slidemuse 。
-请使用仓库自带的 install.py 完成注册、依赖安装和自检。
-```
+可直接使用上方的安装提示词，也可按下面的步骤手动安装。
 
 ### 2. 手动安装：clone 后只运行一条命令
 
@@ -225,12 +225,39 @@ python slidemuse/install.py --client opencode
 
 复杂插画内部仍是像素。识别、分层和背景补全依赖宿主工具；本地脚本不包含自动 OCR 或分割模型。结构审查不能代替视觉验收，不能保证恢复被遮挡的信息。详见[能力边界与验收](docs/guide.md)。
 
+## 已有任务：检查、运行与恢复
+
+下面的命令面向已准备好规格和素材的任务。宿主 Agent 仍负责内容确认、生图和实际审阅；流水线负责统一编译、渲染和检查。
+
+在仓库或技能根目录运行，`python` 应使用已安装依赖的解释器；安装版解释器路径记录在 `.skill-python`。示例中的 `task/` 必须已存在，包含 `page-spec.json`、其引用的图片，以及可编辑模式所需的 `scene.json` 和素材。
+
+```sh
+python scripts/init_deck.py task --mode editable
+python scripts/run_deck.py task/job.json task-output --check
+python scripts/run_deck.py task/job.json task-output
+```
+
+图片版任务使用 `--mode image`，无需 Scene。初始化不会覆盖已有 `job.json`；缺图或待确认时会列出问题，修复后对已有配置重新执行 `--check`。任务中断后重复最后一条命令即可恢复，符合缓存条件的未变页面可复用渲染与有效审阅记录。
+
+| 输出 | 用途 |
+| :--- | :--- |
+| `summary.md` / `summary.json` | 查看当前状态、逐页待办、实际 PPTX 路径和工具阶段耗时。 |
+| `review.png` / `render-report.json` | 查看页面预览、基准对照与渲染记录；细节需打开原尺寸页面。 |
+| `review-panel.html` | 默认审阅记录流程的可选离线面板，对照源图和渲染图记录检查结果。 |
+| `visual-review.json` / `content-observations.json` | 保存实际视觉核对与文字观测，支持 Agent 直接记录。 |
+| `scorecard.json` | 本次交付检查结果；可编辑模式另有 `object-audit.json`。 |
+
+`awaiting_review`（退出码 3）表示仍有待审证据。**无需用户逐页手填**：具备视觉能力的 Agent 可在实际看图后记录；使用面板时，下载或复制导出的 JSON、导入后，再运行原命令重新评分。`complete` 表示本次声明的检查通过，不能代替对来源事实和语义的判断。详细配置、缓存条件与退出码见[流水线说明](references/pipeline.md)，导入步骤见[审阅面板](references/review-panel.md)。
+
 ## 文档与社区
 
 | 想做什么 | 从这里开始 |
 | :--- | :--- |
 | 了解安装、流程、命令与验收 | [使用与技术指南](docs/guide.md) |
 | 让 Agent 执行技能 | [SKILL.md](SKILL.md) |
+| 保留演讲备注与导出讲稿 | [讲稿说明](references/speaker-notes.md) |
+| 精确绘图与联动修改数据 | [图表可靠性](references/chart-reliability.md) · [数据依赖](references/data-bindings.md) · [可运行示例](examples/data-update/README.md) |
+| 恢复任务与核对交付 | [交付流水线](references/pipeline.md) · [审阅面板](references/review-panel.md) · [交付评估](references/evaluation.md) |
 | 扩展内容规格与可编辑对象 | [Page Spec](references/page-spec.md) · [Scene v1](references/scene-format.md) · [重建指南](references/reconstruction.md) |
 | 查看版本变化与设计来源 | [Changelog](CHANGELOG.md) · [调研记录](references/research.md) |
 | 反馈问题、提建议或贡献代码 | [Discussions](https://github.com/helloo1568/slidemuse/discussions) · [贡献指南](CONTRIBUTING.md) |
