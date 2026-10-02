@@ -12,6 +12,7 @@
 | 视觉 | 实际 PPTX 渲染的逐页 PNG、`review.png`、`visual-review.json` | 每页人工检查布局、画幅、裁切、字体、数字、主视觉和来源图差异，记录 `pass` 或 `fail` |
 | 可编辑性 | 当前 PPTX、`scene.json` | 可编辑版传 `--scene`，结构审查没有错误，仍须按技能流程抽查实际编辑行为 |
 | 讲稿（已声明时） | Page Spec/Scene `speaker_notes` 与实际 PPTX 备注 | 按页序保留原文；明确空备注不能残留。缺失/不一致会使评测失败，旧任务未声明显示 `not_declared` |
+| 数值依赖（显式提供时） | `--data-bindings` 指定的契约及本次 Page Spec/Scene | 声明的原始数值、衍生算术、正文和讲稿均一致；保留契约和文档哈希，冲突使评分失败。未提供显示 `checked: false` |
 
 `pass` 表示上述**已提供**证据均通过；没有 Scene 的图片版可通过且报告显示 `editability.checked: false`。可编辑版只有传入 `--scene` 才能称可编辑性已纳入评分。`fail` 表示发现内容、数据、视觉或结构错误；`incomplete` 表示缺少逐页内容观察、视觉复核或图表/表格数据核验。像素差异均值只帮助定位变化，不设自动通过阈值。若 PowerPoint 与 LibreOffice 渲染结果不同，记录所用后端并目视复查；不能混用不同后端的旧复核记录。
 
