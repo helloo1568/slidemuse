@@ -344,6 +344,13 @@ def run(config_path, work, stop_after=None, refresh_render=False):
             if inputs["scene_path"]:
                 objects = audit_objects(deck, inputs["scene_path"])
                 write(work / "object-audit.json", objects)
+                result['text_layout'] = objects['text_layout']
+                for finding in objects['text_layout']:
+                    if finding['status'] == 'risk':
+                        cell = f"（表格第 {finding['cell'][0]} 行、第 {finding['cell'][1]} 列）" if 'cell' in finding else ''
+                        item = action('text_overflow', f"对象 {finding['element_id']}{cell} 可能文字溢出。实际查看渲染；按需调整文本框或排版，不自动缩字或删内容。", file=work / 'object-audit.json', slide_id=finding['slide_id'], page_number=finding['page_number'], detail=finding['reason'])
+                        item['element_id'] = finding['element_id']
+                        result['actions'].append(item)
                 if objects["errors"]:
                     raise ValueError("Native object checks failed: " + "; ".join(objects["errors"]))
             if stop_after == "build":
@@ -388,6 +395,10 @@ def run(config_path, work, stop_after=None, refresh_render=False):
             update_templates(inputs, work, report, page_keys, previous)
             write(work / "render-report.json", report)
             result["review_sheet"] = str(work / "review.png")
+            for item in result['actions']:
+                if item['kind'] == 'text_overflow':
+                    page = report['slides'][item['page_number'] - 1]
+                    item.update(rendered=page['rendered'], reference=page['reference'])
             state.update(spec=inputs["spec"], render=report, review_keys=page_keys)
             save_state(work, state)
             if stop_after == "render":
@@ -399,12 +410,16 @@ def run(config_path, work, stop_after=None, refresh_render=False):
             observations = inputs["observations"] or [work / "content-observations.json"]
             missing = [p for p in [review_path, *observations, *inputs["optional"].values()] if not p.is_file()]
             if missing:
-                result["actions"] = [action("missing_evidence", "缺少审阅证据文件。按当前模板实际审阅后提供，再重复原命令。", file=p) for p in missing]
+                result["actions"].extend(action("missing_evidence", "缺少审阅证据文件。按当前模板实际审阅后提供，再重复原命令。", file=p) for p in missing)
                 result["status"] = "awaiting_review"
                 return summary(work, result)
             scorecard = evaluate(inputs["spec_path"], work / "render-report.json", review_path, observations,
                                  inputs["scene_path"], inputs["optional"].get("chart_observations"), inputs["optional"].get("data_bindings"))
             write(work / "scorecard.json", scorecard)
+            # Existing current-hash visual review is the gate for layout. Keep
+            # estimates in the report, but do not ask again after genuine review.
+            pending_layout = set(scorecard['visual']['pending'] + scorecard['visual']['failed'])
+            result['actions'] = [item for item in result['actions'] if item['kind'] != 'text_overflow' or item['slide_id'] in pending_layout]
             page_by_id = {s["id"]: n for n, s in enumerate(inputs["spec"]["slides"], 1)}
             def review_action(kind, sid, message, file):
                 item = action(kind, message, file=file, slide_id=sid, page_number=page_by_id[sid])
