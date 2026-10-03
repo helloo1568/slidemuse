@@ -7,6 +7,7 @@ import hashlib
 import json
 from pathlib import Path
 
+from json_io import read_json
 from speaker_notes import canonical_notes
 from validate_page_spec import load_page_spec
 
@@ -147,7 +148,7 @@ def main() -> None:
     if args.command == "snapshot":
         result = snapshot(args.page_spec.resolve())
     else:
-        old = json.loads(args.snapshot.read_text(encoding="utf-8"))
+        old = read_json(args.snapshot)
         spec, _ = load_page_spec(args.page_spec.resolve())
         result = plan(old, spec, args.page_spec.resolve().parent)
     write_new(args.output, result)

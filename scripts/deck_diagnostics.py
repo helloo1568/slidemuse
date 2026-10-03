@@ -7,6 +7,7 @@ import shutil
 import sys
 from pathlib import Path
 
+from json_io import read_json
 from PIL import Image
 from scene import load_scene
 from speaker_notes import check_scene_notes
@@ -77,7 +78,7 @@ def preflight(config_path, work, *, check_renderer=True):
               "job": str(config_path), "workspace": str(work)}
     actions = result["actions"]
     try:
-        config = json.loads(config_path.read_text(encoding="utf-8-sig"))
+        config = read_json(config_path)
         from run_deck import FIELDS, cached_state, load_inputs
         if (not isinstance(config, dict) or set(config) - FIELDS or config.get("version") != "1.0"
                 or config.get("mode") not in ("image", "editable")):
@@ -130,7 +131,7 @@ def preflight(config_path, work, *, check_renderer=True):
                 actions.append(error_action(error, scene_path))
         if work.exists() and any(work.iterdir()):
             owner = work / "owner.json"
-            if not owner.is_file() or json.loads(owner.read_text(encoding="utf-8")) != {"version": "1.0", "config": str(config_path)}:
+            if not owner.is_file() or read_json(owner) != {"version": "1.0", "config": str(config_path)}:
                 actions.append(action("workspace", "工作目录包含其他材料或属于不同任务。请使用新的空目录。", file=work))
             else:
                 cached_state(work)

@@ -7,6 +7,7 @@ import json
 import re
 from pathlib import Path
 
+from json_io import read_json
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 DEFAULTS = {
@@ -172,7 +173,7 @@ def main() -> None:
     if not args.spec.is_file():
         fail(f"spec file not found: {args.spec}")
     try:
-        spec = json.loads(args.spec.read_text(encoding="utf-8"))
+        spec = read_json(args.spec)
     except json.JSONDecodeError as error:
         fail(f"invalid JSON in {args.spec}: {error}")
     defaults = spec.get("defaults", {})

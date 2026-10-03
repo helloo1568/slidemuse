@@ -15,6 +15,7 @@ import string
 import tempfile
 from pathlib import Path
 
+from json_io import read_json
 from render_deck import sha256
 from scene import load_scene, walk
 from validate_page_spec import _relative_path, load_page_spec
@@ -135,7 +136,7 @@ def target(document, pointer, kind):
 
 
 def read_contract(path):
-    contract = json.loads(path.read_text(encoding="utf-8"))
+    contract = read_json(path)
     if (not isinstance(contract, dict) or contract.get("version") != "1.0"
             or set(contract) != {"version", "documents", "inputs", "formulas", "bindings"}):
         raise ValueError("Invalid data binding contract")
@@ -178,6 +179,38 @@ def inspect(path, page_spec=None, scene=None):
     return {"status": "fail" if errors else "pass", "errors": errors, "values": values,
             "contract_sha256": sha256(path), "document_sha256": {kind: sha256(p) for kind, p in paths.items()},
             "scope": "Declared arithmetic and bindings only; not source truth or semantic completeness."}
+
+
+def page_dependencies(path):
+    """Visible bindings plus their transitive numeric provenance, scoped to each page."""
+    contract, _, documents = read_contract(path.resolve())
+    values_for(contract)  # Validate every formula, including unrelated/cyclic definitions.
+    result = {slide["id"]: {"bindings": [], "inputs": {}, "formulas": {}}
+              for document in documents.values() for slide in document["slides"]}
+    for binding in contract["bindings"]:
+        kind = binding["document"]
+        _, _, index, _ = target(documents[kind], binding["pointer"], kind)
+        if binding["pointer"].endswith("/speaker_notes"):
+            continue  # Notes are checked/rebuilt globally, without invalidating visible pixels.
+        page = result[documents[kind]["slides"][int(index)]["id"]]
+        page["bindings"].append(binding)
+        names = [binding["value"]] if "value" in binding else [name for _, name, _, _ in string.Formatter().parse(binding["template"]) if name is not None]
+
+        def include(name, page=page):
+            if name in contract["inputs"]:
+                page["inputs"][name] = contract["inputs"][name]
+            elif name not in page["formulas"]:
+                expression = contract["formulas"][name]
+                page["formulas"][name] = expression
+                for node in ast.walk(ast.parse(expression, mode="eval")):
+                    if isinstance(node, ast.Name):
+                        include(node.id)
+
+        for name in names:
+            include(name)
+    for page in result.values():
+        page["bindings"].sort(key=lambda b: (b["document"], b["pointer"]))
+    return result
 
 
 def plan_update(path, overrides):

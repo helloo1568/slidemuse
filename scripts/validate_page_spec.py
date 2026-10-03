@@ -4,10 +4,10 @@
 from __future__ import annotations
 
 import argparse
-import json
 import math
 from pathlib import Path
 
+from json_io import read_json
 from jsonschema import Draft202012Validator
 from PIL import Image, ImageOps
 
@@ -38,7 +38,7 @@ def validate_page_spec(
     spec: dict, base: Path, require_images: bool = False, strict: bool = False
 ) -> dict:
     _finite(spec)
-    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    schema = read_json(SCHEMA)
     errors = list(Draft202012Validator(schema).iter_errors(spec))
     if errors:
         error = errors[0]
@@ -118,7 +118,7 @@ def validate_page_spec(
 
 
 def load_page_spec(path: Path, require_images: bool = False, strict: bool = False):
-    spec = json.loads(path.read_text(encoding="utf-8-sig"))
+    spec = read_json(path)
     result = validate_page_spec(spec, path.resolve().parent, require_images, strict)
     return spec, result
 

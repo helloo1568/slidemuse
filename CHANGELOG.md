@@ -4,6 +4,26 @@
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-10-03
+
+### Added
+
+- Bounded renderer subprocesses with configurable timeout, limited safe retries and ownership-checked PowerPoint cleanup that preserves pre-existing interactive sessions.
+- Automatic render-cache fingerprints for renderer executable bytes, installed fonts, system and Python dependency versions.
+- Optional actual PowerPoint text/table bounds and text-overlap diagnostics, cached with page evidence and surfaced as actionable review tasks.
+- Six-page real-backend regression controls and a dedicated LibreOffice/Poppler CI job with exported images.
+- Append-only production event logs with explicit generation calls, revised pages, measured review time, wall time and preserved first/final delivery outcomes.
+
+### Fixed
+
+- A shared BOM-tolerant JSON reader keeps Page Spec, Scene, data bindings and review evidence consistent throughout validation and delivery.
+- Visible numeric dependency changes invalidate only the relevant pages and their transitive provenance; unrelated rendered pages and genuinely recorded reviews remain reusable.
+
+### Scope
+
+- PowerPoint measurements are diagnostics, not automatic visual approval; grouped/rotated text and chart labels still require visual inspection.
+- Production metrics cover explicitly recorded events only; missing times remain unknown, and repaired final success does not erase first-delivery failure.
+
 ## [2.15.0] - 2026-10-02
 
 ### Added

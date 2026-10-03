@@ -10,7 +10,7 @@
 重点面向**挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛**，也适用于**学术汇报、论文答辩、项目路演、课程展示与电影质感 PPT**，支持图片转可编辑 PPT。
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.15.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.16.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -43,7 +43,7 @@
 | 接着上次继续做 | 输入预检、断点恢复、受影响页重渲染，以及集中列出的逐页待办。 |
 | 核对交付质量 | 对象与内容检查、当前文件绑定的评分卡，以及可选的离线逐页审阅面板。 |
 
-当前版本 **2.15.0**。完整变更见 [CHANGELOG](CHANGELOG.md)；这些工具辅助制作与核验，实际内容和画面仍需审阅。
+当前版本 **2.16.0**。完整变更见 [CHANGELOG](CHANGELOG.md)；这些工具辅助制作与核验，实际内容和画面仍需审阅。
 
 ---
 
@@ -111,6 +111,8 @@
 可编辑版提供[文字溢出预警](references/text-layout.md)，定位可能放不下的文本框或表格单元格，由 Agent 查看真实渲染后处理；不会自动缩字或删内容。保守估算不能代替逐页视觉检查。
 
 完成渲染后，可打开[离线逐页审阅面板](references/review-panel.md)，对照源图与当前画面，保存检查结果和问题位置，并防止页面更新后沿用过期结论。**面板是可选入口，用户无需逐页手动填写；具备视觉能力的 Agent 可以实际看图、核对后记录，也可直接使用原有 JSON 流程。** 使用面板时，下载记录（或复制完整导出文本保存为 JSON），导入后重新评分；填写“通过”不会自动产生交付通过结论。
+
+2.16.0 增加渲染超时、环境变化自动刷新与按页数据依赖缓存；可选 PowerPoint 实测文字和重叠检查。固定六页真实渲染回归及[制作成本记录](references/production-metrics.md)帮助比较返修与首次交付结果，使用方式见[流水线](references/pipeline.md)。
 
 ## 适合制作哪些 PPT
 

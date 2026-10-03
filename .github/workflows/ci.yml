@@ -6,6 +6,25 @@ on:
   pull_request:
 
 jobs:
+  real-render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install real renderer and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice-impress poppler-utils fonts-noto-cjk fonts-liberation
+          python -m pip install -r requirements.txt
+      - name: Real six-page backend regression
+        run: python scripts/verify_render_backend.py render-regression --backend libreoffice
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: libreoffice-render-regression
+          path: render-regression
   test:
     runs-on: ${{ matrix.os }}
     strategy:

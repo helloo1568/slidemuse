@@ -3,7 +3,7 @@ name: slidemuse
 description: 将书籍、PDF、论文、报告或文字材料制作成视觉优先的图片版 PPT，适用于竞赛、答辩、路演、课程展示和读书分享；在用户明确要求时按 Scene v1 还原可编辑 PPTX。流程包含需求和大纲确认、四套风格选型及逐页生图；不用于直接修改已有可编辑 PPTX。
 ---
 
-# SlideMuse · 2.15.0
+# SlideMuse · 2.16.0
 
 本技能只有一条主流程：**内容提炼 → 图片 PPT 生成 → 可编辑 PPTX 还原**。
 用户负责确认内容与风格，Agent 负责按已确认规格执行；不得把流程改写成“先做原生信息层”的编辑优先路线。
@@ -184,6 +184,8 @@ python "<skill-dir>/scripts/render_deck.py" "<work>/output/editable.pptx" "<work
 - [reconstruction.md](references/reconstruction.md) 与 [scene-format.md](references/scene-format.md)：仅 S6 读取。
 - [evaluation.md](references/evaluation.md)：仅质量回归、版本发布或需要可复跑评分卡时读取。
 - [benchmark.md](references/benchmark.md)：仅跨材料评测时读取；冻结全部案例、保留首次与修复后成绩、验证实际产物证据并按类别/划分汇总。
+- [pipeline.md](references/pipeline.md)：已准备好 Page Spec/Scene 后，使用可恢复交付、渲染超时、环境指纹、可选 PowerPoint 实测及逐页待办。
+- [production-metrics.md](references/production-metrics.md)：完整制作或质量回归时，推荐从实际开始记录制作事件；保留生图次数、返修页、实测耗时与首次/最终交付结果。缺失部分不能凭估计补零。
 - [chart-reliability.md](references/chart-reliability.md)：S5 定量图表检查、有限修复或完整评测时读取；包括几何观察与精确水平条形区域兜底。
 - `validate_page_spec.py`：验证内容确认、页序、稳定 ID、画布边界和图片交付状态。
 - `overlay_text.py`：仅作为 Step 2 图片页的准确文字兜底。

@@ -10,6 +10,7 @@ from audit_chart_geometry import audit as audit_geometry
 from audit_editability import audit as audit_editability
 from audit_page_content import audit as audit_content
 from audit_speaker_notes import audit as audit_notes
+from json_io import read_json
 from render_deck import reference_files, sha256
 from update_data_bindings import inspect as inspect_bindings
 from validate_page_spec import load_page_spec
@@ -20,7 +21,7 @@ def data_checks(element):
 
 
 def verified_render(report_path: Path, spec_path: Path, count: int) -> tuple[dict, Path]:
-    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report = read_json(report_path)
     deck = Path(report["deck"]).resolve()
     if not deck.is_file() or report.get("deck_sha256") != sha256(deck):
         raise ValueError("Render report is stale or lacks a deck hash; rerun render_deck.py")
@@ -55,7 +56,7 @@ def review_template(spec: dict, render: dict) -> dict:
 
 
 def verified_visual_review(review_path: Path, spec: dict, render: dict) -> dict:
-    review = json.loads(review_path.read_text(encoding="utf-8"))
+    review = read_json(review_path)
     if (review.get("version") != "1.2" or review.get("deck_sha256") != render["deck_sha256"]
             or review.get("page_spec_sha256") != render["page_spec_sha256"]
             or review.get("render_backend") != render["backend"]):
@@ -128,7 +129,7 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
     review = verified_visual_review(review_path, spec, render)
     observations = {"version": "1.0", "slides": []}
     for path in observation_paths:
-        item = json.loads(path.read_text(encoding="utf-8"))
+        item = read_json(path)
         if item.get("version") != "1.0" or not isinstance(item.get("slides"), list):
             raise ValueError(f"Invalid observation file: {path}")
         observations["slides"].extend(item["slides"])
@@ -166,6 +167,8 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
                      "data_bindings_sha256": sha256(data_bindings_path) if data_bindings_path else None},
         "slides": len(spec["slides"]),
         "render_backend": render["backend"],
+        "render_environment": render.get("environment"),
+        "measured_layout": render.get("measured_layout", []),
         "content": {"issues": content["issues"], "incomplete": content["incomplete"],
                     "missing_observations": content["missing_observations"],
                     "findings": {item["id"]: item["findings"] for item in content["slides"] if item["findings"]}},

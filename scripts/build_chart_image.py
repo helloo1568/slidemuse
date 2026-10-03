@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 
 from audit_chart_geometry import chart_series, number
+from json_io import read_json
 from overlay_text import FONT_CANDIDATES, load_font, parse_color
 from PIL import Image, ImageDraw, ImageOps
 from render_deck import sha256
@@ -24,7 +25,7 @@ def protected_paths(spec_path, layout_path, spec):
 def render(spec_path, layout_path, output, replace_region=False):
     spec_path, output = spec_path.resolve(), output.resolve()
     spec, _ = load_page_spec(spec_path)
-    layout = json.loads(layout_path.read_text(encoding="utf-8"))
+    layout = read_json(layout_path)
     slide = next((s for s in spec["slides"] if s["id"] == layout["slide_id"]), None)
     element = next((e for e in slide["elements"] if e["id"] == layout["element_id"]), None) if slide else None
     if not element or element["kind"] != "chart":

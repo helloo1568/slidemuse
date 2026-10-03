@@ -10,13 +10,14 @@ import math
 import re
 from pathlib import Path
 
+from json_io import read_json
 from PIL import Image, ImageChops, ImageOps
 from scene import asset_path
 
 
 def extract(spec_path: Path, output_dir: Path) -> dict:
     spec_path, output_dir = spec_path.resolve(), output_dir.resolve()
-    spec = json.loads(spec_path.read_text(encoding="utf-8-sig"))
+    spec = read_json(spec_path)
     base = spec_path.parent
     source = asset_path(base, spec["source"])
     with Image.open(source) as original:

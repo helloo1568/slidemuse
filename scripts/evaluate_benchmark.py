@@ -5,6 +5,7 @@ This validates evidence and statistics, not reviewer identity or semantic truth.
 Keep each attempt's artifacts in its own directory; changed evidence is rejected.
 """
 
+
 import argparse
 import hashlib
 import io
@@ -17,6 +18,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from audit_editability import audit as audit_editability
 from evaluate_delivery import evaluate
+from json_io import read_json
 from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
@@ -45,7 +47,7 @@ def object_digest(value):
 
 
 def read(path):
-    value = json.loads(Path(path).read_text(encoding="utf-8"))
+    value = read_json(Path(path))
     if not isinstance(value, dict):
         raise TypeError(f"Expected JSON object: {path}")
     return value
