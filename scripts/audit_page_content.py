@@ -9,6 +9,7 @@ import re
 import unicodedata
 from pathlib import Path
 
+from json_io import read_json
 from validate_page_spec import load_page_spec
 
 
@@ -125,7 +126,7 @@ def main() -> None:
         args.observations.write_text(json.dumps(template(spec_path, slides), ensure_ascii=False, indent=2), encoding="utf-8")
         print(args.observations)
         return
-    observations = json.loads(args.observations.read_text(encoding="utf-8"))
+    observations = read_json(args.observations)
     if ids:
         observations = {**observations, "slides": [item for item in observations["slides"] if item.get("id") in ids]}
     report = audit(spec_path, slides, observations)

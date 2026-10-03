@@ -8,13 +8,14 @@ import json
 import math
 from pathlib import Path
 
+from json_io import read_json
 from overlay_text import FONT_CANDIDATES, load_font
 from PIL import Image, ImageDraw, ImageOps
 
 
 def build_overview(spec_path: Path, output: Path, overwrite: bool = False) -> dict:
     spec_path, output = spec_path.resolve(), output.resolve()
-    spec = json.loads(spec_path.read_text(encoding="utf-8-sig"))
+    spec = read_json(spec_path)
     if not isinstance(spec, dict):
         raise TypeError("Overview specification must be an object")
     slides = spec.get("slides")

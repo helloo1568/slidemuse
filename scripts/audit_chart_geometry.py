@@ -7,6 +7,7 @@ import json
 import math
 from pathlib import Path
 
+from json_io import read_json
 from PIL import Image, ImageOps
 from render_deck import sha256
 from validate_page_spec import _relative_path, load_page_spec
@@ -84,7 +85,7 @@ def template(spec_path, spec, slide_id=None):
 def audit(spec_path, observation_path, slide_id=None, tolerance=2.5):
     spec_path = spec_path.resolve()
     spec, _ = load_page_spec(spec_path)
-    observations = json.loads(observation_path.read_text(encoding="utf-8"))
+    observations = read_json(observation_path)
     if observations.get("version") != "1.0" or observations.get("page_spec_sha256") != sha256(spec_path):
         raise ValueError("Chart geometry observations are stale; recreate after Page Spec changes")
     tolerance = number(tolerance)

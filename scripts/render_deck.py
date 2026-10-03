@@ -11,8 +11,10 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from json_io import read_json
 from PIL import Image, ImageChops, ImageDraw, ImageOps, ImageStat
 from pptx import Presentation
+from render_process import OPTIONS, execute, rendering_options
 
 
 def sha256(path: Path) -> str:
@@ -27,12 +29,16 @@ def render_powerpoint(deck: Path, output: Path, width: int, height: int, slides:
     shell = shutil.which("powershell.exe") or shutil.which("powershell")
     if not shell:
         raise RuntimeError("PowerPoint renderer requires Windows PowerShell")
-    subprocess.run(
+    marker = output / ".powerpoint-process.json"
+    execute(
         [shell, "-NoProfile", "-NonInteractive", "-File", str(Path(__file__).with_name("render_powerpoint.ps1")),
          "-Deck", str(deck), "-OutputDir", str(output), "-Width", str(width), "-Height", str(height),
+         "-ProcessMarker", str(marker),
+         *(["-MeasureText"] if OPTIONS.get()["measure_text"] else []),
          *(["-SlideNumbers", ",".join(str(n) for n in slides)] if slides is not None else [])],
-        check=True, capture_output=True, text=True,
+        label="PowerPoint", retry_safe=False, powerpoint_marker=marker,
     )
+    marker.unlink(missing_ok=True)
 
 
 def render_libreoffice(deck: Path, output: Path, width: int, height: int, count: int,
@@ -43,18 +49,18 @@ def render_libreoffice(deck: Path, output: Path, width: int, height: int, count:
         raise RuntimeError("LibreOffice renderer requires soffice and pdftoppm on PATH")
     with tempfile.TemporaryDirectory() as temp:
         temp_dir = Path(temp)
-        subprocess.run(
+        execute(
             [office, "-env:UserInstallation=file:///" + temp_dir.as_posix(), "--headless", "--convert-to", "pdf", "--outdir", str(temp_dir), str(deck)],
-            check=True, capture_output=True, text=True,
+            label="LibreOffice",
         )
         pdf = temp_dir / (deck.stem + ".pdf")
         if not pdf.is_file():
             raise RuntimeError("LibreOffice did not produce a PDF")
         wanted = slides if slides is not None else list(range(1, count + 1))
         for first, last in ([(1, count)] if slides is None else [(n, n) for n in wanted]):
-            subprocess.run(
+            execute(
                 [raster, "-f", str(first), "-l", str(last), "-png", "-r", "144", str(pdf), str(temp_dir / "slide")],
-                check=True, capture_output=True, text=True,
+                label="Poppler",
             )
         pages = {int(path.stem.rsplit("-", 1)[1]): path for path in temp_dir.glob("slide-*.png")}
         if set(pages) != set(wanted):
@@ -97,11 +103,12 @@ def render_selected(deck: Path, output: Path, width: int, backend: str,
             errors.append(f"{candidate}: {error}")
             for n in slides:
                 (output / f"{n:03d}.png").unlink(missing_ok=True)
+                (output / f"{n:03d}.layout.json").unlink(missing_ok=True)
     raise RuntimeError("No presentation renderer succeeded: " + "; ".join(errors))
 
 
 def reference_files(spec_path: Path, count: int) -> list[Path]:
-    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    spec = read_json(spec_path)
     slides = spec.get("slides", [])
     if len(slides) != count:
         raise ValueError("Page Spec slide count differs from the PPTX")
@@ -162,6 +169,9 @@ def main() -> None:
     parser.add_argument("--backend", choices=("auto", "powerpoint", "libreoffice"), default="auto")
     parser.add_argument("--width", type=int, default=1600)
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--timeout", type=float, default=120)
+    parser.add_argument("--retries", type=int, default=1)
+    parser.add_argument("--measure-text", action="store_true", help="Collect actual PowerPoint text bounds")
     args = parser.parse_args()
     deck = args.deck.resolve()
     output = args.output.resolve()
@@ -179,6 +189,27 @@ def main() -> None:
         path.unlink()
     backends = [args.backend] if args.backend != "auto" else (["powerpoint", "libreoffice"] if os.name == "nt" else ["libreoffice"])
     errors = []
+    with rendering_options(timeout=args.timeout, retries=args.retries, measure_text=args.measure_text):
+        backend = _render_cli(backends, deck, output, args, height, count, errors)
+    images = [output / f"{index:03d}.png" for index in range(1, count + 1)]
+    if any(not path.is_file() for path in images):
+        raise SystemExit("Renderer output is incomplete")
+    references = reference_files(args.page_spec.resolve(), count) if args.page_spec else None
+    slides = build_review(images, output, references)
+    from measured_layout import findings
+    from render_environment import fingerprint
+    report = {"deck": str(deck), "deck_sha256": sha256(deck), "backend": backend,
+              "environment": fingerprint(),
+              "measured_layout": [item for n in range(1, count + 1) if (output / f"{n:03d}.layout.json").is_file()
+                                  for item in findings(read_json(output / f"{n:03d}.layout.json"), f"s{n:02d}")],
+              "page_spec_sha256": sha256(args.page_spec.resolve()) if args.page_spec else None,
+              "slides": slides, "review_sheet": str(output / "review.png"),
+              "note": "Pixel differences are diagnostic only; inspect typography, clipping, content and composition manually."}
+    (output / "render-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps({"backend": backend, "slides": count, "review": str(output / "review.png")}, ensure_ascii=False))
+
+
+def _render_cli(backends, deck, output, args, height, count, errors):
     backend = None
     for candidate in backends:
         try:
@@ -192,19 +223,11 @@ def main() -> None:
             errors.append(f"{candidate}: {error}")
             for path in output.glob("[0-9][0-9][0-9].png"):
                 path.unlink()
+            for path in output.glob("[0-9][0-9][0-9].layout.json"):
+                path.unlink()
     if backend is None:
         raise SystemExit("No presentation renderer succeeded: " + "; ".join(errors))
-    images = [output / f"{index:03d}.png" for index in range(1, count + 1)]
-    if any(not path.is_file() for path in images):
-        raise SystemExit("Renderer output is incomplete")
-    references = reference_files(args.page_spec.resolve(), count) if args.page_spec else None
-    slides = build_review(images, output, references)
-    report = {"deck": str(deck), "deck_sha256": sha256(deck), "backend": backend,
-              "page_spec_sha256": sha256(args.page_spec.resolve()) if args.page_spec else None,
-              "slides": slides, "review_sheet": str(output / "review.png"),
-              "note": "Pixel differences are diagnostic only; inspect typography, clipping, content and composition manually."}
-    (output / "render-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"backend": backend, "slides": count, "review": str(output / "review.png")}, ensure_ascii=False))
+    return backend
 
 
 if __name__ == "__main__":

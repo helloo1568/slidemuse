@@ -27,7 +27,7 @@ python scripts/run_deck.py task/job.json task-output
 }
 ```
 
-`mode` 为 `image` 时省略 `scene`，Page Spec 的图片必须 approved。`editable` 接受 approved 图片或 revision 历史参考图，并按 Scene 编译。可选字段：`visual_review`、`observations`（非空路径数组）、`chart_observations`、`data_bindings`。指定外部审阅文件时只读取它们，不覆盖。配置只接受以上字段。
+`mode` 为 `image` 时省略 `scene`，Page Spec 的图片必须 approved。`editable` 接受 approved 图片或 revision 历史参考图，并按 Scene 编译。可选字段：`visual_review`、`observations`（非空路径数组）、`chart_observations`、`data_bindings`。指定外部审阅文件时只读取它们，不覆盖。配置另支持 `render_timeout`（1–3600 秒，默认120）、`render_retries`（0–2，默认1）、`measure_text`（布尔，默认false），以及 `work_log`。配置只接受声明的字段。
 
 ```bash
 python scripts/run_deck.py task/job.json task-output --status
@@ -63,8 +63,28 @@ python scripts/run_deck.py task/job.json task-output
 - 修改一页时重新编译整个 PPTX，只渲染受影响页面；其余页面仅在输入和图片哈希一致时复用。有效的已记录审阅逐页迁移，修改页回到 pending。讲稿变更会重新编译并审查讲稿，可复用未变的画面。
 - 整套评分每次重新计算，旧评分卡先归档，不沿用旧通过结果。`review-history` 保留被替换的审阅和评分记录。状态哈希用于检测损坏，不是数字签名，也不认证审阅者身份或原始事实。
 - PowerPoint 直接按页导出；LibreOffice 仍转换整套 PDF，再只栅格化所需页。后端切换时全部页面重渲染，避免混合不同后端的旧画面。
-- 字体文件、Office 和系统环境未自动做指纹。更换字体或渲染环境后，运行 `--refresh-render` 强制刷新全套画面和审阅。工具升级通常也会使旧缓存失效。
+- 2.16.0 起自动记录系统、Python/关键依赖版本、渲染器可执行文件与系统/用户字体目录中字节指纹；变化自动重渲染与复审。指纹不能覆盖 Office 所有设置、云字体或任意外部插件，改变这些设置时仍用 `--refresh-render`。字体扫描问题会保留在报告中。工具升级通常也会使旧缓存失效。
 
 输出包括 `cache/*.pptx`、`cache/*.png`、`render-report.json`、`review.png`、`object-audit.json`（可编辑模式）、审阅模板、`scorecard.json`、`summary.json` 和 `summary.md`。具体 PPTX 路径以当次摘要的 `deck` 为准。缓存保留历次版本，不自动删除任务材料。
 
 示例配置 [examples/data-update/job.json](../examples/data-update/job.json) 需要先补齐示例图片并完成确认。首次缺图会明确报 blocked；占位路径不能构成交付通过证据。
+
+## 2.16.0 运行可靠性与制作成本
+
+外部渲染步骤默认120秒超时。LibreOffice/Poppler 可有限重试；PowerPoint COM 不自动重试，避免重复打开共享会话。超时只终止该任务的助手进程与其子进程；PowerPoint 还需通过 HWND、PID、创建时间与运行前进程名单确认新建实例，才允许清理。已有 PowerPoint 会话不会被 Quit 或终止。若共享会话中的读取操作卡住，可能保留本任务的只读演示文稿，诊断会提醒检查；保存的构建检查点可供重跑。
+
+`measure_text: true` 时采集 PowerPoint 实际文字边界、表格扩展与文字之间的重叠，定位到页和对象；旋转/组合保持 unverified，图表标签仍需看图。测量和实际渲染绑定保存，可复用；测量文件缺失或损坏时重渲染。LibreOffice 不提供 COM 测量，摘要明确说明。测量预警不自动修改内容、不填通过；实际视觉审阅仍是交付门槛。
+
+数据修改按每页可见绑定及其传递公式、输入、单位和来源计算缓存键。无关页保留渲染与已实际记录的审阅；整份契约与讲稿仍每次检查，整套评分仍重新计算。仅讲稿绑定变化可复用像素，但会重建并核对讲稿。
+
+可选 `work_log` 读取[制作成本记录](production-metrics.md)，显示首次完整交付状态与已记录成本。工具阶段计时和整体任务历时分别报告。新任务可在 job 中加入：
+
+```json
+{
+  "version": "1.0", "mode": "editable", "page_spec": "page-spec.json", "scene": "scene.json",
+  "backend": "powerpoint", "width": 1600, "render_timeout": 120, "render_retries": 1,
+  "measure_text": true, "work_log": "production.jsonl"
+}
+```
+
+固定真实后端回归：`python scripts/verify_render_backend.py regression-output --backend powerpoint`。输出必须是新目录；六页包含中文、故意溢出、故意重叠、表格、混合字体和图表标签，机械检查不代替检查导出的 PNG。CI 单独安装 LibreOffice/Poppler 和中文字体并运行实际六页导出，上传图片供查看。发布前还应在可用的 Windows PowerPoint 环境运行此命令。

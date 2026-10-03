@@ -9,6 +9,7 @@ import json
 import math
 from pathlib import Path
 
+from json_io import read_json
 from PIL import Image, ImageOps
 
 
@@ -85,7 +86,7 @@ def main():
     parser.add_argument("choices", type=Path)
     args = parser.parse_args()
     try:
-        spec = json.loads(args.choices.read_text(encoding="utf-8-sig"))
+        spec = read_json(args.choices)
         result = validate_style_options(spec, args.choices.resolve().parent)
     except (ValueError, OSError) as error:
         parser.exit(2, f"validate_style_options: {error}\n")

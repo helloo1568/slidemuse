@@ -26,15 +26,19 @@ from deck_diagnostics import (
     print_result,
 )
 from evaluate_delivery import evaluate, review_template, verified_visual_review
+from json_io import read_json
 from render_deck import build_review, reference_files, render_selected, sha256
+from render_environment import environment_key, fingerprint
+from render_process import rendering_options, validate_options
 from scene import load_scene, walk
 from speaker_notes import check_scene_notes
 from update_data_bindings import inspect as inspect_bindings
+from update_data_bindings import page_dependencies
 from validate_page_spec import _relative_path, load_page_spec
 
 ROOT = Path(__file__).resolve().parents[1]
 FIELDS = {"version", "page_spec", "mode", "scene", "backend", "width", "visual_review",
-          "observations", "chart_observations", "data_bindings"}
+          "observations", "chart_observations", "data_bindings", "render_timeout", "render_retries", "measure_text", "work_log"}
 
 
 def digest(value):
@@ -43,7 +47,7 @@ def digest(value):
 
 
 def read(path):
-    return json.loads(path.read_text(encoding="utf-8-sig"))
+    return read_json(path)
 
 
 def write(path, value):
@@ -75,6 +79,7 @@ def load_inputs(config_path, work):
         raise ValueError("Job needs version 1.0, mode image/editable and supported fields")
     if config.get("backend", "auto") not in ("auto", "powerpoint", "libreoffice"):
         raise ValueError("Unknown render backend")
+    validate_options(config.get("render_timeout", 120), config.get("render_retries", 1), config.get("measure_text", False))
     width = config.get("width", 1600)
     if isinstance(width, bool) or not isinstance(width, int) or not 320 <= width <= 16384:
         raise ValueError("Render width must be an integer between 320 and 16384")
@@ -108,9 +113,17 @@ def load_inputs(config_path, work):
         raise ValueError("Pipeline workspace must not contain job inputs or source assets")
     optional = {name: resolve(config[name]) for name in ("visual_review", "chart_observations", "data_bindings") if config.get(name)}
     observations = [resolve(name) for name in config.get("observations", [])]
+    work_log = resolve(config["work_log"]) if config.get("work_log") else None
+    if work_log:
+        if work_log.is_relative_to(work):
+            raise ValueError("Production log must stay outside the pipeline workspace")
+        from record_work import summarize
+        summarize(work_log)
     return {"config": config, "spec_path": spec_path, "scene_path": scene_path, "spec": spec, "scene": scene,
             "references": references, "assets": {str(p): sha256(p) for p in assets}, "slide_assets": per_slide_assets,
-            "optional": optional, "observations": observations, "runtime": runtime_key()}
+            "optional": optional, "observations": observations, "runtime": runtime_key(), "environment": fingerprint(),
+            "page_dependencies": page_dependencies(optional["data_bindings"]) if "data_bindings" in optional else {},
+            "work_log": work_log}
 
 
 def visible(slide):
@@ -130,7 +143,9 @@ def keys(inputs, backend):
                                       "count": len(spec["slides"]) if slide.get("depends_on_slide_count") else None,
                                       "backend": backend, "requested_backend": config.get("backend", "auto"),
                                       "width": config.get("width", 1600), "runtime": inputs["runtime"],
-                                      "data_bindings": sha256(inputs["optional"]["data_bindings"]) if "data_bindings" in inputs["optional"] else None})
+                                      "environment": environment_key(inputs["environment"], backend),
+                                      "measure_text": config.get("measure_text", False),
+                                      "data_bindings": inputs["page_dependencies"].get(slide["id"], {"bindings": [], "inputs": {}, "formulas": {}})})
     return result
 
 
@@ -275,6 +290,16 @@ def summary(work, result):
             (work / "review-panel.html").unlink(missing_ok=True)
             result["panel_note"] = "审阅面板未生成：" + str(error)
     result["status_label"] = STATUS_LABELS[result["status"]]
+    owner = read(work / "owner.json")
+    config_path = Path(owner["config"])
+    config = read(config_path)
+    if config.get("work_log"):
+        from record_work import summarize
+        try:
+            result["production_metrics"] = summarize(_relative_path(config_path.parent, config["work_log"]))
+        except (ValueError, OSError, KeyError, TypeError) as error:
+            result["production_metrics_error"] = str(error)
+            result["actions"].append(action("production_log", "制作成本记录读取失败；保留日志并检查完整性。", detail=str(error)))
     write(work / "summary.json", result)
     labels = {"validate": "输入检查", "build": "编译与对象检查", "render": "渲染与审阅准备", "evaluate": "当前交付评分"}
     values = {"pass": "通过", "built": "已编译", "reused": "已复用", "rendered": "已渲染", "fail": "失败", "failed": "失败", "incomplete": "待补充"}
@@ -297,6 +322,10 @@ def summary(work, result):
     if not result.get("actions"):
         lines.append("- 本次声明的检查全部通过。" if result["status"] == "complete" else "- 已保存当前阶段。重复原命令可继续；尚未完成全部交付检查。")
     lines += ["", "计时仅含工具执行阶段，不含人工审阅和材料准备。审阅记录不认证审阅者身份或原始事实。", ""]
+    if result.get("production_metrics"):
+        metrics = result["production_metrics"]
+        lines += ["## 制作成本", "", f"生图调用：{metrics['generation_calls']}；返修页数：{metrics['revised_page_count']}；记录的审阅用时：{metrics['review_seconds']} 秒。",
+                  f"任务实际历时：{metrics['wall_seconds']} 秒；首次交付结果：{metrics['first_delivery_status']}。", "", "仅统计显式记录的事件；未记录部分不推断为零。"]
     (work / "summary.md").write_text("\n".join(lines), encoding="utf-8")
     return result
 
@@ -305,7 +334,9 @@ def run(config_path, work, stop_after=None, refresh_render=False):
     began = time.perf_counter()
     config_path, work = config_path.resolve(), work.resolve()
     inputs = load_inputs(config_path, work)
-    with locked_workspace(config_path, work):
+    with locked_workspace(config_path, work), rendering_options(
+            timeout=inputs["config"].get("render_timeout", 120), retries=inputs["config"].get("render_retries", 1),
+            measure_text=inputs["config"].get("measure_text", False)):
         state = cached_state(work)
         previous = copy.deepcopy(state)
         result = {"status": "running", "stages": {"validate": "pass"}, "actions": [], "rendered_slides": [], "reused_slides": [],
@@ -362,7 +393,8 @@ def run(config_path, work, stop_after=None, refresh_render=False):
             page_keys = keys(inputs, backend)
             pages = state.get("pages", {})
             ids = [s["id"] for s in inputs["spec"]["slides"]]
-            wanted = [n for n, sid in enumerate(ids, 1) if refresh_render or not valid_artifact(pages.get(sid), page_keys[sid], work)]
+            wanted = [n for n, sid in enumerate(ids, 1) if refresh_render or not valid_artifact(pages.get(sid), page_keys[sid], work)
+                      or config.get("measure_text") and backend == "powerpoint" and not valid_artifact(pages.get(sid, {}).get("layout"), page_keys[sid], work)]
             if wanted:
                 with tempfile.TemporaryDirectory(prefix=".render-", dir=work) as temporary:
                     rendered = Path(temporary)
@@ -375,6 +407,8 @@ def run(config_path, work, stop_after=None, refresh_render=False):
                                 render_selected(deck, Path(extra), config.get("width", 1600), actual_backend, missing)
                                 for n in missing:
                                     shutil.copyfile(Path(extra) / f"{n:03d}.png", rendered / f"{n:03d}.png")
+                                    if (Path(extra) / f"{n:03d}.layout.json").is_file():
+                                        shutil.copyfile(Path(extra) / f"{n:03d}.layout.json", rendered / f"{n:03d}.layout.json")
                             wanted += missing
                         backend = actual_backend
                         page_keys = keys(inputs, backend)
@@ -383,6 +417,11 @@ def run(config_path, work, stop_after=None, refresh_render=False):
                         cached = work / "cache" / ("page-" + page_keys[sid] + ".png")
                         shutil.copyfile(rendered / f"{n:03d}.png", cached)
                         pages[sid] = artifact(cached, page_keys[sid])
+                        layout = rendered / f"{n:03d}.layout.json"
+                        if layout.is_file():
+                            target = cached.with_suffix(".layout.json")
+                            shutil.copyfile(layout, target)
+                            pages[sid]["layout"] = artifact(target, page_keys[sid])
                 state.update(pages={sid: pages[sid] for sid in ids}, backend=backend)
                 save_state(work, state)
             result["rendered_slides"] = [ids[n - 1] for n in sorted(wanted)]
@@ -390,13 +429,28 @@ def run(config_path, work, stop_after=None, refresh_render=False):
             result["stages"]["render"] = "rendered" if wanted else "reused"
             images = [Path(pages[sid]["path"]) for sid in ids]
             report = {"deck": str(deck), "deck_sha256": sha256(deck), "backend": backend,
+                      "environment": inputs["environment"],
                       "page_spec_sha256": sha256(inputs["spec_path"]),
                       "slides": build_review(images, work, inputs["references"]), "review_sheet": str(work / "review.png")}
+            from measured_layout import findings
+            measured = []
+            for sid in ids:
+                record = pages[sid].get("layout")
+                if record and valid_artifact(record, page_keys[sid], work):
+                    measured.extend(findings(read(Path(record["path"])), sid))
+            result["measured_layout"] = measured
+            report["measured_layout"] = measured
+            if config.get("measure_text") and backend != "powerpoint":
+                result["actions"].append(action("measurement_unavailable", "当前后端不提供 PowerPoint 文字尺寸测量；实际看图检查文字和重叠。"))
+            for item in measured:
+                if item["status"] == "risk":
+                    message = "实测文字边界与其他文字重叠，请查看真实渲染。" if item.get("kind") == "text_overlap" else "实测文字或表格边界可能越框/越页，请查看真实渲染。"
+                    result["actions"].append({**action("measured_layout", message, slide_id=item["slide_id"], page_number=item["page_number"], detail=item["reason"]), "element_id": item["element_id"]})
             update_templates(inputs, work, report, page_keys, previous)
             write(work / "render-report.json", report)
             result["review_sheet"] = str(work / "review.png")
             for item in result['actions']:
-                if item['kind'] == 'text_overflow':
+                if item['kind'] in ('text_overflow', 'measured_layout'):
                     page = report['slides'][item['page_number'] - 1]
                     item.update(rendered=page['rendered'], reference=page['reference'])
             state.update(spec=inputs["spec"], render=report, review_keys=page_keys)
@@ -419,7 +473,7 @@ def run(config_path, work, stop_after=None, refresh_render=False):
             # Existing current-hash visual review is the gate for layout. Keep
             # estimates in the report, but do not ask again after genuine review.
             pending_layout = set(scorecard['visual']['pending'] + scorecard['visual']['failed'])
-            result['actions'] = [item for item in result['actions'] if item['kind'] != 'text_overflow' or item['slide_id'] in pending_layout]
+            result['actions'] = [item for item in result['actions'] if item['kind'] not in ('text_overflow', 'measured_layout') or item['slide_id'] in pending_layout]
             page_by_id = {s["id"]: n for n, s in enumerate(inputs["spec"]["slides"], 1)}
             def review_action(kind, sid, message, file):
                 item = action(kind, message, file=file, slide_id=sid, page_number=page_by_id[sid])

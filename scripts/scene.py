@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import math
 from pathlib import Path
 
+from json_io import read_json
 from jsonschema import Draft202012Validator
 from PIL import Image
 
@@ -44,7 +44,7 @@ def _finite(value):
 
 def validate_scene(scene: dict, base: Path) -> list[str]:
     _finite(scene)
-    schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
+    schema = read_json(SCHEMA)
     errors = list(Draft202012Validator(schema).iter_errors(scene))
     if errors:
         error = errors[0]
@@ -161,6 +161,6 @@ def validate_scene(scene: dict, base: Path) -> list[str]:
 
 
 def load_scene(path: Path):
-    scene = json.loads(path.read_text(encoding="utf-8-sig"))
+    scene = read_json(path)
     warnings = validate_scene(scene, path.resolve().parent)
     return scene, warnings
