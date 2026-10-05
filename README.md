@@ -51,7 +51,20 @@
 
 ## 先看作品
 
-同一套工作流，两种视觉表达。以下为本项目工作流产出的实际页面，点击图片可查看原图。
+以下为本项目工作流产出的实际页面，点击图片可查看原图。
+
+### 国赛作品集 · 三套完整案例
+
+面向技术答辩与项目路演，三套各 8 页的原创作品保留机制解释、验证口径、数据表和实施安排。
+
+| 科技创新：焊隙智检 | 交通应用：路口先知 | 社区服务：邻里守望 |
+| :--- | :--- | :--- |
+| [![焊隙智检封面](showcase/competition-portfolio/assets/weld/01.webp)](docs/competition-portfolio.md#焊隙智检) | [![路口先知封面](showcase/competition-portfolio/assets/junction/01.webp)](docs/competition-portfolio.md#路口先知) | [![邻里守望封面](showcase/competition-portfolio/assets/neighbor/01.webp)](docs/competition-portfolio.md#邻里守望) |
+| [下载图片版 PPTX](showcase/competition-portfolio/decks/weld.pptx) | [下载图片版 PPTX](showcase/competition-portfolio/decks/junction.pptx) | [下载图片版 PPTX](showcase/competition-portfolio/decks/neighbor.pptx) |
+
+[查看完整 24 页与内容说明](docs/competition-portfolio.md) · [本地逐页浏览](showcase/competition-portfolio/index.html)
+
+<sub>三套作品均为原创概念案例，数据为虚构演示输入，概念视觉不代表真实产品或部署。PPTX 为图片版，每页是一张完整图片。</sub>
 
 ### 雪线守望 · 冰川蓝银科技
 

@@ -54,7 +54,20 @@ Current version: **2.16.0**. See the [changelog](CHANGELOG.md) for details. Thes
 
 ## See the results
 
-One workflow, two visual directions. These are actual pages produced with this project's workflow. Click an image to view the original.
+These are actual pages produced with this project's workflow. Click an image to view the original.
+
+### Competition portfolio · Three complete concepts
+
+Three original eight-slide presentations retain mechanism explanations, evaluation definitions, data tables, and implementation plans for technical defenses and project pitches.
+
+| Manufacturing: Weld Inspect | Transportation: Junction Foresight | Community: Neighbor Care |
+| :--- | :--- | :--- |
+| [![Weld Inspect cover](showcase/competition-portfolio/assets/weld/01.webp)](docs/competition-portfolio.md#焊隙智检) | [![Junction Foresight cover](showcase/competition-portfolio/assets/junction/01.webp)](docs/competition-portfolio.md#路口先知) | [![Neighbor Care cover](showcase/competition-portfolio/assets/neighbor/01.webp)](docs/competition-portfolio.md#邻里守望) |
+| [Download image PPTX](showcase/competition-portfolio/decks/weld.pptx) | [Download image PPTX](showcase/competition-portfolio/decks/junction.pptx) | [Download image PPTX](showcase/competition-portfolio/decks/neighbor.pptx) |
+
+[All 24 slides and content notes](docs/competition-portfolio.md) · [Local slide browser](showcase/competition-portfolio/index.html)
+
+<sub>These are original fictional concepts with synthetic demonstration data. Concept visuals do not show real products or deployments. Each image PPTX page contains one complete slide image.</sub>
 
 ### Snowline Watch · Glacier blue & silver
 
