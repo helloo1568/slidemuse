@@ -54,19 +54,20 @@ Current version: **2.16.0**. See the [changelog](CHANGELOG.md) for details. Thes
 
 ## See the results
 
-Three complete presentations in a university competition defense style, **8 slides each**. Each preview pairs a cover with a content slide; the full decks include technical explanations, data tables, evaluation definitions, and implementation plans.
+Three complete competition decks, **8 slides each**, alongside the Snowline Watch and Glaze Reborn showcases. Click any preview to view the full-size image.
 
-[Browse all 24 slides](docs/competition-portfolio.md) · [Local portfolio browser](showcase/competition-portfolio/index.html)
-
-> These are original concepts with synthetic demonstration data and conceptual product and scene visuals. Downloads are image-based PPTX files with one complete image per slide. Slide content is in Chinese.
+[Browse all 24 competition slides](docs/competition-portfolio.md) · [Local portfolio browser](showcase/competition-portfolio/index.html)
 
 ### Weld Inspect · Manufacturing
 
 A weld inspection concept for small-batch manufacturing, covering image capture, quality gates, human review, and comparative evaluation.
 
-| 01 / Project cover | 04 / Algorithm and data architecture |
-| :---: | :---: |
-| [![Weld Inspect: project cover](showcase/competition-portfolio/assets/weld/01.webp)](showcase/competition-portfolio/assets/weld/01.webp) | [![Weld Inspect: Algorithm and data architecture](showcase/competition-portfolio/assets/weld/04.webp)](showcase/competition-portfolio/assets/weld/04.webp) |
+<p align="center">
+<a href="showcase/competition-portfolio/assets/weld/01.webp"><img src="showcase/competition-portfolio/assets/weld/01.webp" alt="Weld Inspect · Manufacturing 01: Project cover" width="49%"></a>
+<a href="showcase/competition-portfolio/assets/weld/04.webp"><img src="showcase/competition-portfolio/assets/weld/04.webp" alt="Weld Inspect · Manufacturing 04: Algorithm and data architecture" width="49%"></a>
+</p>
+
+<p align="center"><sub>01 / Project cover &nbsp; · &nbsp; 04 / Algorithm and data architecture</sub></p>
 
 [View all 8 slides](docs/competition-portfolio.md#焊隙智检) · [Download image PPTX](showcase/competition-portfolio/decks/weld.pptx?raw=true)
 
@@ -74,9 +75,12 @@ A weld inspection concept for small-batch manufacturing, covering image capture,
 
 A roadside warning concept for conflicts between pedestrians and turning vehicles, covering risk assessment, scenario validation, and false-alarm tradeoffs.
 
-| 01 / Project cover | 06 / Fixed-replay comparison |
-| :---: | :---: |
-| [![Junction Foresight: project cover](showcase/competition-portfolio/assets/junction/01.webp)](showcase/competition-portfolio/assets/junction/01.webp) | [![Junction Foresight: Fixed-replay comparison](showcase/competition-portfolio/assets/junction/06.webp)](showcase/competition-portfolio/assets/junction/06.webp) |
+<p align="center">
+<a href="showcase/competition-portfolio/assets/junction/01.webp"><img src="showcase/competition-portfolio/assets/junction/01.webp" alt="Junction Foresight · Transportation 01: Project cover" width="49%"></a>
+<a href="showcase/competition-portfolio/assets/junction/06.webp"><img src="showcase/competition-portfolio/assets/junction/06.webp" alt="Junction Foresight · Transportation 06: Fixed-replay comparison" width="49%"></a>
+</p>
+
+<p align="center"><sub>01 / Project cover &nbsp; · &nbsp; 06 / Fixed-replay comparison</sub></p>
 
 [View all 8 slides](docs/competition-portfolio.md#路口先知) · [Download image PPTX](showcase/competition-portfolio/decks/junction.pptx?raw=true)
 
@@ -84,24 +88,40 @@ A roadside warning concept for conflicts between pedestrians and turning vehicle
 
 A community support concept for older adults living alone, covering human dispatch, responsibilities, service metrics, and ongoing operations.
 
-| 01 / Project cover | 04 / Service network and responsibilities |
-| :---: | :---: |
-| [![Neighbor Care: project cover](showcase/competition-portfolio/assets/neighbor/01.webp)](showcase/competition-portfolio/assets/neighbor/01.webp) | [![Neighbor Care: Service network and responsibilities](showcase/competition-portfolio/assets/neighbor/04.webp)](showcase/competition-portfolio/assets/neighbor/04.webp) |
+<p align="center">
+<a href="showcase/competition-portfolio/assets/neighbor/01.webp"><img src="showcase/competition-portfolio/assets/neighbor/01.webp" alt="Neighbor Care · Community services 01: Project cover" width="49%"></a>
+<a href="showcase/competition-portfolio/assets/neighbor/04.webp"><img src="showcase/competition-portfolio/assets/neighbor/04.webp" alt="Neighbor Care · Community services 04: Service network and responsibilities" width="49%"></a>
+</p>
+
+<p align="center"><sub>01 / Project cover &nbsp; · &nbsp; 04 / Service network and responsibilities</sub></p>
 
 [View all 8 slides](docs/competition-portfolio.md#邻里守望) · [Download image PPTX](showcase/competition-portfolio/decks/neighbor.pptx?raw=true)
 
-<details>
-<summary><strong>More visual styles: Snowline Watch and Glaze Reborn</strong></summary>
+### Snowline Watch · Glacier blue & silver
 
-Selected cinematic and red-and-gold slides for comparing scene composition, lighting, and color.
+A glacier inspection and ecological early-warning concept, covering the setting, problem, solution, and technology comparison.
 
-| Snowline Watch · Glacier blue & silver | Glaze Reborn · Red & gold |
-| :---: | :---: |
-| [![Snowline Watch: project cover](showcase/preview/snowline-watch-01.webp)](showcase/snowline-watch-01.png) | [![Glaze Reborn: solution](showcase/preview/red-gold-competition-03.webp)](showcase/red-gold-competition-03.png) |
+<p align="center">
+<a href="showcase/snowline-watch-01.png"><img src="showcase/preview/snowline-watch-01.webp" alt="Snowline Watch 01: Project cover" width="49%"></a>
+<a href="showcase/snowline-watch-04.png"><img src="showcase/preview/snowline-watch-04.webp" alt="Snowline Watch 04: Technology comparison" width="49%"></a>
+</p>
+
+<p align="center"><sub>01 / Project cover &nbsp; · &nbsp; 04 / Technology comparison</sub></p>
+
+### Glaze Reborn · Red & gold
+
+A craft-themed competition concept connecting the problem, solution, and process technology through a red-and-gold palette.
+
+<p align="center">
+<a href="showcase/red-gold-competition-03.png"><img src="showcase/preview/red-gold-competition-03.webp" alt="Glaze Reborn 03: Solution" width="49%"></a>
+<a href="showcase/red-gold-competition-04.png"><img src="showcase/preview/red-gold-competition-04.webp" alt="Glaze Reborn 04: Process technology" width="49%"></a>
+</p>
+
+<p align="center"><sub>03 / Solution &nbsp; · &nbsp; 04 / Process technology</sub></p>
 
 [View all 7 style samples](docs/style-showcase.md)
 
-</details>
+<sub>These are original concepts with synthetic demonstration data. Competition deck downloads are image-based PPTX files; style samples demonstrate visual output. Slide content is in Chinese.</sub>
 
 <a id="features"></a>
 

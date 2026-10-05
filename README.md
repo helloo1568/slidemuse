@@ -51,19 +51,20 @@
 
 ## 先看作品
 
-三套完整的国赛答辩风格作品，每套 **8 页**。首页精选封面与信息页，完整作品包含技术解释、数据表、验证口径和实施安排。
+三套完整竞赛作品，每套 **8 页**，以及「雪线守望」「釉光新生」两套风格展示。点击预览图可查看大图。
 
-[浏览全部 24 页](docs/competition-portfolio.md) · [本地作品集浏览器](showcase/competition-portfolio/index.html)
-
-> 三套均为原创概念案例，数据为演示假设，产品与场景为概念视觉。提供图片版 PPTX，每页是一张完整图片。
+[浏览完整 24 页竞赛作品](docs/competition-portfolio.md) · [本地作品集浏览器](showcase/competition-portfolio/index.html)
 
 ### 焊隙智检 · 科技创新
 
 面向小批量制造的焊缝外观检测方案，展示采集、质量门控、人工复核与对照评测。
 
-| 01 / 项目封面 | 04 / 算法与数据处理架构 |
-| :---: | :---: |
-| [![焊隙智检：项目封面](showcase/competition-portfolio/assets/weld/01.webp)](showcase/competition-portfolio/assets/weld/01.webp) | [![焊隙智检：算法与数据处理架构](showcase/competition-portfolio/assets/weld/04.webp)](showcase/competition-portfolio/assets/weld/04.webp) |
+<p align="center">
+<a href="showcase/competition-portfolio/assets/weld/01.webp"><img src="showcase/competition-portfolio/assets/weld/01.webp" alt="焊隙智检 · 科技创新 01: 项目封面" width="49%"></a>
+<a href="showcase/competition-portfolio/assets/weld/04.webp"><img src="showcase/competition-portfolio/assets/weld/04.webp" alt="焊隙智检 · 科技创新 04: 算法与数据处理架构" width="49%"></a>
+</p>
+
+<p align="center"><sub>01 / 项目封面 &nbsp; · &nbsp; 04 / 算法与数据处理架构</sub></p>
 
 [查看完整 8 页](docs/competition-portfolio.md#焊隙智检) · [下载图片版 PPTX](showcase/competition-portfolio/decks/weld.pptx?raw=true)
 
@@ -71,9 +72,12 @@
 
 面向行人与转向车辆冲突的路侧预警方案，展示风险判断、场景验证及误报取舍。
 
-| 01 / 项目封面 | 06 / 固定回放的演示对照 |
-| :---: | :---: |
-| [![路口先知：项目封面](showcase/competition-portfolio/assets/junction/01.webp)](showcase/competition-portfolio/assets/junction/01.webp) | [![路口先知：固定回放的演示对照](showcase/competition-portfolio/assets/junction/06.webp)](showcase/competition-portfolio/assets/junction/06.webp) |
+<p align="center">
+<a href="showcase/competition-portfolio/assets/junction/01.webp"><img src="showcase/competition-portfolio/assets/junction/01.webp" alt="路口先知 · 交通应用 01: 项目封面" width="49%"></a>
+<a href="showcase/competition-portfolio/assets/junction/06.webp"><img src="showcase/competition-portfolio/assets/junction/06.webp" alt="路口先知 · 交通应用 06: 固定回放的演示对照" width="49%"></a>
+</p>
+
+<p align="center"><sub>01 / 项目封面 &nbsp; · &nbsp; 06 / 固定回放的演示对照</sub></p>
 
 [查看完整 8 页](docs/competition-portfolio.md#路口先知) · [下载图片版 PPTX](showcase/competition-portfolio/decks/junction.pptx?raw=true)
 
@@ -81,24 +85,40 @@
 
 面向独居长者的社区支持服务方案，展示人工调度、责任分工、服务指标与持续运营。
 
-| 01 / 项目封面 | 04 / 服务网络与责任分工 |
-| :---: | :---: |
-| [![邻里守望：项目封面](showcase/competition-portfolio/assets/neighbor/01.webp)](showcase/competition-portfolio/assets/neighbor/01.webp) | [![邻里守望：服务网络与责任分工](showcase/competition-portfolio/assets/neighbor/04.webp)](showcase/competition-portfolio/assets/neighbor/04.webp) |
+<p align="center">
+<a href="showcase/competition-portfolio/assets/neighbor/01.webp"><img src="showcase/competition-portfolio/assets/neighbor/01.webp" alt="邻里守望 · 社区服务 01: 项目封面" width="49%"></a>
+<a href="showcase/competition-portfolio/assets/neighbor/04.webp"><img src="showcase/competition-portfolio/assets/neighbor/04.webp" alt="邻里守望 · 社区服务 04: 服务网络与责任分工" width="49%"></a>
+</p>
+
+<p align="center"><sub>01 / 项目封面 &nbsp; · &nbsp; 04 / 服务网络与责任分工</sub></p>
 
 [查看完整 8 页](docs/competition-portfolio.md#邻里守望) · [下载图片版 PPTX](showcase/competition-portfolio/decks/neighbor.pptx?raw=true)
 
-<details>
-<summary><strong>更多视觉风格：雪线守望与釉光新生</strong></summary>
+### 雪线守望 · 冰川蓝银科技
 
-电影质感与红金竞赛风格的页面节选，适合比较场景构图、光影与配色。
+高原冰川智能巡检与生态预警系统，以冰川蓝银配色呈现项目场景、痛点、方案与技术对比。
 
-| 雪线守望 · 冰川蓝银 | 釉光新生 · 红金工艺 |
-| :---: | :---: |
-| [![雪线守望：项目封面](showcase/preview/snowline-watch-01.webp)](showcase/snowline-watch-01.png) | [![釉光新生：解决方案](showcase/preview/red-gold-competition-03.webp)](showcase/red-gold-competition-03.png) |
+<p align="center">
+<a href="showcase/snowline-watch-01.png"><img src="showcase/preview/snowline-watch-01.webp" alt="雪线守望 01: 项目封面" width="49%"></a>
+<a href="showcase/snowline-watch-04.png"><img src="showcase/preview/snowline-watch-04.webp" alt="雪线守望 04: 技术对比" width="49%"></a>
+</p>
+
+<p align="center"><sub>01 / 项目封面 &nbsp; · &nbsp; 04 / 技术对比</sub></p>
+
+### 釉光新生 · 红金竞赛风格
+
+以红金配色呈现工艺主题，展示项目痛点、解决方案与工艺技术。
+
+<p align="center">
+<a href="showcase/red-gold-competition-03.png"><img src="showcase/preview/red-gold-competition-03.webp" alt="釉光新生 03: 解决方案" width="49%"></a>
+<a href="showcase/red-gold-competition-04.png"><img src="showcase/preview/red-gold-competition-04.webp" alt="釉光新生 04: 工艺技术" width="49%"></a>
+</p>
+
+<p align="center"><sub>03 / 解决方案 &nbsp; · &nbsp; 04 / 工艺技术</sub></p>
 
 [查看全部 7 页风格示例](docs/style-showcase.md)
 
-</details>
+<sub>作品均为原创概念展示，业务与技术数据为演示内容。三套竞赛作品提供图片版 PPTX；风格示例用于展示视觉效果。</sub>
 
 <a id="features"></a>
 
