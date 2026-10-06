@@ -11,7 +11,7 @@ Especially strong for **university competition presentations**—including Chall
 Reconstruct slide images as native editable PowerPoint (PPTX) when needed.
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.16.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.16.1-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -44,7 +44,7 @@ For manual installation and requirements, see [Quick start](#quick-start).
 | Continue an existing task | Input preflight, resumable stages, affected-page rendering, and a consolidated per-page action queue. |
 | Review the deliverable | Object and content checks, scorecards bound to current files, and an optional offline per-page review panel. |
 
-Current version: **2.16.0**. See the [changelog](CHANGELOG.md) for details. These tools support production and validation; actual content and visuals still need review.
+Current version: **2.16.1**. See the [changelog](CHANGELOG.md) for details. These tools support production and validation; actual content and visuals still need review.
 2.16.0 adds bounded rendering, automatic environment invalidation and page-scoped dependency caching. Optional PowerPoint measurements locate text overflow and overlap. Real six-page backend controls and [production event logs](references/production-metrics.md) preserve repair cost and first-delivery outcomes; see the [pipeline guide](references/pipeline.md).
 
 
@@ -53,6 +53,23 @@ Current version: **2.16.0**. See the [changelog](CHANGELOG.md) for details. Thes
 <a id="showcase"></a>
 
 ## See the results
+
+### Editable sample · Download and try an edit
+
+The six-slide Chinese IRENA overview contains **native text, one table and three charts with embedded workbooks**. The complete sample includes the source report, image/native decks, four independent editing exercises, a pinned runtime and reproduction commands.
+
+<p align="center">
+<a href="showcase/editable-irena/previews/editable-03.webp"><img src="showcase/editable-irena/previews/editable-03.webp" alt="Before: native chart with solar at 452 GW" width="49%"></a>
+<a href="showcase/editable-irena/previews/chart-edit.webp"><img src="showcase/editable-irena/previews/chart-edit.webp" alt="After: synthetic solar 460 GW exercise with synchronized chart and explanations" width="49%"></a>
+</p>
+
+<p align="center"><sub>Original native slide &nbsp; · &nbsp; Actual PowerPoint export after editing</sub></p>
+
+[Editable PPTX](showcase/editable-irena/decks/editable.pptx?raw=true) · [Complete sample ZIP](showcase/editable-irena/sample.zip?raw=true) · [Edit demonstration](showcase/editable-irena/demo.mp4?raw=true) · [Reproduction guide](docs/editable-sample.en.md)
+
+<sub>The original uses selected 2024 statistics and the 2025 report-time scenario; edited pages visibly identify synthetic practice values. Source report © IRENA 2025. Reproduction starts from approved images and structured inputs.</sub>
+
+### Competition decks and visual styles
 
 Three complete competition decks, **8 slides each**, alongside the Snowline Watch and Glaze Reborn showcases. Click any preview to view the full-size image.
 
