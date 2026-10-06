@@ -11,6 +11,7 @@
 - A public six-slide editable IRENA sample with image/native decks, four independent editing exercises, source PDF, portable inputs, before/after previews and a PowerPoint-export comparison video.
 - A complete sample archive containing pinned runtime scripts and a reproduction command that checks native objects, embedded chart workbooks and speaker notes.
 - Bilingual guides and homepage download links, with historical independent acceptance and current rebuild verification recorded separately.
+- The installer includes the public sample when present; packaged-install regression rebuilds all six decks from the installed files.
 
 ### Scope
 

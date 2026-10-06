@@ -32,6 +32,8 @@ RUNTIME_PATHS = (
     "examples",
 )
 
+OPTIONAL_RUNTIME_PATHS = ("showcase/editable-irena",)
+
 
 def read_skill_name(root: Path) -> str:
     text = (root / "SKILL.md").read_text(encoding="utf-8")
@@ -86,7 +88,8 @@ def copy_runtime(root: Path, target: Path) -> None:
     missing = [str(root / name) for name in RUNTIME_PATHS if not (root / name).exists()]
     if missing:
         raise RuntimeError(f"Missing runtime paths: {', '.join(missing)}")
-    for name in RUNTIME_PATHS:
+    paths = (*RUNTIME_PATHS, *(name for name in OPTIONAL_RUNTIME_PATHS if (root / name).is_dir()))
+    for name in paths:
         source = root / name
         destination = target / name
         if source.is_dir():

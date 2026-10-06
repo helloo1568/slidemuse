@@ -33,3 +33,13 @@ def test_manifest_packaged_zip_is_installable(tmp_path):
          str(installed / "examples" / "page-spec.example.json"), "--strict"],
         check=True, capture_output=True, text=True,
     )
+    sample = installed / "showcase" / "editable-irena"
+    assert (sample / "decks" / "editable.pptx").is_file()
+    rebuilt = tmp_path / "sample-rebuilt"
+    subprocess.run(
+        [sys.executable, str(sample / "reproduce.py"), "--verify", "--output", str(rebuilt)],
+        check=True, capture_output=True, text=True,
+    )
+    report = json.loads((rebuilt / "reproduction.json").read_text(encoding="utf-8"))
+    assert report["status"] == "pass"
+    assert len(report["decks"]) == 6
