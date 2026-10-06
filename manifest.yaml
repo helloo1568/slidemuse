@@ -1,6 +1,6 @@
 name: slidemuse
 display_name: SlideMuse
-version: 2.16.0
+version: 2.16.1
 description: >-
   SlideMuse 是视觉优先的 AI PPT Skill，重点适用于挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛 PPT，同时适用于电影质感 PPT、比赛答辩、创新创业路演、学术汇报、论文答辩、项目汇报、课程展示和图片转可编辑 PPT。
   按固定三阶段流程将材料制作成图片版 PPT，并在明确授权后还原为可编辑 PPTX：
@@ -84,6 +84,8 @@ files:
   - CONTRIBUTING.md
   - docs/guide.md
   - docs/guide.en.md
+  - docs/editable-sample.md
+  - docs/editable-sample.en.md
   - docs/acceptance-2026-09-18.md
   - docs/acceptance-2026-09-30.md
   - docs/acceptance-2026-10-01.md
@@ -162,3 +164,53 @@ files:
   - showcase/preview/snowline-watch-02.webp
   - showcase/preview/snowline-watch-03.webp
   - showcase/preview/snowline-watch-04.webp
+  - showcase/editable-irena/.gitattributes
+  - showcase/editable-irena/decks/chart-edit.pptx
+  - showcase/editable-irena/decks/editable.pptx
+  - showcase/editable-irena/decks/image.pptx
+  - showcase/editable-irena/decks/object-move.pptx
+  - showcase/editable-irena/decks/table-edit.pptx
+  - showcase/editable-irena/decks/text-edit.pptx
+  - showcase/editable-irena/demo.mp4
+  - showcase/editable-irena/evidence/historical-limitations.md
+  - showcase/editable-irena/evidence/historical-review.md
+  - showcase/editable-irena/evidence/verification.json
+  - showcase/editable-irena/index.html
+  - showcase/editable-irena/manifest.json
+  - showcase/editable-irena/NOTICE.md
+  - showcase/editable-irena/page-spec-chart-edit.json
+  - showcase/editable-irena/page-spec-object-move.json
+  - showcase/editable-irena/page-spec-table-edit.json
+  - showcase/editable-irena/page-spec-text-edit.json
+  - showcase/editable-irena/page-spec.json
+  - showcase/editable-irena/previews/chart-edit.webp
+  - showcase/editable-irena/previews/editable-01.webp
+  - showcase/editable-irena/previews/editable-02.webp
+  - showcase/editable-irena/previews/editable-03.webp
+  - showcase/editable-irena/previews/editable-04.webp
+  - showcase/editable-irena/previews/editable-05.webp
+  - showcase/editable-irena/previews/editable-06.webp
+  - showcase/editable-irena/previews/object-move.webp
+  - showcase/editable-irena/previews/table-edit.webp
+  - showcase/editable-irena/previews/text-edit.webp
+  - showcase/editable-irena/previews/video-cover.webp
+  - showcase/editable-irena/README.en.md
+  - showcase/editable-irena/README.md
+  - showcase/editable-irena/reproduce.py
+  - showcase/editable-irena/sample.zip
+  - showcase/editable-irena/scene-chart-edit.json
+  - showcase/editable-irena/scene-object-move.json
+  - showcase/editable-irena/scene-table-edit.json
+  - showcase/editable-irena/scene-text-edit.json
+  - showcase/editable-irena/scene.json
+  - showcase/editable-irena/SHA256SUMS.txt
+  - showcase/editable-irena/slides/01-page.png
+  - showcase/editable-irena/slides/02-page.png
+  - showcase/editable-irena/slides/03-word-repair.png
+  - showcase/editable-irena/slides/04-repair.png
+  - showcase/editable-irena/slides/05-exact-v2.png
+  - showcase/editable-irena/slides/06-page.png
+  - showcase/editable-irena/source/IRENA_Renewable_Capacity_Statistics_2025.pdf
+  - showcase/editable-irena/source/source.json
+  - showcase/editable-irena/speaker-notes.md
+  - showcase/editable-irena/styles/03-sorter.png

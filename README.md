@@ -10,7 +10,7 @@
 重点面向**挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛**，也适用于**学术汇报、论文答辩、项目路演、课程展示与电影质感 PPT**，支持图片转可编辑 PPT。
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.16.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.16.1-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -43,13 +43,30 @@
 | 接着上次继续做 | 输入预检、断点恢复、受影响页重渲染，以及集中列出的逐页待办。 |
 | 核对交付质量 | 对象与内容检查、当前文件绑定的评分卡，以及可选的离线逐页审阅面板。 |
 
-当前版本 **2.16.0**。完整变更见 [CHANGELOG](CHANGELOG.md)；这些工具辅助制作与核验，实际内容和画面仍需审阅。
+当前版本 **2.16.1**。完整变更见 [CHANGELOG](CHANGELOG.md)；这些工具辅助制作与核验，实际内容和画面仍需审阅。
 
 ---
 
 <a id="showcase"></a>
 
 ## 先看作品
+
+### 可编辑样板 · 下载后亲手修改
+
+IRENA 六页统计导读提供**原生文字、一张表格和三张嵌入工作簿图表**。完整样板包含源报告、图片版与可编辑版、四种独立修改练习，以及固定运行时和复现命令。
+
+<p align="center">
+<a href="showcase/editable-irena/previews/editable-03.webp"><img src="showcase/editable-irena/previews/editable-03.webp" alt="修改前：原生图表太阳能452 GW" width="49%"></a>
+<a href="showcase/editable-irena/previews/chart-edit.webp"><img src="showcase/editable-irena/previews/chart-edit.webp" alt="修改后：太阳能460 GW的合成练习，图表与说明同步" width="49%"></a>
+</p>
+
+<p align="center"><sub>原版可编辑页 &nbsp; · &nbsp; 修改后的真实 PowerPoint 导出</sub></p>
+
+[下载可编辑 PPTX](showcase/editable-irena/decks/editable.pptx?raw=true) · [完整样板 ZIP](showcase/editable-irena/sample.zip?raw=true) · [修改演示视频](showcase/editable-irena/demo.mp4?raw=true) · [复现说明](docs/editable-sample.md)
+
+<sub>原版基于2024年统计和2025版报告时点情景；修改页显著标明合成练习值。源报告 © IRENA 2025。复现从已批准的图片与结构化输入开始。</sub>
+
+### 竞赛作品与风格展示
 
 三套完整竞赛作品，每套 **8 页**，以及「雪线守望」「釉光新生」两套风格展示。点击预览图可查看大图。
 

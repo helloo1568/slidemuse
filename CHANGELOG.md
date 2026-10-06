@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [2.16.1] - 2026-10-06
+
+### Added
+
+- A public six-slide editable IRENA sample with image/native decks, four independent editing exercises, source PDF, portable inputs, before/after previews and a PowerPoint-export comparison video.
+- A complete sample archive containing pinned runtime scripts and a reproduction command that checks native objects, embedded chart workbooks and speaker notes.
+- Bilingual guides and homepage download links, with historical independent acceptance and current rebuild verification recorded separately.
+
+### Scope
+
+- The sample covers selected 2024 statistics and the original 2025 report-time scenario. Edited table/chart pages explicitly identify synthetic values.
+- Reproduction starts from approved images and structured inputs. Native fills and chart axes differ visually from the image version as documented.
+
 ## [2.16.0] - 2026-10-03
 
 ### Added

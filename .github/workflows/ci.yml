@@ -45,6 +45,8 @@ jobs:
         run: python -m pytest tests/ -v
       - name: Validate Page Spec example
         run: python scripts/validate_page_spec.py examples/page-spec.example.json --strict
+      - name: Rebuild public editable sample
+        run: python showcase/editable-irena/reproduce.py --verify --output "${{ runner.temp }}/editable-sample"
       - name: Validate installer registration
         run: |
           python install.py --client codex --home "${{ runner.temp }}/skill-home" --skip-deps

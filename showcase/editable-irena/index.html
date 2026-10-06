@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SlideMuse · 可编辑样板</title>
+  <style>
+    :root{color-scheme:light;--ink:#172027;--paper:#f8f4ea;--red:#a3312b;--muted:#586269;--line:#ded8cd}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 "Microsoft YaHei",system-ui,sans-serif}
+    main{width:min(1180px,calc(100% - 40px));margin:0 auto;padding:40px 0 72px}a{color:var(--red)}h1,h2,h3,p{margin-top:0}h1{font-size:clamp(32px,5vw,56px);line-height:1.2;letter-spacing:-1px;margin-bottom:16px}h2{font-size:28px;margin-bottom:16px}h3{font-size:20px;margin-bottom:8px}
+    .eyebrow{color:var(--red);font-weight:700;letter-spacing:2px;margin-bottom:12px}.lede{font-size:19px;max-width:850px;color:var(--muted)}.links{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}.links a{padding:10px 18px;border:1px solid var(--red);border-radius:6px;text-decoration:none;font-weight:600}.links a:first-child{background:var(--red);color:#fff}
+    .scope{border-left:3px solid var(--red);padding:12px 18px;background:#eee7da;color:var(--muted);margin:24px 0 40px}.section{margin-top:44px}.compare{display:grid;grid-template-columns:1fr 1fr;gap:16px}.frame{margin:0;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}.frame figcaption{padding:10px 14px;font-weight:600}.frame img{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:var(--paper)}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}button{background:transparent;border:1px solid var(--line);border-radius:5px;padding:10px 16px;cursor:pointer;color:var(--ink);font:inherit}button[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:white}button:focus-visible,a:focus-visible{outline:3px solid #db937c;outline-offset:3px}
+    .edit-detail{color:var(--muted);margin:14px 0 8px;min-height:54px}.gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.gallery .frame img{aspect-ratio:16/9}video{width:100%;display:block;border-radius:8px;background:#172027;border:1px solid var(--line)}code{font-family:Consolas,monospace}pre{padding:20px;border-radius:8px;background:#172027;color:#f8f4ea;overflow:auto;font:15px/1.8 Consolas,monospace}footer{border-top:1px solid var(--line);padding-top:24px;margin-top:44px;color:var(--muted);font-size:14px}.minor{color:var(--muted);font-size:14px}
+    @media(max-width:700px){main{width:calc(100% - 28px);padding-top:28px}.compare{grid-template-columns:1fr}.gallery{grid-template-columns:1fr 1fr}.lede{font-size:17px}.edit-detail{min-height:0}.links a{padding:9px 12px}h2{font-size:24px}}
+    @media(max-width:400px){.gallery{grid-template-columns:1fr}.tabs button{padding:8px 10px}}
+  </style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">SLIDEMUSE / EDITABLE SAMPLE</p>
+  <h1>打开成品，亲手改一次</h1>
+  <p class="lede">IRENA 六页统计导读。文字、表格和三张图表都是原生对象。下载成品试用，或从源材料和结构化输入复现。</p>
+  <nav class="links" aria-label="下载与说明">
+    <a href="decks/editable.pptx" download>下载可编辑 PPTX</a>
+    <a href="https://github.com/helloo1568/slidemuse/raw/refs/heads/main/showcase/editable-irena/sample.zip">下载完整样板</a>
+    <a href="decks/image.pptx" download>图片版 PPTX</a>
+    <a href="README.md">复现说明</a>
+    <a href="README.en.md">English</a>
+  </nav>
+  <p class="scope">数据来自2025版报告对2024年的统计。修改练习另存，练习页显著标明合成数据。源报告保留 © IRENA 2025。</p>
+  <section aria-labelledby="edit-title">
+    <h2 id="edit-title">四种真实修改</h2>
+    <div class="tabs" role="group" aria-label="选择修改示例">
+      <button type="button" data-edit="text-edit" aria-pressed="true">修改文字</button>
+      <button type="button" data-edit="object-move" aria-pressed="false">移动图表</button>
+      <button type="button" data-edit="table-edit" aria-pressed="false">修改表格</button>
+      <button type="button" data-edit="chart-edit" aria-pressed="false">修改图表数据</button>
+    </div>
+    <div class="compare">
+      <figure class="frame"><figcaption>原版可编辑页</figcaption><a id="before-link" href="previews/editable-06.webp"><img id="before" src="previews/editable-06.webp" alt="第6页原版可编辑页"></a></figure>
+      <figure class="frame"><figcaption>修改后实际导出</figcaption><a id="after-link" href="previews/text-edit.webp"><img id="after" src="previews/text-edit.webp" alt="第6页文字修改后的实际导出"></a></figure>
+    </div>
+    <p id="edit-description" class="edit-detail" aria-live="polite">第6页“时间”说明的“解读”改为“阅读”，并同步备注。原生文字框直接修改。</p>
+    <a id="edit-download" href="decks/text-edit.pptx" download>下载本次修改版 PPTX</a>
+  </section>
+  <section class="section" aria-labelledby="video-title">
+    <h2 id="video-title">看修改前后的实际结果</h2>
+    <video controls preload="metadata" poster="previews/video-cover.webp"><source src="demo.mp4" type="video/mp4">可下载 <a href="demo.mp4">MP4 演示视频</a>。</video>
+    <p class="minor">视频使用真实 PPTX 的 PowerPoint 导出帧，展示原生对象修改结果。四个练习分别从原版开始。</p>
+  </section>
+  <section class="section" aria-labelledby="deck-title">
+    <h2 id="deck-title">完整六页可编辑成品</h2>
+    <div class="gallery">
+      <figure class="frame"><a href="previews/editable-01.webp"><img loading="lazy" src="previews/editable-01.webp" alt="第1页：2024年增长和两种份额"></a><figcaption>01 / 增长与份额</figcaption></figure>
+      <figure class="frame"><a href="previews/editable-02.webp"><img loading="lazy" src="previews/editable-02.webp" alt="第2页：年末存量与原生表格"></a><figcaption>02 / 存量与变化</figcaption></figure>
+      <figure class="frame"><a href="previews/editable-03.webp"><img loading="lazy" src="previews/editable-03.webp" alt="第3页：技术构成与原生图表"></a><figcaption>03 / 技术构成</figcaption></figure>
+      <figure class="frame"><a href="previews/editable-04.webp"><img loading="lazy" src="previews/editable-04.webp" alt="第4页：地区集中与比较边界"></a><figcaption>04 / 地区分布</figcaption></figure>
+      <figure class="frame"><a href="previews/editable-05.webp"><img loading="lazy" src="previews/editable-05.webp" alt="第5页：报告时点的2030情景"></a><figcaption>05 / 目标情景</figcaption></figure>
+      <figure class="frame"><a href="previews/editable-06.webp"><img loading="lazy" src="previews/editable-06.webp" alt="第6页：单位、分母、时间和标记检查"></a><figcaption>06 / 阅读检查</figcaption></figure>
+    </div>
+  </section>
+  <section class="section" aria-labelledby="rebuild-title">
+    <h2 id="rebuild-title">解压后即可复现</h2>
+    <p>完整 ZIP 包含固定运行时。安装 Python 依赖后，一条命令构建六套 PPTX，核对对象、嵌入工作簿和备注。</p>
+    <pre><code>python -m pip install -r runtime/requirements.txt
+python reproduce.py --verify</code></pre>
+    <p>加上 <code>--render --backend powerpoint</code> 可在 Windows PowerPoint 环境导出36页预览。需要 Python 3.10+，原版字体为微软雅黑。</p>
+    <p><a href="source/IRENA_Renewable_Capacity_Statistics_2025.pdf">源报告 PDF</a> · <a href="source/source.json">逐页来源</a> · <a href="evidence/verification.json">本次核验</a> · <a href="manifest.json">文件哈希</a></p>
+  </section>
+  <footer>SlideMuse 原创中文导读。源数据和报告 © IRENA 2025。样板仅覆盖选定内容，复现从已批准的图片和结构化输入开始。<br><a href="https://github.com/helloo1568/slidemuse">GitHub 仓库</a></footer>
+</main>
+<script>
+const edits = {
+  'text-edit': {page: '06', description: '第6页“时间”说明的“解读”改为“阅读”，并同步备注。原生文字框直接修改。'},
+  'object-move': {page: '03', description: '第3页整张原生图表右移8、上移4个画布像素。轴线、条形与标签一起移动，图表数据保持一致。'},
+  'table-edit': {page: '02', description: '第2页容量改为合成练习值4,450,000 MW，差额587,119 MW、增长率15.2%、结论和备注同步更新。'},
+  'chart-edit': {page: '03', description: '第3页太阳能改为合成练习值460 GW，合计593 GW、份额77.6%。图表缓存和嵌入工作簿同步重建。'}
+};
+document.querySelectorAll('[data-edit]').forEach(button => button.addEventListener('click', () => {
+  const key = button.dataset.edit, edit = edits[key];
+  document.querySelectorAll('[data-edit]').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+  document.getElementById('before').src = 'previews/editable-' + edit.page + '.webp';
+  document.getElementById('before').alt = '第' + edit.page + '页原版可编辑页';
+  document.getElementById('after').src = 'previews/' + key + '.webp';
+  document.getElementById('after').alt = button.textContent + '后的实际导出';
+  document.getElementById('before-link').href = 'previews/editable-' + edit.page + '.webp';
+  document.getElementById('after-link').href = 'previews/' + key + '.webp';
+  document.getElementById('edit-description').textContent = edit.description;
+  document.getElementById('edit-download').href = 'decks/' + key + '.pptx';
+}));
+</script>
+</body>
+</html>
