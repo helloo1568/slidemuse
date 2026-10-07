@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [2.16.3] - 2026-10-07
+
+### Changed
+
+- Replace the README hero's transportation cover with Weld Inspect and its architecture slide with the second red-and-gold showcase image, the ceramic restoration process page.
+- Keep Snowline Watch in the hero and update both READMEs' descriptions and image cache version for the new selection.
+
 ## [2.16.2] - 2026-10-07
 
 ### Changed
