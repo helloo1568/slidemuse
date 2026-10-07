@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [2.16.2] - 2026-10-07
+
+### Changed
+
+- Refresh the bilingual README hero with a light background, prominent SlideMuse wordmark and presentation cards based on the existing transportation, glacier-inspection and manufacturing showcases.
+- Include the lossless WebP hero in the release package and update both READMEs to use the same asset.
+
 ## [2.16.1] - 2026-10-06
 
 ### Added
