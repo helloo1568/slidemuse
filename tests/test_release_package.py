@@ -28,8 +28,18 @@ def test_manifest_packaged_zip_is_installable(tmp_path):
     installed = Path(result["target"])
     installed_manifest = yaml.safe_load((installed / "manifest.yaml").read_text(encoding="utf-8"))
     assert installed_manifest["version"] == manifest["version"]
+    assert (installed / "docs/cli.md").is_file()
+    assert (installed / "docs/cli.en.md").is_file()
+    assert (installed / "README.md").is_file()
+    assert (installed / "docs/guide.md").is_file()
+    assert (installed / "LICENSE").is_file()
+    diagnosed = subprocess.run(
+        [sys.executable, str(installed / "slidemuse.py"), "doctor", "--json"],
+        check=True, capture_output=True, text=True,
+    )
+    assert json.loads(diagnosed.stdout)["status"] in ("pass", "warning")
     subprocess.run(
-        [sys.executable, str(installed / "scripts" / "validate_page_spec.py"),
+        [sys.executable, str(installed / "slidemuse.py"), "validate",
          str(installed / "examples" / "page-spec.example.json"), "--strict"],
         check=True, capture_output=True, text=True,
     )
@@ -37,7 +47,7 @@ def test_manifest_packaged_zip_is_installable(tmp_path):
     assert (sample / "decks" / "editable.pptx").is_file()
     rebuilt = tmp_path / "sample-rebuilt"
     subprocess.run(
-        [sys.executable, str(sample / "reproduce.py"), "--verify", "--output", str(rebuilt)],
+        [sys.executable, str(installed / "slidemuse.py"), "sample", "--verify", "--output", str(rebuilt)],
         check=True, capture_output=True, text=True,
     )
     report = json.loads((rebuilt / "reproduction.json").read_text(encoding="utf-8"))

@@ -23,6 +23,7 @@ CLIENT_DIRS = {
 }
 
 RUNTIME_PATHS = (
+    "slidemuse.py",
     "SKILL.md",
     "manifest.yaml",
     "requirements.txt",
@@ -32,7 +33,8 @@ RUNTIME_PATHS = (
     "examples",
 )
 
-OPTIONAL_RUNTIME_PATHS = ("showcase/editable-irena",)
+OPTIONAL_RUNTIME_PATHS = ("showcase/editable-irena", "docs")
+OPTIONAL_RUNTIME_FILES = ("README.md", "README.en.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE")
 
 
 def read_skill_name(root: Path) -> str:
@@ -88,13 +90,15 @@ def copy_runtime(root: Path, target: Path) -> None:
     missing = [str(root / name) for name in RUNTIME_PATHS if not (root / name).exists()]
     if missing:
         raise RuntimeError(f"Missing runtime paths: {', '.join(missing)}")
-    paths = (*RUNTIME_PATHS, *(name for name in OPTIONAL_RUNTIME_PATHS if (root / name).is_dir()))
+    paths = (*RUNTIME_PATHS, *(name for name in OPTIONAL_RUNTIME_PATHS if (root / name).is_dir()),
+             *(name for name in OPTIONAL_RUNTIME_FILES if (root / name).is_file()))
     for name in paths:
         source = root / name
         destination = target / name
         if source.is_dir():
             shutil.copytree(source, destination)
         else:
+            destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
 
 

@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [2.17.0] - 2026-10-08
+
+### Added
+
+- A dependency-free `slidemuse.py` entry point for common existing tools, preserving arguments, working directory and pipeline exit codes while selecting the local isolated Python.
+- Read-only runtime diagnosis with structured JSON, minimum-version and bounded import checks, shared renderer discovery, and actionable repair commands even when dependencies are missing.
+- Bilingual CLI documentation, structured bug/feature forms and a pull request template with reproduction, validation and compatibility context.
+
+### Changed
+
+- Installation includes the unified entry point and CLI guides; package and relocation regressions exercise the installed commands.
+
 ## [2.16.3] - 2026-10-07
 
 ### Changed
