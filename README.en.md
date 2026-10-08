@@ -11,7 +11,7 @@ Especially strong for **university competition presentations**—including Chall
 Reconstruct slide images as native editable PowerPoint (PPTX) when needed.
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.16.3-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.17.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -44,7 +44,7 @@ For manual installation and requirements, see [Quick start](#quick-start).
 | Continue an existing task | Input preflight, resumable stages, affected-page rendering, and a consolidated per-page action queue. |
 | Review the deliverable | Object and content checks, scorecards bound to current files, and an optional offline per-page review panel. |
 
-Current version: **2.16.3**. See the [changelog](CHANGELOG.md) for details. These tools support production and validation; actual content and visuals still need review.
+Current version: **2.17.0**. See the [changelog](CHANGELOG.md) for details. These tools support production and validation; actual content and visuals still need review.
 2.16.0 adds bounded rendering, automatic environment invalidation and page-scoped dependency caching. Optional PowerPoint measurements locate text overflow and overlap. Real six-page backend controls and [production event logs](references/production-metrics.md) preserve repair cost and first-delivery outcomes; see the [pipeline guide](references/pipeline.md).
 
 
@@ -282,15 +282,18 @@ Complex artwork remains raster within each image. Recognition, segmentation, and
 
 These commands operate on prepared specifications and assets. The host agent still handles content approval, image generation, and actual review; the pipeline coordinates compilation, rendering, and checks.
 
-Run from the repository or installed skill root using a Python interpreter with the dependencies installed. The installed interpreter path is recorded in `.skill-python`. The example requires an existing `task/` directory containing `page-spec.json`, its referenced images, and, for editable mode, `scene.json` and its assets.
+Run from the repository or installed skill root. The unified entry point prefers that directory's `.venv` without activation and otherwise uses the current Python. The example requires an existing `task/` directory containing `page-spec.json`, its referenced images, and, for editable mode, `scene.json` and its assets.
 
 ```sh
-python scripts/init_deck.py task --mode editable
-python scripts/run_deck.py task/job.json task-output --check
-python scripts/run_deck.py task/job.json task-output
+python slidemuse.py doctor
+python slidemuse.py init task --mode editable
+python slidemuse.py check task/job.json task-output
+python slidemuse.py run task/job.json task-output
 ```
 
-Use `--mode image` for image decks; no Scene is needed. Initialization refuses to overwrite an existing `job.json`. Missing images or approvals produce actionable diagnostics; fix them and rerun `--check` against the existing job. Repeat the last command after an interruption to resume. Unchanged pages can reuse renders and valid review records when cache conditions are met.
+Use `--mode image` for image decks; no Scene is needed. Initialization refuses to overwrite an existing `job.json`. Missing images or approvals produce actionable diagnostics; fix them and rerun `check` against the existing job. Repeat the last command after an interruption to resume. Unchanged pages can reuse renders and valid review records when cache conditions are met. Existing `scripts/*.py` commands remain available.
+
+Use `python slidemuse.py --help` to list common commands and `python slidemuse.py render --help` for tool options. Diagnosis supports `doctor --json`; a missing renderer warns by default, while `doctor --require-renderer --backend auto` requires discovery before delivery. Actual rendering and visual review are still required. See the [CLI and diagnosis guide](docs/cli.en.md).
 
 | Output | Purpose |
 | :--- | :--- |

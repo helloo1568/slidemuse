@@ -4,7 +4,7 @@
 
 ## 报告问题
 
-通过 [GitHub Discussions](https://github.com/helloo1568/slidemuse/discussions) 提供：
+可复现故障请使用 [Bug 报告表单](https://github.com/helloo1568/slidemuse/issues/new?template=bug_report.yml)，功能建议使用[功能建议表单](https://github.com/helloo1568/slidemuse/issues/new?template=feature_request.yml)；使用咨询继续通过 [GitHub Discussions](https://github.com/helloo1568/slidemuse/discussions) 交流。问题报告提供：
 
 - 使用的 Agent、操作系统、Python 和技能版本。
 - 问题出现在哪个阶段，以及最短复现步骤。
@@ -12,6 +12,8 @@
 - 脱敏后的最小 Page Spec / Scene、必要素材或截图。
 
 请勿提交凭证、私人源材料或没有公开授权的内容。功能建议请说明具体使用场景与期望交付。
+
+`python slidemuse.py doctor --json` 可生成本地环境报告，分享前请检查并脱敏本地路径。渲染故障附实际后端、命令和退出码；诊断只发现环境，不会代替真实渲染。
 
 ## 提交修改
 
@@ -33,7 +35,8 @@ python scripts/validate_page_spec.py examples/page-spec.example.json --strict
 
 Contributions to prompts, documentation, Page Spec / Scene contracts, exporters, tests, and authorized showcase images are welcome.
 
-- **Bugs:** start a [discussion](https://github.com/helloo1568/slidemuse/discussions) with your agent, OS, Python and skill versions, workflow stage, reproduction steps, expected/actual behavior, and a minimal sanitized example.
+- **Bugs:** use the [bug form](https://github.com/helloo1568/slidemuse/issues/new?template=bug_report.yml) with your agent, OS, Python and skill versions, workflow stage, reproduction steps, expected/actual behavior, and a minimal sanitized example. `python slidemuse.py doctor --json` provides a local report; sanitize its paths before sharing. Include the backend, command and exit code for rendering failures.
+- **Suggestions and questions:** use the [feature form](https://github.com/helloo1568/slidemuse/issues/new?template=feature_request.yml) for concrete improvements and [Discussions](https://github.com/helloo1568/slidemuse/discussions) for usage questions.
 - **Changes:** fork from `main`, keep the scope focused, update both language versions and the changelog where relevant, and run the checks above for code or contract changes.
 - **Pull requests:** explain the problem, resulting behavior, and validation. Include previews for visual changes and note compatibility implications for workflow changes.
 - **Shared files:** exclude credentials, private documents, and content you do not have permission to publish. Structural tests do not replace rendered visual inspection.

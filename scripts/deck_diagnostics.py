@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 import json
-import os
-import shutil
 import sys
 from pathlib import Path
 
 from json_io import read_json
 from PIL import Image
+from runtime_environment import renderer_environment
 from scene import load_scene
 from speaker_notes import check_scene_notes
 from validate_page_spec import _relative_path, load_page_spec
@@ -51,24 +50,6 @@ def error_action(error, file=None):
     else:
         message = "输入或交付检查未通过。按下方原始诊断修复对应文件，再重复原命令。"
     return action("repair", message, file=file, detail=detail)
-
-
-def renderer_environment(backend="auto"):
-    shell = shutil.which("powershell.exe") or shutil.which("powershell")
-    registered = False
-    if os.name == "nt":
-        import winreg
-        try:
-            with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r"PowerPoint.Application\CLSID"):
-                registered = True
-        except OSError:
-            pass
-    powerpoint = bool(shell and registered)
-    libreoffice = bool((shutil.which("soffice") or shutil.which("libreoffice")) and shutil.which("pdftoppm"))
-    available = {"powerpoint": powerpoint, "libreoffice": libreoffice}
-    candidates = [backend] if backend != "auto" else (["powerpoint", "libreoffice"] if os.name == "nt" else ["libreoffice"])
-    return {"requested": backend, "available": available, "ready": any(available.get(name, False) for name in candidates),
-            "note": "只检查程序路径和 Windows 注册信息；实际可用性仍以真实渲染为准。"}
 
 
 def preflight(config_path, work, *, check_renderer=True):

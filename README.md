@@ -10,7 +10,7 @@
 重点面向**挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛**，也适用于**学术汇报、论文答辩、项目路演、课程展示与电影质感 PPT**，支持图片转可编辑 PPT。
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.16.3-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.17.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -43,7 +43,7 @@
 | 接着上次继续做 | 输入预检、断点恢复、受影响页重渲染，以及集中列出的逐页待办。 |
 | 核对交付质量 | 对象与内容检查、当前文件绑定的评分卡，以及可选的离线逐页审阅面板。 |
 
-当前版本 **2.16.3**。完整变更见 [CHANGELOG](CHANGELOG.md)；这些工具辅助制作与核验，实际内容和画面仍需审阅。
+当前版本 **2.17.0**。完整变更见 [CHANGELOG](CHANGELOG.md)；这些工具辅助制作与核验，实际内容和画面仍需审阅。
 
 ---
 
@@ -279,15 +279,18 @@ python slidemuse/install.py --client opencode
 
 下面的命令面向已准备好规格和素材的任务。宿主 Agent 仍负责内容确认、生图和实际审阅；流水线负责统一编译、渲染和检查。
 
-在仓库或技能根目录运行，`python` 应使用已安装依赖的解释器；安装版解释器路径记录在 `.skill-python`。示例中的 `task/` 必须已存在，包含 `page-spec.json`、其引用的图片，以及可编辑模式所需的 `scene.json` 和素材。
+在仓库或技能根目录运行。统一入口会优先使用该目录下的 `.venv`，无需激活环境；没有隔离环境时使用当前 Python。示例中的 `task/` 必须已存在，包含 `page-spec.json`、其引用的图片，以及可编辑模式所需的 `scene.json` 和素材。
 
 ```sh
-python scripts/init_deck.py task --mode editable
-python scripts/run_deck.py task/job.json task-output --check
-python scripts/run_deck.py task/job.json task-output
+python slidemuse.py doctor
+python slidemuse.py init task --mode editable
+python slidemuse.py check task/job.json task-output
+python slidemuse.py run task/job.json task-output
 ```
 
-图片版任务使用 `--mode image`，无需 Scene。初始化不会覆盖已有 `job.json`；缺图或待确认时会列出问题，修复后对已有配置重新执行 `--check`。任务中断后重复最后一条命令即可恢复，符合缓存条件的未变页面可复用渲染与有效审阅记录。
+图片版任务使用 `--mode image`，无需 Scene。初始化不会覆盖已有 `job.json`；缺图或待确认时会列出问题，修复后对已有配置重新执行 `check`。任务中断后重复最后一条命令即可恢复，符合缓存条件的未变页面可复用渲染与有效审阅记录。原有 `scripts/*.py` 命令继续可用。
+
+`python slidemuse.py --help` 列出常用命令，`python slidemuse.py render --help` 查看具体参数。环境诊断支持 `doctor --json`；默认缺少渲染器只提示警告，交付前可使用 `doctor --require-renderer --backend auto` 要求检测到后端。实际渲染与画面仍需核验。完整用法见[命令与诊断指南](docs/cli.md)。
 
 | 输出 | 用途 |
 | :--- | :--- |

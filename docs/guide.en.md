@@ -36,6 +36,8 @@ Raster artwork does not become editable vector paths. Missing or occluded detail
 
 ## Quick start
 
+See the [CLI guide](cli.en.md) for the unified local entry point, runtime diagnosis and isolated interpreter selection. Existing scripts and workflow gates remain available.
+
 ### Recommended: let your agent install it
 
 Send this to Codex, Claude Code, or OpenCode:
