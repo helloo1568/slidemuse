@@ -4,6 +4,25 @@
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-10-16
+
+### Added
+
+- An optional `preserve_asset` Page Spec contract binds independent evidence images to SHA-256 hashes and exact, aspect-preserving regions in final lossless slides. Validation rejects changed source files, altered evidence pixels, overlaps, cropping and transparent evidence.
+- Image-deck exports with protected evidence reject downscaling and JPEG re-encoding. The release package includes the validator module and evidence-asset guide.
+- Regression cases cover source drift, evidence-pixel changes, surrounding-page edits, aspect ratios, paths, overlap, transparency and preservation in exported PPTX media.
+
+### Changed
+
+- Research maps, experiment screenshots and precise charts default to original-asset preservation or data-driven plotting, with generated illustrations explicitly identified as such.
+- Production calibrates one representative final slide before continuing, requires complete observations for critical visible text, and separates evidence fidelity, chart geometry and presentation readability checks.
+- Timed presentations distinguish planned timing from actual rehearsal and distinguish short prompts from full speaker scripts. New production tasks record generation, failure and repair events as they occur.
+
+### Scope
+
+- Pixel checks cover only declared protected regions and do not authenticate the source or validate the underlying research. Existing Page Specs remain compatible and are not retroactively certified.
+- Image-based production, the four-style selection workflow and optional editable reconstruction remain supported. Workflow changes do not claim a measured reduction in production time or error rate.
+
 ## [2.17.0] - 2026-10-08
 
 ### Added

@@ -1,0 +1,2 @@
+# Match the runtime minimum in requirements, installer and the CI matrix.
+target-version = "py310"
