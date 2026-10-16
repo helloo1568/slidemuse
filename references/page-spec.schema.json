@@ -172,12 +172,36 @@
           "minItems": 4,
           "maxItems": 4
         },
+        "preserve_asset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["file", "sha256", "region"],
+          "properties": {
+            "file": {"type": "string", "minLength": 1},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "region": {
+              "type": "array",
+              "prefixItems": [
+                {"type": "integer", "minimum": 0},
+                {"type": "integer", "minimum": 0},
+                {"type": "integer", "minimum": 1},
+                {"type": "integer", "minimum": 1}
+              ],
+              "minItems": 4,
+              "maxItems": 4
+            }
+          }
+        },
         "z_hint": {"type": "integer"},
         "separate_asset": {"type": "boolean"},
         "prompt_record": {"type": "string"},
         "notes": {"type": "string"}
       },
       "allOf": [
+        {
+          "if": {"required": ["preserve_asset"]},
+          "then": {"properties": {"kind": {"enum": ["image", "chart", "table"]}}}
+        },
         {
           "if": {"properties": {"kind": {"const": "text"}}},
           "then": {"required": ["text"]}

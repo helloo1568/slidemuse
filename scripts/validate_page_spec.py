@@ -10,6 +10,7 @@ from pathlib import Path
 from json_io import read_json
 from jsonschema import Draft202012Validator
 from PIL import Image, ImageOps
+from preserved_assets import validate_preserved_assets
 
 SCHEMA = Path(__file__).resolve().parents[1] / "references" / "page-spec.schema.json"
 
@@ -107,6 +108,8 @@ def validate_page_spec(
                     raise ValueError(
                         f"bbox_hint outside canvas: {slide['id']}/{element['id']}"
                     )
+
+        validate_preserved_assets(slide, base, require_images)
 
     if strict and unresolved:
         raise ValueError(f"Page Spec contains {unresolved} unresolved elements")

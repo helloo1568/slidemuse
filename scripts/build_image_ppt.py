@@ -119,6 +119,10 @@ def build_deck(args: argparse.Namespace) -> dict[str, object]:
     spec = None
     if input_dir.is_file():
         spec, _ = load_page_spec(input_dir, require_images=True, strict=True)
+        if (any("preserve_asset" in element for slide in spec["slides"]
+                for element in slide["elements"])
+                and (args.max_width > 0 or args.jpeg_quality > 0)):
+            raise ValueError("Preserved assets forbid image downscaling or JPEG re-encoding during export")
         images = [(input_dir.parent / slide["image_file"]).resolve() for slide in spec["slides"]]
     elif input_dir.is_dir():
         images = collect_images(input_dir, tuple(args.extensions))

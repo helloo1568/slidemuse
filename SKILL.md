@@ -3,7 +3,7 @@ name: slidemuse
 description: 将书籍、PDF、论文、报告或文字材料制作成视觉优先的图片版 PPT，适用于竞赛、答辩、路演、课程展示和读书分享；在用户明确要求时按 Scene v1 还原可编辑 PPTX。流程包含需求和大纲确认、四套风格选型及逐页生图；不用于直接修改已有可编辑 PPTX。
 ---
 
-# SlideMuse · 2.17.0
+# SlideMuse · 2.18.0
 
 本技能只有一条主流程：**内容提炼 → 图片 PPT 生成 → 可编辑 PPTX 还原**。
 用户负责确认内容与风格，Agent 负责按已确认规格执行；不得把流程改写成“先做原生信息层”的编辑优先路线。
@@ -75,11 +75,13 @@ description: 将书籍、PDF、论文、报告或文字材料制作成视觉优�
 
 恢复任务、上下文压缩、用户改需求或阶段转换时，先读取并更新规格。用户修改或恢复到不同版本时读取[变更与恢复规则](references/workflow-updates.md)，核对基准图版本和已授权差异。规格记录状态、授权、确认版本、页序、生成状态、质量检查和交付路径。
 
+完整新制作从 S1 开始按[制作记录](references/production-metrics.md)创建任务日志，生图、失败调用、返修和交付发生时追加；恢复旧任务只记录真实可追溯事件，不估算补齐历史。日志不构成额外用户确认门禁。
+
 ## Step 1A：内容提炼与确认（S1 → S2）
 
 进入后读取 [Prompt 1A](references/prompts.md) 和[内容深度与自检](references/content-outline.md)。论文和长篇报告/政策按需读取[材料审阅](references/material-reading.md)，核对方法解释、实验口径、来源冲突及目标与观测的区别。
 
-1. 阅读材料，明确受众需要理解或决定的问题、整套回答和页间推进关系；按场景组织，避免只有目录和数据罗列。
+1. 阅读材料，明确受众需要理解或决定的问题、整套回答和页间推进关系；按场景组织，避免只有目录和数据罗列。发现地图、实验截图或精确图表时，按[证据素材](references/evidence-assets.md)确定保留原图、数据重绘或概念示意；原始证据默认完整保留，不能只作为生图参考后宣称保真。
 2. 把完整页序和逐页内容稿写入 `deck-spec.md`。内容页写出主要结论、支撑要点、可定位的证据、解释及适用边界；区分页面实际展示的文字/图表与可选讲稿。封面、过渡等页面按其作用处理。
 3. 按内容深度参考进行语义自检，记录当前版本、各项判断及问题页。论点无支撑、关键问题未回答、口径错误或内容空洞时先修正；材料不足就缩小结论、调整页序或列出必须补充的信息，不靠增加字数或编造因果过关。
 4. 自检通过后，单独展示整套叙事、每页结论与实际展示内容、证据/解释及待确认项，不能只展示标题表或文件链接。缺少对应确认或代定授权时进入 S2 并停止；已有授权时记录原文、范围与当前版本后进入 S3。结合上下文判断授权，不要求固定口令，也不把单独的“继续”扩大成全阶段代定。
@@ -111,7 +113,7 @@ python "<skill-dir>/scripts/validate_style_options.py" "<work>/style-options.jso
 
 ## Step 2：生成图片版 PPT（S5）
 
-进入后读取 [Prompt 2](references/prompts.md)、[Page Spec](references/page-spec.md) 和 [模型说明](references/models.md)。含定量图表时读取[图表可靠性](references/chart-reliability.md)。
+进入后读取 [Prompt 2](references/prompts.md)、[Page Spec](references/page-spec.md) 和 [模型说明](references/models.md)。含定量图表时读取[图表可靠性](references/chart-reliability.md)；含原始证据素材时读取[证据素材](references/evidence-assets.md)。多页任务先完成并检查一张实际画幅、信息密度有代表性的成品页，再作为后续视觉基准；复用该页，不额外生成样稿或增加确认门禁。
 
 1. 把确认后内容稿中所有页面展示内容与锁定视觉规范写入 `page-spec.json`，保留支撑结论的解释和必要边界，不能缩回“标题 + 大数字”；可选讲稿留在 `deck-spec.md`。新任务把配色、字体字号、网格间距和图片处理写入 `style.tokens`，保留可读的 `visual_spec`；若有已选参考图，写入 `reference_images`。每页为所有已知文字、数据、视觉主体和图表分配稳定 ID；位置可先写 `bbox_hint`。
 2. 生成第一张图片前必须运行：
@@ -123,7 +125,7 @@ python "<skill-dir>/scripts/validate_page_spec.py" "<work>/page-spec.json" --str
 内容稿已有可选讲稿时，按[讲稿保留](references/speaker-notes.md)同步到 `slides[].speaker_notes`，不加入生图可见文案；图片版构建器会保存已声明讲稿。
 
 3. 按 `01-title.png`、`02-title.png` 的零填充序号逐页生成。每次提示包含锁定视觉规范、Page Spec 中的准确内容、页码和总页数。
-4. 每页立即检查画幅、文字、数据、裁切、溢出和跨页一致性。含关键数字、日期、专名或必现图表标签的页面，可按 [Page Spec 内容核对](references/page-spec.md)建立绑定当前图片哈希的看图记录，并运行 `audit_page_content.py`；缺失项修复后才能批准该页。脚本只比对观察记录，不负责 OCR；图表数据及未识别的小字仍需视觉核对。通过后更新最终图片路径、状态、提示词和必要的 `bbox_hint`。失败只重做对应页。
+4. 每页立即检查画幅、文字、数据、裁切、溢出和跨页一致性。含关键数字、日期、专名或必现图表标签的页面，按 [Page Spec 内容核对](references/page-spec.md)建立绑定当前图片哈希的看图记录，并运行 `audit_page_content.py --require-complete`；缺失项修复后才能批准该页。脚本只比对观察记录，不负责 OCR；图表数据及未识别的小字仍需视觉核对。按证据素材参考分别记录文字、图形、素材和目标展示尺寸的检查，只写本页实际观察；受保护素材的像素检查失败时不得批准。通过后更新最终图片路径、状态、提示词和必要的 `bbox_hint`。失败只重做对应页。
 5. 同一页文字连续两次不准确时停止重试：按 Prompt 2A 生成保留全部主视觉的无字页面，再用 `scripts/overlay_text.py` 叠加准确文字并栅格化；叠字前后核对主视觉未丢失。Step 2 不提前移除 Step 3 才需拆分的主体。
    图表数字与几何分别检查，并检查未声明的数据视觉。同一几何问题连续两次检查失败时停止生图重试，按图表可靠性参考准备精确区域修复；程序改图须遵守当前宿主工具的授权要求，既有授权覆盖时不重复询问。
 6. 全部页面通过后运行交付验证和合并：
@@ -186,7 +188,8 @@ python "<skill-dir>/scripts/render_deck.py" "<work>/output/editable.pptx" "<work
 - [evaluation.md](references/evaluation.md)：仅质量回归、版本发布或需要可复跑评分卡时读取。
 - [benchmark.md](references/benchmark.md)：仅跨材料评测时读取；冻结全部案例、保留首次与修复后成绩、验证实际产物证据并按类别/划分汇总。
 - [pipeline.md](references/pipeline.md)：已准备好 Page Spec/Scene 后，使用可恢复交付、渲染超时、环境指纹、可选 PowerPoint 实测及逐页待办。
-- [production-metrics.md](references/production-metrics.md)：完整制作或质量回归时，推荐从实际开始记录制作事件；保留生图次数、返修页、实测耗时与首次/最终交付结果。缺失部分不能凭估计补零。
+- [production-metrics.md](references/production-metrics.md)：完整新制作从S1记录事件，质量回归按实际范围记录；保留生图次数、返修页、实测耗时与首次/最终交付结果。缺失部分不能凭估计补零。
+- [evidence-assets.md](references/evidence-assets.md)：S1识别科研证据素材，S5保持原图或可靠数据重绘，并进行分类型验收；`preserve_asset` 在最终PNG中校验真实素材像素。
 - [chart-reliability.md](references/chart-reliability.md)：S5 定量图表检查、有限修复或完整评测时读取；包括几何观察与精确水平条形区域兜底。
 - `validate_page_spec.py`：验证内容确认、页序、稳定 ID、画布边界和图片交付状态。
 - `overlay_text.py`：仅作为 Step 2 图片页的准确文字兜底。
