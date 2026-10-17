@@ -27,6 +27,9 @@ python -m pip install -r requirements.txt -r requirements-dev.txt
 python -m ruff check .
 python -m pytest tests/ -q
 python -m pytest vendor/image-to-editable/tests/ -q
+python -m pytest vendor/codex-ppt/tests/ -q
+python slidemuse.py rebuild capabilities --verify-source
+python slidemuse.py generate capabilities --verify-source
 python scripts/validate_page_spec.py examples/page-spec.example.json --strict
 ```
 

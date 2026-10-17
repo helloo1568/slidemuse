@@ -58,6 +58,18 @@ SlideMuse 选择更小的 JSON 场景协议，直接生成原生对象；未实�
 上游的直接重建路线与本项目既有 Scene 路线并行：Scene 继续保留原生数据图表，完整后端按其 Manifest 格式交付；一项任务按输出格式保持单一事实源，不互相转换。上游要求所有前景都经生图提取的做法不覆盖本项目受保护证据和已有透明原始素材的保留规则。
 安装、命令与边界见[完整重建后端](editable-backend.md)，Scene 路线的适配方法见[上游参考](upstream-editable.md)。
 
+## codex-ppt-skill（可选完整图片生成后端）
+
+项目：[ningzimu/codex-ppt-skill](https://github.com/ningzimu/codex-ppt-skill)，MIT。
+查阅：[SKILL、docs 与 scripts](https://github.com/ningzimu/codex-ppt-skill/tree/941dcafe2f23ea4ae61de99e9b22fb0ef3d9e06c)。
+核验固定提交 `941dcafe2f23ea4ae61de99e9b22fb0ef3d9e06c`。
+
+与本项目同作者、属同一条流水线的**前半段**：本项目已接入的完整重建后端默认读取同一运行目录，说明两者的产物约定本就衔接。本项目按 MIT 许可证随包保留其源码、文档、提示模板、12 套风格参考和测试，记录原始文件哈希（见 [upstream.json](../vendor/codex-ppt/upstream.json)），并通过 `slidemuse.py generate` 统一入口调用。
+
+本次接入主要吸收三件事：**① 大纲的信息密度下限**——每个内容页 3–5 条支撑要点、页面类型枚举（12 种）与每类必答内容，本项目此前只声明“不设要点数量”，是密度的主要缺口；**② 可复用风格库**——风格存于技能安装目录之外并按目录扫描发现，与逐任务四套选型并存；**③ 逐页任务与状态机**——任务文件、分派/结果/阻塞登记和图片版组装，用于需要并发生成的多页任务。
+
+接入边界：一条任务只用一套产物，`slide_jobs.json` 不当作 `page-spec.json`；`prepare` 是确定性脚本，不调用生图模型，成品图仍由宿主 Agent 的生图能力产出；上游允许本地绘制或叠加文字的做法不改变本项目“成品图必须来自已确认生图后端”的规则。
+
 ## 结论：本次实际实现
 
 | 能力 | 2.0 实现 |

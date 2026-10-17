@@ -34,7 +34,8 @@ RUNTIME_PATHS = (
 )
 
 OPTIONAL_RUNTIME_PATHS = ("showcase/editable-irena", "docs", "vendor")
-OPTIONAL_RUNTIME_FILES = ("README.md", "README.en.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "requirements-editable.txt")
+OPTIONAL_RUNTIME_FILES = ("README.md", "README.en.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE",
+                          "requirements-editable.txt", "requirements-generate.txt")
 
 
 def read_skill_name(root: Path) -> str:
@@ -167,7 +168,7 @@ def legacy_installs(home: Path, client: str, skill_name: str) -> list[Path]:
 
 def install_skill(
     root: Path, target: Path, client: str, skill_name: str, force: bool, skip_deps: bool,
-    with_editable: bool = False,
+    with_editable: bool = False, with_generate: bool = False,
 ) -> Path:
     check_target(target, force)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -179,9 +180,11 @@ def install_skill(
         python = Path(sys.executable)
         if not skip_deps:
             python = install_dependencies(staging, target)
-            if with_editable:
-                subprocess.run([str(python), "-m", "pip", "install", "--disable-pip-version-check",
-                                "-r", str(staging / "requirements-editable.txt")], check=True)
+            for enabled, requirements in ((with_editable, "requirements-editable.txt"),
+                                          (with_generate, "requirements-generate.txt")):
+                if enabled:
+                    subprocess.run([str(python), "-m", "pip", "install", "--disable-pip-version-check",
+                                    "-r", str(staging / requirements)], check=True)
 
         marker = {
             "installer": "slidemuse",
@@ -190,6 +193,7 @@ def install_skill(
             "client": client,
             "source": str(root),
             "editable_backend": with_editable,
+            "generate_backend": with_generate,
         }
         (staging / ".skill-install.json").write_text(
             json.dumps(marker, ensure_ascii=False, indent=2) + "\n",
@@ -212,6 +216,11 @@ def install_skill(
                                 "import fitz, PIL, openai, yaml, numpy, requests"], check=True)
                 subprocess.run([str(final_python), str(target / "slidemuse.py"),
                                 "rebuild", "capabilities", "--verify-source"], check=True)
+            if with_generate:
+                subprocess.run([str(final_python), "-c",
+                                "import pptx, PIL, openai, filelock"], check=True)
+                subprocess.run([str(final_python), str(target / "slidemuse.py"),
+                                "generate", "capabilities", "--verify-source"], check=True)
     except BaseException:
         failed: Path | None = None
         if activated:
@@ -281,6 +290,10 @@ def main() -> None:
         help="Also install dependencies for the complete image-to-editable backend.",
     )
     parser.add_argument(
+        "--with-generate", action="store_true",
+        help="Also install dependencies for the complete image-generation backend.",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Replace an existing unrecognized skill directory.",
@@ -296,8 +309,8 @@ def main() -> None:
         help="Emit machine-readable JSON output.",
     )
     args = parser.parse_args()
-    if args.with_editable and args.skip_deps:
-        parser.error("--with-editable requires dependency installation; omit --skip-deps")
+    if args.skip_deps and (args.with_editable or args.with_generate):
+        parser.error("--with-editable and --with-generate require dependency installation; omit --skip-deps")
 
     root = Path(__file__).resolve().parent
     skill_name = read_skill_name(root)
@@ -324,7 +337,8 @@ def main() -> None:
         return
 
     try:
-        python = install_skill(root, target, client, skill_name, args.force, args.skip_deps, args.with_editable)
+        python = install_skill(root, target, client, skill_name, args.force, args.skip_deps,
+                               args.with_editable, args.with_generate)
     except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
         parser.exit(2, f"install: error: {exc}\n")
 

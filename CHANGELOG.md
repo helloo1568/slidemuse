@@ -4,6 +4,21 @@
 
 ## [Unreleased]
 
+## [2.20.0] - 2026-10-17
+
+### Added
+
+- Adopt a typed density floor for outlines: every page declares one of 12 layout roles, and every content page carries 3-5 distinct supporting points with per-role required content and a page-budget rule. Revises the previous "no bullet count is judged" statement, which was the main density gap.
+- Add the matching Page Spec contract: `slides[].role` accepts the same 12-value enum and `slides[].key_points` accepts 3-5 unique non-empty strings. Older drafts and frozen samples without the fields stay readable and are not retroactively certified.
+- Add a reusable style library: built-in styles ship under `vendor/codex-ppt/skills/codex-ppt/references/`, user styles live outside the skill install under `${CODEX_PPT_HOME:-~/.codex-ppt-skill}/references/`, both are discovered by directory scan, and a same-name user file takes priority.
+- Integrate the complete pinned codex-ppt image-generation backend under `slidemuse.py generate` with `prepare`, `status`, `dispatch`, `result`, `blocker`, `assemble`, `chroma` and `runtime`. Upstream MIT attribution and pinned source hashes are verified by `generate capabilities --verify-source`.
+
+### Changed
+
+- The outline gate now requires reporting the outline location, page count, layout-role list and source-image-to-slide mapping, and stating that no slide image or PPTX exists yet. Page Specs, style overviews, generation prompts and final images stay forbidden until the content version is approved.
+- Keep the Page Spec route unchanged; the generate backend is an alternative S5 pipeline with its own artifacts. One task uses one source of truth: `slide_jobs.json` is not a `page-spec.json`, `prepare` never calls an image model, and every final slide image still comes from the confirmed host image backend.
+- Provide `--with-generate` for isolated optional dependencies, and `generate --offline` for local job, status, recording, assembly and chroma-key work that ignores user config and credentials.
+
 ## [2.19.0] - 2026-10-17
 
 ### Added

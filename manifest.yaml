@@ -1,6 +1,6 @@
 name: slidemuse
 display_name: SlideMuse
-version: 2.19.0
+version: 2.20.0
 description: >-
   SlideMuse 是视觉优先的 AI PPT Skill，重点适用于挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛 PPT，同时适用于电影质感 PPT、比赛答辩、创新创业路演、学术汇报、论文答辩、项目汇报、课程展示和图片转可编辑 PPT。
   按固定三阶段流程将材料制作成图片版 PPT，并在明确授权后还原为可编辑 PPTX：
@@ -286,3 +286,50 @@ files:
   - vendor/image-to-editable/tests/test_slide_layout.py
   - vendor/image-to-editable/tests/test_table_validation.py
   - vendor/image-to-editable/upstream.json
+  - scripts/generate_backend.py
+  - requirements-generate.txt
+  - references/generate-backend.md
+  - references/style-library.md
+  - tests/test_generate_backend.py
+  - vendor/codex-ppt/LICENSE
+  - vendor/codex-ppt/upstream.json
+  - vendor/codex-ppt/skills/codex-ppt/SKILL.md
+  - vendor/codex-ppt/skills/codex-ppt/requirements.txt
+  - vendor/codex-ppt/skills/codex-ppt/docs/backend-selection.md
+  - vendor/codex-ppt/skills/codex-ppt/docs/cli-api-fallback.md
+  - vendor/codex-ppt/skills/codex-ppt/docs/image-model-configuration.md
+  - vendor/codex-ppt/skills/codex-ppt/docs/outline-style-and-sample.md
+  - vendor/codex-ppt/skills/codex-ppt/docs/project-assembly-and-reporting.md
+  - vendor/codex-ppt/skills/codex-ppt/docs/slide-generation-and-subagents.md
+  - vendor/codex-ppt/skills/codex-ppt/docs/style-library.md
+  - vendor/codex-ppt/skills/codex-ppt/docs/user-supplied-assets.md
+  - vendor/codex-ppt/skills/codex-ppt/docs/workflow-gates-and-progress.md
+  - vendor/codex-ppt/skills/codex-ppt/prompts/slide-worker.md
+  - vendor/codex-ppt/skills/codex-ppt/references/党政红风格.md
+  - vendor/codex-ppt/skills/codex-ppt/references/创意杂志风.md
+  - vendor/codex-ppt/skills/codex-ppt/references/复古扁平插画风.md
+  - vendor/codex-ppt/skills/codex-ppt/references/手绘技术解释风.md
+  - vendor/codex-ppt/skills/codex-ppt/references/手绘白板风.md
+  - vendor/codex-ppt/skills/codex-ppt/references/教学课件风.md
+  - vendor/codex-ppt/skills/codex-ppt/references/数据仪表盘风.md
+  - vendor/codex-ppt/skills/codex-ppt/references/清爽专业风.md
+  - vendor/codex-ppt/skills/codex-ppt/references/温暖手工风.md
+  - vendor/codex-ppt/skills/codex-ppt/references/电子墨水杂志风.md
+  - vendor/codex-ppt/skills/codex-ppt/references/科研答辩风.md
+  - vendor/codex-ppt/skills/codex-ppt/references/麦肯锡风格.md
+  - vendor/codex-ppt/skills/codex-ppt/scripts/assemble_ppt.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/codex_ppt_runtime.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/image_gen.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/prepare_slide_prompts.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/record_slide_blocker.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/record_slide_dispatch.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/record_slide_result.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/remove_chroma_key.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/slide_job_status.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/slide_run_state.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/image_providers/__init__.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/image_providers/atlascloud.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/image_providers/base.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/image_providers/factory.py
+  - vendor/codex-ppt/skills/codex-ppt/scripts/image_providers/openai_compatible.py
+  - vendor/codex-ppt/tests/test_image_gen_models.py

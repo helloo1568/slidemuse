@@ -4,6 +4,8 @@
 
 新任务在 `style.visual_spec` 保留可读说明，并填写 `style.tokens`：`palette` 的背景/正文/主色/强调色，`typography` 的中英文实际字体和标题/正文字号，`layout` 的网格、边距与间距，以及 `image_treatment`。`reference_images` 可指向任务目录内已选总览或关键参考页，路径相对 Page Spec；验证器会检查文件。旧任务缺少 `tokens` 仍可读取，恢复时可逐步补齐。
 
+新任务还要为每页写 `slides[].role`（12 种页面类型枚举）和内容页的 `slides[].key_points`（3–5 条支撑要点，与 `deck-spec.md` 逐页内容稿逐条对应）。这两项与 `tokens` 一样：旧稿和已冻结的示例版缺少时仍可读取，不追溯补写，也不能据此声称旧任务大纲合格。
+
 `page-spec.json` 在内容大纲已确认、视觉方向已锁定后创建。它保存已经知道的准确内容和语义结构，避免 Step 3 从整页图片重新 OCR 或猜测图表数据。
 
 它不是 PPTX 导出场景：位置只允许写 `bbox_hint`，不要求像 Scene 一样精确；最终坐标、原生样式与素材路径仍写入 `scene.json`。
@@ -22,6 +24,8 @@
 
 - `content_approved` 固定为 `true`，表示新材料任务的大纲已经确认，或直接还原任务已明确授权保留原页内容；`content_version` 与 `content_authorization` 记录对应版本和用户原话。它不代表每个模糊字符都已确认。
 - `style.decision` 记录 `selected`、`locked-reference`、`skipped` 或 `delegated`，并保留相关授权原文。
+- `slides[].role` 记录页面类型：`cover`、`agenda`、`section-divider`、`concept`、`process`、`comparison`、`timeline`、`data-evidence`、`architecture`、`case-study`、`summary`、`qa`。它描述页面作用，与 `deck-spec.md` 页序表一致；视觉系统仍由风格门禁决定。
+- `slides[].key_points` 保留该页已确认的 3–5 条支撑要点，逐条与内容稿对应；Schema 只接受 3–5 条不重复非空字符串。要点是论证复杂度的下限，不是凑字数的理由；封面、过渡等页按各自必答内容处理，不强行填满。详见[内容大纲](content-outline.md)。
 - `slides[].elements` 使用稳定 ID。准确文字写 `text`，表格/图表原始值写 `data`，来源写 `source_ref`。
 - 图表或图片上必须直接读出的数字、日期、单位可加入该页 `required_visible_values`；不要求把未打印在图上的底层图表数据当作可见文字。
 - 页面包含总页数（如 `1/10`）、目录总量或依赖整套页数的构图时，设置 `depends_on_slide_count: true`。页数变化会使这些页面重新生成；未设置或为 `false` 时，计划按本页内容、页序和图片是否变化判断是否复用。所有实际可见的页码和总页数也应写入文字元素或 `required_visible_values`，不能只留在提示词里。

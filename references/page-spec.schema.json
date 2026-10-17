@@ -102,6 +102,19 @@
         "page_number": {"type": "integer", "minimum": 1},
         "depends_on_slide_count": {"type": "boolean"},
         "title": {"type": "string", "minLength": 1},
+        "role": {
+          "description": "Layout role of the page. New Page Specs must declare one; older drafts and frozen samples stay readable.",
+          "enum": ["cover", "agenda", "section-divider", "concept", "process", "comparison",
+                   "timeline", "data-evidence", "architecture", "case-study", "summary", "qa"]
+        },
+        "key_points": {
+          "description": "Approved support points for a content page. New Page Specs must declare 3-5; older drafts stay readable.",
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 5,
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
         "core_message": {"type": "string", "minLength": 1},
         "visual_brief": {"type": "string", "minLength": 1},
         "source_refs": {

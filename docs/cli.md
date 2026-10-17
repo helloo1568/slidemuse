@@ -25,6 +25,7 @@ python slidemuse.py doctor
 | `review task/job.json task-output` | `scripts/review_panel.py` | 生成审阅面板或导入记录 |
 | `sample --verify --output sample-output` | `showcase/editable-irena/reproduce.py` | 重建公开样板的六套 PPTX |
 | `rebuild <命令>` | `scripts/editable_backend.py` | [完整图片重建后端](../references/editable-backend.md)：输入、文字提示、路径/表格、素材板、公式和任务恢复；扩展依赖使用 `install.py --with-editable` |
+| `generate <命令>` | `scripts/generate_backend.py` | [完整图片生成后端](../references/generate-backend.md)：逐页任务与提示、分派/结果/阻塞登记、状态汇总、图片版组装和去底；扩展依赖使用 `install.py --with-generate` |
 
 为表内命令添加 `python slidemuse.py` 前缀。各命令的参数原样交给对应脚本，`<命令> --help` 展示其原有帮助。其他高级工具仍可直接运行 `scripts/*.py`；安装版直接调用脚本时，使用 `.skill-python` 所记录的解释器或当前安装目录下的 `.venv` Python。
 

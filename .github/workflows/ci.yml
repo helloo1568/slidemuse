@@ -49,7 +49,16 @@ jobs:
           EDITPPT_CONFIG_HOME: ${{ runner.temp }}/isolated-editppt-config
           CODEX_AUTH_FILE: ${{ runner.temp }}/no-codex-auth.json
           CODEX_PPT_HOME: ${{ runner.temp }}/isolated-editppt-config
-        run: python -m pytest vendor/image-to-editable/tests/ -v
+        run: |
+          python -m pytest vendor/image-to-editable/tests/ -v
+          python slidemuse.py rebuild capabilities --verify-source
+      - name: Pinned generation backend regression
+        env:
+          PYTHONUTF8: "1"
+          CODEX_PPT_HOME: ${{ runner.temp }}/isolated-editppt-config
+        run: |
+          python -m pytest vendor/codex-ppt/tests/ -v
+          python slidemuse.py generate capabilities --verify-source
       - name: Validate Page Spec example
         run: python scripts/validate_page_spec.py examples/page-spec.example.json --strict
       - name: Rebuild public editable sample
@@ -64,6 +73,6 @@ jobs:
       - name: Validate isolated install and upgrade
         if: matrix.python-version == '3.13'
         run: |
-          python install.py --client codex --home "${{ runner.temp }}/skill-home" --with-editable
+          python install.py --client codex --home "${{ runner.temp }}/skill-home" --with-editable --with-generate
           python -c "import os, subprocess; from pathlib import Path; p = Path(os.environ['RUNNER_TEMP']) / 'skill-home' / '.agents' / 'skills' / 'slidemuse'; py = Path((p / '.skill-python').read_text().strip()); assert py.is_file(), py; subprocess.run([str(py), str(p / 'scripts' / 'validate_page_spec.py'), str(p / 'examples' / 'page-spec.example.json'), '--strict'], check=True)"
           python -c "import os, subprocess, sys; from pathlib import Path; p = Path(os.environ['RUNNER_TEMP']) / 'skill-home' / '.agents' / 'skills' / 'slidemuse'; subprocess.run([sys.executable, str(p / 'slidemuse.py'), 'doctor', '--json'], check=True)"

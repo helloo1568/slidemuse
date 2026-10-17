@@ -10,7 +10,7 @@
 重点面向**挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛**，也适用于**学术汇报、论文答辩、项目路演、课程展示与电影质感 PPT**，支持图片转可编辑 PPT。
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.19.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.20.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -43,7 +43,7 @@
 | 接着上次继续做 | 输入预检、断点恢复、受影响页重渲染，以及集中列出的逐页待办。 |
 | 核对交付质量 | 对象与内容检查、当前文件绑定的评分卡，以及可选的离线逐页审阅面板。 |
 
-当前版本 **2.18.0**。新增[原始证据图保真](references/evidence-assets.md)：对声明保护的地图、截图和精确图表核对源文件与最终图片区域，拒绝被改动的证据像素；旧任务不追认保真。完整变更见 [CHANGELOG](CHANGELOG.md)；这些工具辅助制作与核验，实际内容和画面仍需审阅。
+当前版本 **2.20.0**。新增[大纲要点密度下限](references/content-outline.md)：每个内容页先声明页面类型，再写出 3–5 条有区别的支撑要点，少于 3 条视为密度不足、多于 5 条须拆页；同时引入可[复用风格库](references/style-library.md)与[完整图片生成后端](references/generate-backend.md)。完整变更见 [CHANGELOG](CHANGELOG.md)；这些工具辅助制作与核验，实际内容和画面仍需审阅。
 
 ---
 
@@ -198,7 +198,7 @@ IRENA 六页统计导读提供**原生文字、一张表格和三张嵌入工作
 
 默认先确认内容，再选择风格。仅在明确要求可编辑版时进入第三步；已有幻灯片图片或扫描 PDF 的还原任务可直接从第三步开始。跳过预览、代选等规则见[完整流程](docs/guide.md)。
 
-内容大纲须展开成可审阅的逐页内容稿：结论、支撑、可定位证据、解释与页面实际展示内容。进入风格阶段前先自检内容质量，再获得用户确认或明确内容代定授权；后续生图保留已确认的分析和必要边界。封面与过渡页按作用简化，不设统一字数或文字占比，详见[内容深度规范](references/content-outline.md)。
+内容大纲须展开成可审阅的逐页内容稿：页面类型、结论、3–5 条支撑要点、可定位证据、解释与页面实际展示内容。要点少于 3 条视为密度不足，多于 5 条须拆页或下沉为讲稿；封面与过渡页按其必答内容处理，不强行填满，也不设统一字数或文字占比。进入风格阶段前先自检内容质量，再获得用户确认或明确内容代定授权；后续生图保留已确认的分析和必要边界。详见[内容深度规范](references/content-outline.md)。
 
 <a id="quick-start"></a>
 
@@ -334,3 +334,7 @@ python slidemuse.py run task/job.json task-output
 ### 完整图片转可编辑后端（2.19.0）
 
 集成 [ningzimu/image-to-editable-ppt-skill](https://github.com/ningzimu/image-to-editable-ppt-skill) 的完整安装用后端，保留 MIT 来源。支持 PDF/PPTX 输入、文字尺寸提示、原生曲线和表格、素材去背拆分、公式及逐页恢复。使用 `python install.py --client codex --with-editable` 安装扩展依赖，再运行 `python slidemuse.py rebuild --help`。详见[完整接入指南](references/editable-backend.md)。
+
+### 完整图片生成后端（2.20.0）
+
+集成 [ningzimu/codex-ppt-skill](https://github.com/ningzimu/codex-ppt-skill) 图片流水线的前半段，保留 MIT 来源。支持逐页生图任务与提示、分派/结果/阻塞登记、运行状态汇总、图片版组装和纯色去底，并带来页面类型枚举、3–5 条要点下限和 12 套内置风格参考。使用 `python install.py --client codex --with-generate` 安装扩展依赖，再运行 `python slidemuse.py generate --help`。详见[完整接入指南](references/generate-backend.md)。

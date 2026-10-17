@@ -67,6 +67,7 @@ def test_manifest_packaged_zip_is_installable(tmp_path):
     )
     assert not json.loads(checked.stdout)["errors"]
     assert "Copyright (c) 2026 ningzimu" in (installed / "references/upstream-editable.md").read_text(encoding="utf-8")
+    assert "Copyright (c) 2026 ningzimu" in (installed / "vendor/codex-ppt/LICENSE").read_text(encoding="utf-8")
     backend = subprocess.run(
         [sys.executable, str(installed / "slidemuse.py"), "rebuild", "capabilities", "--verify-source"],
         check=True, capture_output=True, encoding="utf-8",
@@ -74,3 +75,13 @@ def test_manifest_packaged_zip_is_installable(tmp_path):
     capabilities = json.loads(backend.stdout)
     assert capabilities["dependencies_ready"]
     assert not capabilities["source_integrity"]["mismatches"]
+    generation = subprocess.run(
+        [sys.executable, str(installed / "slidemuse.py"), "generate", "capabilities", "--verify-source"],
+        check=True, capture_output=True, encoding="utf-8",
+    )
+    generate_capabilities = json.loads(generation.stdout)
+    assert not generate_capabilities["source_integrity"]["mismatches"]
+    assert (installed / "vendor/codex-ppt/skills/codex-ppt/references/清爽专业风.md").is_file()
+    assert (installed / "references/generate-backend.md").is_file()
+    assert (installed / "references/style-library.md").is_file()
+    assert (installed / "requirements-generate.txt").is_file()

@@ -142,3 +142,43 @@ def test_style_reference_must_exist_inside_task(page_spec):
     spec["style"]["tokens"]["reference_images"] = ["../outside.png"]
     with pytest.raises(ValueError, match="inside Page Spec directory"):
         validate_page_spec(spec, page_spec.parent)
+
+
+def test_slide_role_accepts_the_published_enum_only(page_spec):
+    spec, _ = load_page_spec(page_spec)
+    for role in ("cover", "agenda", "section-divider", "concept", "process", "comparison",
+                 "timeline", "data-evidence", "architecture", "case-study", "summary", "qa"):
+        spec["slides"][0]["role"] = role
+        assert validate_page_spec(spec, page_spec.parent)["slides"] == 1
+    spec["slides"][0]["role"] = "agenda-list"
+    with pytest.raises(ValueError, match="schema"):
+        validate_page_spec(spec, page_spec.parent)
+
+
+def test_slide_key_points_require_three_to_five_unique_items(page_spec):
+    spec, _ = load_page_spec(page_spec)
+    spec["slides"][0]["role"] = "comparison"
+    spec["slides"][0]["key_points"] = ["口径相同", "差异方向相反", "差距 8 个百分点"]
+    assert validate_page_spec(spec, page_spec.parent)["slides"] == 1
+
+
+@pytest.mark.parametrize("points", [
+    [],
+    ["少于三条"],
+    ["一", "二"],
+    ["一", "二", "三", "四", "五", "六"],
+    ["换词重复", "换词重复", "第三条"],
+    ["一", "二", ""],
+])
+def test_slide_key_points_reject_the_wrong_density(page_spec, points):
+    spec, _ = load_page_spec(page_spec)
+    spec["slides"][0]["role"] = "concept"
+    spec["slides"][0]["key_points"] = points
+    with pytest.raises(ValueError, match="schema"):
+        validate_page_spec(spec, page_spec.parent)
+
+
+def test_specs_without_role_and_key_points_stay_readable(page_spec):
+    spec, _ = load_page_spec(page_spec)
+    assert "role" not in spec["slides"][0] and "key_points" not in spec["slides"][0]
+    assert validate_page_spec(spec, page_spec.parent)["slides"] == 1

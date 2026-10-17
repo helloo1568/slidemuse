@@ -24,6 +24,8 @@ The launcher prefers `.venv/Scripts/python.exe` on Windows or `.venv/bin/python`
 | `audit deck.pptx --scene scene.json` | `scripts/audit_editability.py` | Check native objects |
 | `review task/job.json task-output` | `scripts/review_panel.py` | Export a review panel or import records |
 | `sample --verify --output sample-output` | `showcase/editable-irena/reproduce.py` | Rebuild all six public sample decks |
+| `rebuild <command>` | `scripts/editable_backend.py` | [Complete reconstruction backend](../references/editable-backend.md); optional dependencies with `install.py --with-editable` |
+| `generate <command>` | `scripts/generate_backend.py` | [Complete image-generation backend](../references/generate-backend.md): per-slide jobs and prompts, dispatch/result/blocker state, status summary, image-deck assembly, chroma-key removal; optional dependencies with `install.py --with-generate` |
 
 Prefix each command with `python slidemuse.py`. Arguments pass through unchanged, and `<command> --help` displays the original tool's help. Advanced tools remain available as `scripts/*.py`; use the installed `.venv` interpreter or the path recorded in `.skill-python` for direct invocation.
 
@@ -47,3 +49,7 @@ Diagnosis does not test the host agent's document reading, vision or image gener
 ## Complete reconstruction backend
 
 `python slidemuse.py rebuild <command>` runs the pinned backend without a global editppt installation. Use `install.py --with-editable` for the optional isolated dependencies, `rebuild capabilities --verify-source` for local availability/source checks, and `rebuild --offline prepare <input> --job-dir <run>` for local preparation. See the [integration guide](../references/editable-backend.md).
+
+## Complete image-generation backend
+
+`python slidemuse.py generate <command>` runs the pinned image-generation backend without a global codex-ppt installation. Use `install.py --with-generate` for the optional isolated dependencies, `generate capabilities --verify-source` for local availability/source checks, and `generate --offline prepare --spec <deck_spec.json> --out-dir <deck>` to write per-slide prompt jobs. See the [integration guide](../references/generate-backend.md).

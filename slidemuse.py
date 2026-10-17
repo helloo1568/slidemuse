@@ -21,6 +21,7 @@ COMMANDS = {
     "review": ("scripts/review_panel.py", (), "Export a review panel or import its records"),
     "sample": ("showcase/editable-irena/reproduce.py", (), "Rebuild the public editable sample"),
     "rebuild": ("scripts/editable_backend.py", (), "Complete image-to-editable backend; see references/editable-backend.md"),
+    "generate": ("scripts/generate_backend.py", (), "Complete image-generation backend; see references/generate-backend.md"),
 }
 
 
