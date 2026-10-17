@@ -2,3 +2,4 @@ pytest>=8
 ruff>=0.6
 PyYAML>=6
 -r requirements-editable.txt
+-r requirements-generate.txt

@@ -19,6 +19,11 @@
 - Keep the Page Spec route unchanged; the generate backend is an alternative S5 pipeline with its own artifacts. One task uses one source of truth: `slide_jobs.json` is not a `page-spec.json`, `prepare` never calls an image model, and every final slide image still comes from the confirmed host image backend.
 - Provide `--with-generate` for isolated optional dependencies, and `generate --offline` for local job, status, recording, assembly and chroma-key work that ignores user config and credentials.
 
+### Fixed
+
+- Mark `scripts/editable_backend.py` and `scripts/generate_backend.py` executable so Linux runners stop reporting `EXE001`; both files carried a shebang while committed as `100644`, which had kept the ubuntu lint step red since the reconstruction backend landed.
+- Add `requirements-generate.txt` to the development requirements so the CI environment installs `filelock`; without it the generation-backend tests failed with `ModuleNotFoundError`.
+
 ## [2.19.0] - 2026-10-17
 
 ### Added
