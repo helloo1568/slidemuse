@@ -22,6 +22,7 @@ from pptx.oxml.xmlchemy import OxmlElement
 from pptx.util import Inches, Pt
 from scene import asset_path, load_scene
 from speaker_notes import check_notes, check_scene_notes, scene_notes
+from table_layout import grid_lengths, merge_owners
 from text_layout import inspect_deck, risk_warning
 
 SHAPES = {
@@ -173,14 +174,19 @@ def add_element(shapes, e, base, sx, sy):
         table = shape.table
         table.first_row = e.get("header", True)
         table.horz_banding = False
-        if "column_widths" in e:
-            total = sum(e["column_widths"])
-            widths = [round(box[2] * weight / total) for weight in e["column_widths"]]
-            widths[-1] += box[2] - sum(widths)
-            for col, width in zip(table.columns, widths):
-                col.width = width
+        widths, heights = grid_lengths(e, box[2], box[3])
+        for col, width in zip(table.columns, widths):
+            col.width = width
+        for row, height in zip(table.rows, heights):
+            row.height = height
+        covered = merge_owners(e)
+        for span in e.get("merges", []):
+            r, c = span["row"], span["col"]
+            table.cell(r, c).merge(table.cell(r + span["row_span"] - 1, c + span["col_span"] - 1))
         for r, row in enumerate(rows):
             for c, value in enumerate(row):
+                if (r, c) in covered:
+                    continue
                 cell = table.cell(r, c)
                 header = r == 0 and e.get("header", True)
                 cell.fill.solid()
@@ -197,6 +203,14 @@ def add_element(shapes, e, base, sx, sy):
                     "bold": header or e.get("bold", False),
                     "margin": e.get("margin", 5),
                 }
+                # Table text uses tcPr cell properties in Office; bodyPr alone
+                # does not apply the text-box margins/vertical anchor to a cell.
+                cell.vertical_anchor = {
+                    "top": MSO_ANCHOR.TOP, "middle": MSO_ANCHOR.MIDDLE,
+                    "bottom": MSO_ANCHOR.BOTTOM,
+                }[style.get("valign", "top")]
+                for attr in ("margin_left", "margin_right", "margin_top", "margin_bottom"):
+                    setattr(cell, attr, Pt(style["margin"]))
                 text_frame(cell.text_frame, value, style)
     elif kind == "chart":
         data = CategoryChartData()

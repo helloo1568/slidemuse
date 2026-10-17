@@ -33,8 +33,8 @@ RUNTIME_PATHS = (
     "examples",
 )
 
-OPTIONAL_RUNTIME_PATHS = ("showcase/editable-irena", "docs")
-OPTIONAL_RUNTIME_FILES = ("README.md", "README.en.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE")
+OPTIONAL_RUNTIME_PATHS = ("showcase/editable-irena", "docs", "vendor")
+OPTIONAL_RUNTIME_FILES = ("README.md", "README.en.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "requirements-editable.txt")
 
 
 def read_skill_name(root: Path) -> str:
@@ -96,7 +96,7 @@ def copy_runtime(root: Path, target: Path) -> None:
         source = root / name
         destination = target / name
         if source.is_dir():
-            shutil.copytree(source, destination)
+            shutil.copytree(source, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache"))
         else:
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)
@@ -166,7 +166,8 @@ def legacy_installs(home: Path, client: str, skill_name: str) -> list[Path]:
 
 
 def install_skill(
-    root: Path, target: Path, client: str, skill_name: str, force: bool, skip_deps: bool
+    root: Path, target: Path, client: str, skill_name: str, force: bool, skip_deps: bool,
+    with_editable: bool = False,
 ) -> Path:
     check_target(target, force)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -178,6 +179,9 @@ def install_skill(
         python = Path(sys.executable)
         if not skip_deps:
             python = install_dependencies(staging, target)
+            if with_editable:
+                subprocess.run([str(python), "-m", "pip", "install", "--disable-pip-version-check",
+                                "-r", str(staging / "requirements-editable.txt")], check=True)
 
         marker = {
             "installer": "slidemuse",
@@ -185,6 +189,7 @@ def install_skill(
             "skill": skill_name,
             "client": client,
             "source": str(root),
+            "editable_backend": with_editable,
         }
         (staging / ".skill-install.json").write_text(
             json.dumps(marker, ensure_ascii=False, indent=2) + "\n",
@@ -202,6 +207,11 @@ def install_skill(
         final_python = venv_python(target / ".venv") if not skip_deps else python
         if not skip_deps:
             validate_install(target, final_python)
+            if with_editable:
+                subprocess.run([str(final_python), "-c",
+                                "import fitz, PIL, openai, yaml, numpy, requests"], check=True)
+                subprocess.run([str(final_python), str(target / "slidemuse.py"),
+                                "rebuild", "capabilities", "--verify-source"], check=True)
     except BaseException:
         failed: Path | None = None
         if activated:
@@ -267,6 +277,10 @@ def main() -> None:
         help="Register the skill without creating its isolated Python environment.",
     )
     parser.add_argument(
+        "--with-editable", action="store_true",
+        help="Also install dependencies for the complete image-to-editable backend.",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Replace an existing unrecognized skill directory.",
@@ -282,6 +296,8 @@ def main() -> None:
         help="Emit machine-readable JSON output.",
     )
     args = parser.parse_args()
+    if args.with_editable and args.skip_deps:
+        parser.error("--with-editable requires dependency installation; omit --skip-deps")
 
     root = Path(__file__).resolve().parent
     skill_name = read_skill_name(root)
@@ -308,7 +324,7 @@ def main() -> None:
         return
 
     try:
-        python = install_skill(root, target, client, skill_name, args.force, args.skip_deps)
+        python = install_skill(root, target, client, skill_name, args.force, args.skip_deps, args.with_editable)
     except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
         parser.exit(2, f"install: error: {exc}\n")
 

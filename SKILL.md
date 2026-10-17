@@ -1,9 +1,9 @@
 ---
 name: slidemuse
-description: 将书籍、PDF、论文、报告或文字材料制作成视觉优先的图片版 PPT，适用于竞赛、答辩、路演、课程展示和读书分享；在用户明确要求时按 Scene v1 还原可编辑 PPTX。流程包含需求和大纲确认、四套风格选型及逐页生图；不用于直接修改已有可编辑 PPTX。
+description: 将书籍、PDF、论文、报告或文字材料制作成视觉优先的图片版 PPT，适用于竞赛、答辩、路演、课程展示和读书分享；明确要求可编辑时，通过 Scene 或完整图片重建后端还原 PPTX，也支持直接还原已有图片/PDF/图片版 PPTX。新制作包含需求和大纲确认、四套风格选型及逐页生图；不用于直接修改已有可编辑 PPTX。
 ---
 
-# SlideMuse · 2.18.0
+# SlideMuse · 2.19.0
 
 本技能只有一条主流程：**内容提炼 → 图片 PPT 生成 → 可编辑 PPTX 还原**。
 用户负责确认内容与风格，Agent 负责按已确认规格执行；不得把流程改写成“先做原生信息层”的编辑优先路线。
@@ -25,7 +25,7 @@ description: 将书籍、PDF、论文、报告或文字材料制作成视觉优�
 - **最佳推荐：Codex + GPT Image 2.5。** Codex 暴露模型选择时，风格探索优先使用 GPT Image 2.5 Flare，成品页与精确参考编辑优先使用 GPT Image 2.5 Sunburst。
 - Codex 未暴露型号时调用其当前生图能力，不得声称指定了某个 2.5 子型号。
 - 其他 Agent 必须调用该 Agent 自身提供或已连接的图像生成/编辑能力，不得假设存在 Codex 专属工具。
-- 仓库脚本不负责生图、OCR 或视觉理解，也不自动调用收费 API。
+- 基本 Scene 工具保持离线。S6 的[完整图片转可编辑后端](references/editable-backend.md)可测量文字几何、处理输入、拆分素材并重建 PPTX；OCR 和图像服务为可选接口，按用户选定的后端与宿主工具规则使用。`rebuild --offline` 隔离外部配置与凭证发现。
 
 ## 强制流程契约
 
@@ -143,11 +143,11 @@ python "<skill-dir>/scripts/render_deck.py" "<work>/output/image-deck.pptx" "<wo
 
 ## Step 3：还原可编辑 PPTX（S6）
 
-进入后读取 [Prompt 3](references/prompts.md)、[重建与分层](references/reconstruction.md) 和 [Scene 协议](references/scene-format.md)。
+进入后读取 [Prompt 3](references/prompts.md) 和[重建与分层](references/reconstruction.md)。直接还原现有图片/PDF/图片版 PPTX，或涉及自动文字尺寸提示、复杂曲线、逐格表格样式、公式及逐页恢复时，使用[完整重建后端](references/editable-backend.md)；已有 Scene、原生数据图表或数据绑定继续读取 [Scene 协议](references/scene-format.md)，执行下面的 Scene 路线。完整后端保留其原始 Manifest 格式和验证报告，最终仍用本技能的 `render` 真实渲染，不混用两种格式。
 
 1. 以 `page-spec.json` 为语义事实源、验收后的页面图片为视觉事实源。直接还原任务先从可见页面建立 Page Spec；用户要求保留原内容即视为对转录目标的授权，不代表低置信度文字已确认。
 2. Page Spec 已记录的文字、数据、来源和 ID 直接复用，不重新 OCR、改写或更换。按变更记录识别重建后的已授权修改；只有未记录或超出授权的图文冲突才请求确认。
-3. 每次处理 1–3 页，补齐精确坐标、层级、素材和置信度。文字、简单几何、表格和可靠数据图使用原生对象；复杂视觉拆成独立图片对象。
+3. 每次处理 1–3 页，补齐精确坐标、层级、素材和置信度。文字、简单几何、表格和可靠数据图使用原生对象；复杂视觉拆成独立图片对象。直接重建需要校准字号、素材有断开细节或表格含合并单元格时，读取[上游参考与适配](references/upstream-editable.md)；表格使用 Scene 的行高权重与矩形合并，不猜造未能识别的结构。
 4. 从背景移除所有原生化文字和已拆主体并补全背景。原始整页图片只作核对证据，不能作为可编辑版底图。
 5. 按 [JSON Schema](references/scene.schema.json) 编写 `scene.json`，然后编译和审查：
 
@@ -168,6 +168,7 @@ python "<skill-dir>/scripts/render_deck.py" "<work>/output/editable.pptx" "<work
 
 - **图片版**：`image-deck.pptx`、有序页面图片、`page-spec.json`、实际预览/检查说明。
 - **可编辑版**：在图片版基础上增加 `editable.pptx`、`scene.json`、引用的 `assets/`、`editability.json` 和渲染预览。
+- **完整重建后端输出**：按其参考交付逐页 Manifest、素材、页映射/备注、任务记录、验证报告及真实渲染预览；Scene 尚未表达的属性保留在 Manifest，不伪称已全部转换为 Scene。已有 Page Spec/内容契约继续保留。
 - 说明字体替代、低置信度识别、AI 补全、独立栅格对象和待人工处理项。
 - 不能把整页截图加少量文本框、整页 SVG 或未拆分背景称作“每个元素可编辑”。
 - 默认不反复展示检查图、初稿和修复稿；工具已显示的图片不再重复嵌入。风格选择只列每套最新验收版，最终只列批准版本及一个清晰预览。用户需要比较或某页需决策时，明确页码/版本后展示相关图；检查与历史证据仍保存到任务目录。
@@ -185,6 +186,7 @@ python "<skill-dir>/scripts/render_deck.py" "<work>/output/editable.pptx" "<work
 - [data-bindings.md](references/data-bindings.md)：修改表格/图表数据及其依赖正文、百分比、差额和讲稿时读取；提供可选契约、差异预览、独立待审草稿与交付检查，不代替来源和语义复核。
 - [models.md](references/models.md)：S3/S5 生图，以及 S6 需要背景清理/主体分离时读取。
 - [reconstruction.md](references/reconstruction.md) 与 [scene-format.md](references/scene-format.md)：仅 S6 读取。
+- [editable-backend.md](references/editable-backend.md)：S6 使用完整图片转可编辑能力时读取；覆盖输入归一化、文字测量、原生路径/表格、素材板、公式、任务恢复、外部后端和真实渲染。
 - [evaluation.md](references/evaluation.md)：仅质量回归、版本发布或需要可复跑评分卡时读取。
 - [benchmark.md](references/benchmark.md)：仅跨材料评测时读取；冻结全部案例、保留首次与修复后成绩、验证实际产物证据并按类别/划分汇总。
 - [pipeline.md](references/pipeline.md)：已准备好 Page Spec/Scene 后，使用可恢复交付、渲染超时、环境指纹、可选 PowerPoint 实测及逐页待办。

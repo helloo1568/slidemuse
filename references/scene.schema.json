@@ -533,6 +533,45 @@
             },
             "fill": {
               "$ref": "#/$defs/color"
+            },
+            "row_heights": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "merges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "row": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "col": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "row_span": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "col_span": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "row",
+                  "col",
+                  "row_span",
+                  "col_span"
+                ]
+              }
             }
           },
           "required": [

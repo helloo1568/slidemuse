@@ -1,0 +1,76 @@
+{
+  "repository": "https://github.com/ningzimu/image-to-editable-ppt-skill",
+  "commit": "b7be494e31a0ed56ef98716891db5474606b8cdf",
+  "license": "MIT",
+  "files": {
+    "LICENSE": "1db20bcc78e95cf5e2d189ea05e0f47498c6e8b9b9aec089f1c073fcd6bcb822",
+    "skills/image-to-editable-ppt/SKILL.md": "b1f7e07d4a8f7ead35d95a0d7dd18230850f403c814ebacbf3f006d0221da85c",
+    "skills/image-to-editable-ppt/agents/openai.yaml": "a971fe9fdce0d9350b11a04532054dd2c150994256f288d9ae7330b0ac7f1d9b",
+    "skills/image-to-editable-ppt/cli/editppt/__init__.py": "b6f403f4aa16c546d8031f24ada5f9994c5002bb17e835eb1e0789bd0cc85d52",
+    "skills/image-to-editable-ppt/cli/editppt/cli.py": "fd49ed1fcf3abfd2bcb0929df1665e68d1bb68e7b4583ea79d3633088c8c81f3",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/__init__.py": "9bbccf398638395c225941aae78726da1b1ff0786b359d7854abb5dacad7475d",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/_input_normalization.py": "a6a94b66b45003cc514157e392a5151c483bab7e547321013f61ff1a6d165fec",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/_page_artifacts.py": "5a89534fc028f8a863b8c28b3851b8fb2c6f567dbbbfae2f7b60a2d4a6ccb281",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/build_pptx_from_manifest.py": "8b965ad2dc530e1090cc3288cc27e75eeeb427dc8845332660f315d67a05707d",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/configure_image_backend.py": "693f6a0584a3d2b553ab694a4a4bad052bf955c327f392a1a9c0a07930515da3",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/deck_run_state.py": "c880a6a212c6ac2e8956ce7e6995020231bc5e5931afb6b70d3be239d507441e",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/deck_text_hints.py": "d85aad0a1790688316d9ddc38d30d2d63247dd56a75424c076b5b26bfa1e4ca1",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/finalize_deck_run.py": "db2347b415c6f3ea6db129a2645596a5f044f7d3a6f8c9ffeeb4f4bce9676bd7",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/formula_renderer.py": "32d939bfa2e82ed87b891c914f67b54c2103f07a5f0f8e6da7ce9a96c9c1bcc4",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/image_gen.py": "0b56e8e289241b964929b9b4e36f1eba1574238525673daee52282a20cd759e5",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/main.py": "ff840e8235c8de25df6657d1858ea6665a1b3385905fc6c8f33b769dacd8b6e7",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/make_page_contact_sheet.py": "3bbbc5db4e7be8ee6166da8ea35c81d04e28be8d0fd9f5f1ab318280f113f348",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/native_tables.py": "29b4b05fcbe4d7a87b7979aa5b79c6abe19aba9bab3c3cdd3b86d8cc0982773b",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/paddle_text_hints.py": "d55f68fff77b481a065b07020dee7637767bfffe90b356e20498918950f2fa60",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/page_job_status.py": "7958849668d31dd222629a3059c9b00e36894b18155d99348ec33584801c1d6b",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/page_text_metrics.py": "5ff9f78e3e18d52443284ead5c8871143b1383ef7677aa699d68f5ceeeadb955",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/path_geometry.py": "883fbb7086764dca2a6f1b83e801938cd26ae7dc44fc839144413b93335c3987",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/prepare_deck_run.py": "02d949fc1b2d29be2631f35efcf57efd39c3f491533bdb9c3fb6b73dc320b8a0",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/process_asset_sheet.py": "9f2ca9c5491fa1fda0e4c897f7f0b41723ff7f63a46a5325d9bea617227a50c2",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/record_imagegen_result.py": "8c1eb4f50f2d67d45d3b1b4d53df84592337c69ad8ec9b3abd878829b56b8789",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/record_page_dispatch.py": "5e64bb0c4522f3b2bb6c5209949f4fbbd014fccbf426e373313d25d378c2c9d6",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/record_page_result.py": "012a0721e915f9c54e57ee882bf17f01e0b44f0475ace0726da8eb69df3fcdf8",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/remove_chroma_key.py": "a81844c908c32ae579f9885abf98112d801aef0882a94026db7b077a607965b2",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/reset_page_job.py": "8bb9d6ae5d32a2b00c547f480ca6824b8df3e6b1b8a60d78d579e395d6dcadaf",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/runtime_env.py": "170d7ffc7a10a81e2b0756c9e203add4dc342d81c6b5d23e9d237e4b88c9d38e",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/split_alpha_components.py": "d6518f49967d1a7ad94147272e7e7d2aef23ee7c5575f445feb64bb85e9dd408",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/text_hints.py": "a973e2b033ec188093abb9834d61c3aa60ce51142d339bd23c7c55e9676b6712",
+    "skills/image-to-editable-ppt/cli/editppt/runtime/validate_pptx.py": "aa7e883b5a67d7be808132992646d6372d8f5ec00378c779ca0bc6f85dd4acb9",
+    "skills/image-to-editable-ppt/cli/pyproject.toml": "4e4bf49b59aca58dfc26e0835c316f4f94916dfd8106e72478266c0f7c3e7780",
+    "skills/image-to-editable-ppt/prompts/page-worker.md": "323ed0eb56e65dc584e8e08ac61852e9f5e363f10a48c4a834245b82aacd8388",
+    "skills/image-to-editable-ppt/references/cli-helper.md": "50590fc3d9a5e4e3c0c7756565d3c78905d59ac99df6a84e21d22c874390ab86",
+    "skills/image-to-editable-ppt/references/manifest-schema.md": "f8e277feffa30702c1fd9e059b33a0868a43ad2b56a3bf506bc4e5fc061b5c93",
+    "skills/image-to-editable-ppt/references/page-decision-tree.md": "532e1812027e1b1935b98b0632c377c81140ba6cd5e3094cff3a73a40e8bb173",
+    "skills/image-to-editable-ppt/scripts/build-page-worker-prompt.py": "9c2b6b0b2cc257386eeac6e3705f465089f52cb067090ce3d40f8fdd6605c1fd",
+    "tests/test_alpha_regions.py": "db687a10bcda4f3073ff8e2ebee5f22d2e63fd1e6889a0e0ee89b55b0c8c11b3",
+    "tests/test_dispatch_concurrency.py": "681744bedfb1b71509275e946a0903a7f1864cfbd80f81a034133b9e4989cc73",
+    "tests/test_formula_renderer.py": "22a0f26aeea5e02c379c2183829eda44bd20e6377f295a7059e0542ace5202be",
+    "tests/test_image_models.py": "d7cabd400956cd65b354bebeeb70b30e19a2f141c885d5a27d0546454d0da1c6",
+    "tests/test_multi_agent_backend.py": "f9214f08221b135a04526ee6062cc2401d1746c2abf5498dfac7c621824229d6",
+    "tests/test_native_tables.py": "98f561ecdf2a635584422ec80420bdfe7f0585a47758fba80ed58235e6661e2b",
+    "tests/test_page_hints.py": "7fd1e68c4e4b229c3a4f85403ffff1c8671c03d115c9ac65a30117ca3d8fd4af",
+    "tests/test_path_geometry.py": "2011e1e17ff91953e2e6880c2a0b19d83e205ca9fcc413de164ec4727ffc6c14",
+    "tests/test_quality_contracts.py": "ab742b23377cb685baeec1cead253fe67ba7789f8f7c79a1041e8592e370afe5",
+    "tests/test_script_inventory.py": "455762255b5f89715c8b9bfdd7e2b50f8b7ba4a1e3af173145c31a5cf74f394b",
+    "tests/test_slide_layout.py": "dba644241985c16a36699a8fcdabbca367e9a879d8e6985ac6128a6ae56d1158",
+    "tests/test_table_validation.py": "14cfa517ce0d12d8d433787490b8b9a88a979e812121de39bcd55f06ed9d4502"
+  },
+  "patches": {
+    "skills/image-to-editable-ppt/cli/editppt/runtime/build_pptx_from_manifest.py": {
+      "sha256": "51ba064dc3c0eaca7e779c912796bf4d0602f0be8fa768a1e4b4733038339548",
+      "reason": "Discover Windows and Linux fonts for diagnostic previews and text geometry."
+    },
+    "tests/test_slide_layout.py": {
+      "sha256": "beb3818374e4962cd83b1236a554c006969603b72080327608b4ccd0cd951974",
+      "reason": "Use a Windows scalable font in the same upstream preview assertions."
+    },
+    "skills/image-to-editable-ppt/cli/editppt/runtime/_input_normalization.py": {
+      "sha256": "4c8394d118a079054d5b0f39c395bc82d4ced39c860c62b7699c3ab177b24125",
+      "reason": "Use the supplied dpi in legacy PPT normalization rather than an undefined args variable."
+    },
+    "skills/image-to-editable-ppt/cli/editppt/runtime/formula_renderer.py": {
+      "sha256": "2c40f5fd6c38657271e76e918feade837d7892d339913217c316b64bf7873d45",
+      "reason": "Render PNG formulas with the already required PyMuPDF, avoiding Windows convert.exe."
+    }
+  }
+}

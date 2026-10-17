@@ -29,7 +29,7 @@ Codex/ChatGPT 的生图能力与直接 API 不同。先读取当前工具 schema
 
 ## 可选 API
 
-本仓库不内置 API 客户端，也不会扫描密钥或发起网络请求。用户自行接入 Images API 时可采用以下请求配置；它不是本地脚本输入：
+基本 Scene 工具不内置 API 客户端，也不会扫描密钥或发起网络请求。可选安装的[完整重建后端](editable-backend.md)包含一个 OpenAI 兼容的图像客户端，仅在用户配置对应服务时使用；`rebuild --offline` 会隔离该配置和凭证发现。用户自行接入 Images API 时可采用以下请求配置；它不是本地脚本输入：
 
 ```json
 {

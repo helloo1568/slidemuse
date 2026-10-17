@@ -1,6 +1,6 @@
 name: slidemuse
 display_name: SlideMuse
-version: 2.18.0
+version: 2.19.0
 description: >-
   SlideMuse 是视觉优先的 AI PPT Skill，重点适用于挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛 PPT，同时适用于电影质感 PPT、比赛答辩、创新创业路演、学术汇报、论文答辩、项目汇报、课程展示和图片转可编辑 PPT。
   按固定三阶段流程将材料制作成图片版 PPT，并在明确授权后还原为可编辑 PPTX：
@@ -8,7 +8,7 @@ description: >-
   Scene v1 可编辑重建。
   默认不得自行推断缺失需求、跳过选型或改走编辑优先路线。最佳推荐 Codex + GPT Image 2.5；
   也可在其他 Agent 中调用该 Agent 自身的生图能力。宿主 Agent 负责内容、识别与生图，
-  本地脚本负责图片合并、Scene 编译、素材裁剪和对象审查。
+  本地脚本负责图片合并、Scene 编译、素材裁剪和对象审查；完整图片重建后端另提供输入归一化、文字尺寸提示、曲线/表格、公式、素材处理和任务恢复。
 author: 风清云影 (helloo1568)
 license: MIT
 category: content
@@ -59,7 +59,9 @@ platforms:
   - Codex with image generation and local file tools (recommended with GPT Image 2.5)
   - Other agents with document reading, vision, native or connected image generation, and Python
 security_notes: >-
-  Local scripts do not make network requests or handle API keys.
+  Core Scene tools are offline. The optional complete reconstruction backend can use
+  configured OCR or image services; rebuild --offline isolates credentials and configs.
+  Credentials remain in user-level configuration, never project manifests or prompts.
   Host vision/image services may upload supplied content and require separate credentials.
   Page Spec image paths and Scene assets are confined to their specification directories.
   Exported PPTX embeds referenced assets.
@@ -224,3 +226,63 @@ files:
   - showcase/editable-irena/source/source.json
   - showcase/editable-irena/speaker-notes.md
   - showcase/editable-irena/styles/03-sorter.png
+  - scripts/table_layout.py
+  - tests/test_table_layout.py
+  - references/upstream-editable.md
+  - examples/merged-table.scene.json
+  - scripts/editable_backend.py
+  - requirements-editable.txt
+  - references/editable-backend.md
+  - tests/test_editable_backend.py
+  - vendor/image-to-editable/LICENSE
+  - vendor/image-to-editable/skills/image-to-editable-ppt/agents/openai.yaml
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/__init__.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/cli.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/__init__.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/_input_normalization.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/_page_artifacts.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/build_pptx_from_manifest.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/configure_image_backend.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/deck_run_state.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/deck_text_hints.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/finalize_deck_run.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/formula_renderer.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/image_gen.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/main.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/make_page_contact_sheet.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/native_tables.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/paddle_text_hints.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/page_job_status.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/page_text_metrics.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/path_geometry.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/prepare_deck_run.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/process_asset_sheet.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/record_imagegen_result.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/record_page_dispatch.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/record_page_result.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/remove_chroma_key.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/reset_page_job.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/runtime_env.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/split_alpha_components.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/text_hints.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/validate_pptx.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/pyproject.toml
+  - vendor/image-to-editable/skills/image-to-editable-ppt/prompts/page-worker.md
+  - vendor/image-to-editable/skills/image-to-editable-ppt/references/cli-helper.md
+  - vendor/image-to-editable/skills/image-to-editable-ppt/references/manifest-schema.md
+  - vendor/image-to-editable/skills/image-to-editable-ppt/references/page-decision-tree.md
+  - vendor/image-to-editable/skills/image-to-editable-ppt/scripts/build-page-worker-prompt.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/SKILL.md
+  - vendor/image-to-editable/tests/test_alpha_regions.py
+  - vendor/image-to-editable/tests/test_dispatch_concurrency.py
+  - vendor/image-to-editable/tests/test_formula_renderer.py
+  - vendor/image-to-editable/tests/test_image_models.py
+  - vendor/image-to-editable/tests/test_multi_agent_backend.py
+  - vendor/image-to-editable/tests/test_native_tables.py
+  - vendor/image-to-editable/tests/test_page_hints.py
+  - vendor/image-to-editable/tests/test_path_geometry.py
+  - vendor/image-to-editable/tests/test_quality_contracts.py
+  - vendor/image-to-editable/tests/test_script_inventory.py
+  - vendor/image-to-editable/tests/test_slide_layout.py
+  - vendor/image-to-editable/tests/test_table_validation.py
+  - vendor/image-to-editable/upstream.json

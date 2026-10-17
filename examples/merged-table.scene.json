@@ -1,0 +1,25 @@
+{
+  "version": "1.0",
+  "title": "Merged table reconstruction check",
+  "canvas": {"width": 1600, "height": 900},
+  "slides": [{
+    "id": "s01",
+    "background": "#F3F6FC",
+    "elements": [
+      {"id": "title", "type": "text", "x": 100, "y": 60, "w": 1400, "h": 90,
+       "text": "原生合并表格 · 可编辑重建验证", "font": "Microsoft YaHei", "font_size": 30,
+       "bold": true, "color": "#172B4D"},
+      {"id": "results", "type": "table", "x": 100, "y": 190, "w": 1400, "h": 510,
+       "font": "Microsoft YaHei", "font_size": 20, "align": "center", "valign": "middle",
+       "header_fill": "#172B4D", "fill": "#FFFFFF", "margin": 6,
+       "rows": [["结构验证示例（合成数据）", "", ""], ["组别", "流量", "耗时"],
+                ["A", "100", "10 s"], ["", "200", "20 s"], ["B", "300", "30 s"]],
+       "column_widths": [2, 3, 3], "row_heights": [1.4, 1, 1, 1, 1],
+       "merges": [{"row": 0, "col": 0, "row_span": 1, "col_span": 3},
+                  {"row": 2, "col": 0, "row_span": 2, "col_span": 1}]},
+      {"id": "caption", "type": "text", "x": 100, "y": 745, "w": 1400, "h": 100,
+       "text": "表头横向合并、组别纵向合并，行高与列宽按比例保留。\n这是功能验证数据，不代表实际实验结果。",
+       "font": "Microsoft YaHei", "font_size": 18, "color": "#42526E"}
+    ]
+  }]
+}
