@@ -31,6 +31,7 @@ def scalable_test_font():
         str(Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts/arial.ttf"),
         "/System/Library/Fonts/Supplemental/Arial.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
         "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
     )
     return next((path for path in candidates if Path(path).exists()), None)

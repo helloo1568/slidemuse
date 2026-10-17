@@ -41,6 +41,11 @@ def command_prefix(root=ROOT):
     return shlex.join(parts)
 
 
+def content_sha256(path):
+    """Hash text as stored in Git, so verification does not depend on checkout line endings."""
+    return hashlib.sha256(Path(path).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 def capabilities(root=ROOT, verify=False):
     vendor = root / VENDOR
     provenance = json.loads((vendor / "upstream.json").read_text(encoding="utf-8"))
@@ -57,7 +62,7 @@ def capabilities(root=ROOT, verify=False):
             expected = provenance.get("patches", {}).get(name, {}).get("sha256", expected)
             path = (vendor / name).resolve()
             if (not path.is_relative_to(vendor.resolve()) or not path.is_file()
-                    or hashlib.sha256(path.read_bytes()).hexdigest() != expected):
+                    or content_sha256(path) != expected):
                 mismatches.append(name)
         result["source_integrity"] = {"checked": len(provenance["files"]), "mismatches": mismatches}
     return result

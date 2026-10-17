@@ -23,6 +23,9 @@
 
 - Mark `scripts/editable_backend.py` and `scripts/generate_backend.py` executable so Linux runners stop reporting `EXE001`; both files carried a shebang while committed as `100644`, which had kept the ubuntu lint step red since the reconstruction backend landed.
 - Add `requirements-generate.txt` to the development requirements so the CI environment installs `filelock`; without it the generation-backend tests failed with `ModuleNotFoundError`.
+- Re-record all vendored source hashes on an LF (git-blob) basis and verify them with newline normalization. The previous CRLF-basis hashes could never match on Linux checkouts, so every `capabilities --verify-source` integrity test failed on ubuntu while passing on Windows.
+- Import `pymupdf` directly in the vendored PDF normalization instead of the deprecated `fitz` shim. Newer PyMuPDF versions print a deprecation warning into captured stdout, which made `rebuild prepare` misread the `deck_manifest.json` path and fail PDF normalization tests.
+- Accept the standard `fonts-liberation` path in the vendored slide-layout test font lookup so Linux CI runners with that package installed always find a scalable font.
 
 ## [2.19.0] - 2026-10-17
 

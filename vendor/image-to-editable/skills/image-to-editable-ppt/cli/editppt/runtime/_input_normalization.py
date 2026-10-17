@@ -58,7 +58,7 @@ def save_image_page(src, page_dir):
 
 
 def render_pdf_pages(pdf_path, pages_dir, dpi):
-    import fitz
+    import pymupdf as fitz
 
     doc = fitz.open(pdf_path)
     outputs = []
