@@ -48,6 +48,16 @@ SlideMuse 选择更小的 JSON 场景协议，直接生成原生对象；未实�
 [px-image2pptx](https://github.com/JadeLiu-tech/px-image2pptx) 展示 OCR 与背景修复后恢复文本的路线。
 这些方法说明“文字可编辑”和“主体也独立”是不同验收目标。本版明确区分原生信息与独立栅格素材。
 
+## image-to-editable-ppt-skill（可选完整重建后端）
+
+项目：[ningzimu/image-to-editable-ppt-skill](https://github.com/ningzimu/image-to-editable-ppt-skill)，MIT。
+查阅：[SKILL 与 runtime](https://github.com/ningzimu/image-to-editable-ppt-skill/tree/b7be494e31a0ed56ef98716891db5474606b8cdf)。
+核验固定提交 `b7be494e31a0ed56ef98716891db5474606b8cdf`。
+
+本项目按 MIT 许可证随包保留其源码、字段参考、提示模板和测试，记录原始文件哈希与本地补丁哈希（见 [upstream.json](../vendor/image-to-editable/upstream.json)），并通过 `slidemuse.py rebuild` 统一入口调用，不安装其全局 `editppt` 命令。
+上游的直接重建路线与本项目既有 Scene 路线并行：Scene 继续保留原生数据图表，完整后端按其 Manifest 格式交付；一项任务按输出格式保持单一事实源，不互相转换。上游要求所有前景都经生图提取的做法不覆盖本项目受保护证据和已有透明原始素材的保留规则。
+安装、命令与边界见[完整重建后端](editable-backend.md)，Scene 路线的适配方法见[上游参考](upstream-editable.md)。
+
 ## 结论：本次实际实现
 
 | 能力 | 2.0 实现 |
@@ -56,10 +66,10 @@ SlideMuse 选择更小的 JSON 场景协议，直接生成原生对象；未实�
 | 原生编辑 | text / shape / line / group / table / chart |
 | 分离图片 | 独立 PNG，已知框/遮罩裁剪工具 |
 | 背景补全 | 宿主图像工具执行，技能提供分层与核验规范 |
-| 图像识别 | 宿主视觉 Agent 执行；不捆绑自动 OCR/VLM 服务 |
+| 图像识别 | 宿主视觉 Agent 执行；额外的可选 `rebuild` 提供本地文字尺寸提示与需自行配置的 OCR 接口 |
 | 修改迭代 | 修改 scene 或单一素材，再编译 |
 | 检查 | 声明对象与实际 PPTX 对比，另做渲染核验 |
 | 通用 SVG 编译 / 动画 / 母版还原 | 未实现 |
 
-以上为独立实现与方法参考，没有复制第三方源码。
-如未来直接引入第三方代码或资产，需要保留对应许可证与归属，并针对其版本验证兼容性。
+Scene 编译器为独立实现，未复制上述方法参考项目的源码；可选安装的完整重建后端按 MIT 许可证随包保留 image-to-editable-ppt-skill 的固定提交源码并记录哈希。
+引入第三方代码或资产时保留对应许可证与归属，并针对其版本验证兼容性。

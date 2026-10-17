@@ -32,7 +32,7 @@ The host may not expose an image model selector. These recommendations are not a
 | Photos and complex illustrations | Separate image objects | Move, crop, resize, replace |
 
 Raster artwork does not become editable vector paths. Missing or occluded details cannot be recovered with guaranteed accuracy.
-**The local scripts do not perform OCR, automatic segmentation or image understanding.** Those steps belong to the host agent and its available vision/image tools.
+**The core Scene tools do not perform OCR, automatic segmentation or image understanding.** Those steps belong to the host agent and its available vision/image tools. The optional [complete reconstruction backend](../references/editable-backend.md) adds offline text-geometry hints, asset-sheet processing and a separately configured OCR option; geometry hints are not text recognition.
 
 ## Quick start
 
@@ -174,12 +174,12 @@ See the [three-slide acceptance record](acceptance-2026-09-18.md) for real rende
 
 Research includes [PPT Master by Hugo He](https://github.com/hugohe3/ppt-master),
 [banana-slides](https://github.com/Anionex/banana-slides) and [PPTAgent](https://github.com/icip-cas/PPTAgent).
-The scene compiler is independently implemented; their code and dependencies are not bundled.
+The Scene v1 JSON compiler is independently implemented and does not copy those projects' source. The optional [complete reconstruction backend](../references/editable-backend.md) does retain the pinned MIT-licensed source of [ningzimu/image-to-editable-ppt-skill](https://github.com/ningzimu/image-to-editable-ppt-skill) with recorded hashes.
 See [research notes](../references/research.md) for specific references and tradeoffs.
 
 Early workflow inspiration: Xiaoheihe author 玩家22186848 and Bilibili creator 一往无前河井.
 
-Local scripts perform no network requests and need no API key. Host AI services may receive supplied content.
+Core Scene tools perform no network requests and need no API key. Host AI services may receive supplied content. The optional complete reconstruction backend can call user-configured OCR/image services, and `rebuild --offline` isolates external config and credential discovery.
 Exclude private source documents and credentials from shared outputs.
 
 [MIT](../LICENSE) © 2026 风清云影（helloo1568）
@@ -201,3 +201,7 @@ Paper review covers formula variables, input/operation/output, experimental scop
 Freeze the source registry and rubric before execution. Preserve each complete delivery attempt and report first and final results separately. Missing, changed or unreviewed cases remain in the denominator; repairs require new attempts. `evaluate_benchmark.py review-contract` exports a content contract without generation prompts and verifies its binding to the source. Separate objective invocation transactions from author quality judgments before independent review; see [benchmark records](../references/benchmark.md).
 
 Native chart auditing checks both display caches and embedded workbook cells so Edit Data cannot silently restore older values. Tool checks and software tests do not replace actual source, visual or reviewer-independence judgments.
+
+## Complete image-to-editable backend (2.19.0)
+
+Beyond the Scene route, S6 can optionally use the [complete reconstruction backend](../references/editable-backend.md): input normalization, offline text-geometry hints, native paths and tables, transparent/chroma asset-sheet splitting, formula assets and resumable page jobs, all under `slidemuse.py rebuild`. Install the extra dependencies with `install.py --with-editable`; `rebuild --offline` isolates external config and credentials. The backend retains the upstream pinned MIT source with recorded hashes, and the [upstream adaptation boundary](../references/upstream-editable.md) explains how the Scene route reuses its measurement and table methods. Geometry hints, structural checks and diagnostic previews are not text recognition or Office layout; render the PPTX for real before accepting it.

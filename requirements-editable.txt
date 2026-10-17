@@ -1,0 +1,7 @@
+# Complete optional reconstruction backend. Installed with --with-editable.
+PyMuPDF>=1.24.0
+Pillow>=10.0.0
+openai>=2.0.0
+PyYAML>=6.0.0
+numpy>=1.26.0
+requests>=2.31.0

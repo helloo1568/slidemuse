@@ -31,7 +31,7 @@
 | 照片、人物、复杂插画 | 独立图片对象 | 移动、缩放、裁剪、替换 |
 
 复杂插画内部仍是像素；被遮挡的信息也不能凭空准确恢复。
-**本地脚本不包含自动 OCR、分割模型或端到端图片理解。** 识别与必要的背景补全由宿主 Agent/视觉工具完成。
+**Scene 编译等基本工具不包含自动 OCR、分割模型或端到端图片理解。** 识别与必要的背景补全由宿主 Agent/视觉工具完成；可选安装的[完整重建后端](../references/editable-backend.md)额外提供本地文字尺寸提示、素材板处理及需自行配置的 OCR 接口，几何提示不等于文字识别。
 不能把整页截图加几个文本框称作全部可编辑，也不能把 SVG 图片嵌入等同于原生导出。
 
 ## 快速开始
@@ -185,7 +185,7 @@ CI 覆盖 Windows / Linux、Python 3.10 / 3.12 / 3.13。
 
 本次重点参考 [Hugo He 的 PPT Master](https://github.com/hugohe3/ppt-master) 的原生导出与图片分层思路，
 并调研 [banana-slides](https://github.com/Anionex/banana-slides) 和 [PPTAgent](https://github.com/icip-cas/PPTAgent)。
-本版独立实现 JSON 场景编译器，没有复制这些项目的源码或捆绑其依赖。
+Scene v1 JSON 编译器为独立实现，未复制这些项目的源码。可选安装的[完整重建后端](../references/editable-backend.md)按 MIT 许可证随包保留 [ningzimu/image-to-editable-ppt-skill](https://github.com/ningzimu/image-to-editable-ppt-skill) 的固定提交源码并记录哈希。
 完整来源和能力边界见 [调研记录](../references/research.md)。
 
 早期工作流参考小黑盒作者“玩家22186848”的教程《青年大学习AI版：零基础用GPT5.6做精美可编辑PPT》，
@@ -193,7 +193,7 @@ CI 覆盖 Windows / Linux、Python 3.10 / 3.12 / 3.13。
 
 ## 隐私与许可
 
-本地脚本不发起网络请求，不需要 API Key。实际生图/视觉分析由宿主服务执行，可能上传对应材料。
+基本 Scene 工具不发起网络请求、不需要 API Key。实际生图/视觉分析由宿主服务执行，可能上传对应材料；可选安装的完整重建后端可按用户配置调用 OCR/图像接口，`rebuild --offline` 会隔离外部配置与凭证发现。
 公开产物前排除私人材料与凭证，保留需要分发的 scene 和素材。
 
 [MIT License](../LICENSE) © 2026 风清云影（helloo1568）
@@ -215,3 +215,7 @@ CI 覆盖 Windows / Linux、Python 3.10 / 3.12 / 3.13。
 跨材料评测先冻结材料清单与规则，再记录每次完整交付，分别汇总首次与最终成绩。缺失、过期或未审阅案例保留在分母；修改只生成新尝试。用 `evaluate_benchmark.py review-contract` 导出不含生成提示的内容合同，再核验投影与源文件绑定。客观调用事务和作者质量判断须另行分离，详见[评测记录](../references/benchmark.md)。
 
 原生图表同时核验显示缓存和嵌入工作簿，避免演示正确而“编辑数据”恢复旧值。评测工具和软件测试不能替代实际来源、视觉与独立性审阅。
+
+## 完整图片重建后端（2.19.0）
+
+S6 除 Scene 路线外，可选接入[完整图片重建后端](../references/editable-backend.md)：输入归一化、本地文字尺寸提示、原生曲线与表格、素材板去背拆分、公式素材及逐页恢复，统一入口为 `slidemuse.py rebuild`。扩展依赖用 `install.py --with-editable` 安装，`rebuild --offline` 隔离外部配置与凭证。后端按 MIT 许可证随包保留上游固定提交源码并记录哈希；[上游适配边界](../references/upstream-editable.md)说明 Scene 路线如何复用其测量与表格方法。几何提示、结构检查和诊断预览都不等于文字识别或 Office 排版，最终仍须真实渲染后核对。

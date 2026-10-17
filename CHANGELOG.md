@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [2.19.0] - 2026-10-17
+
+### Added
+
+- Integrate the complete pinned image-to-editable reconstruction backend under `slidemuse.py rebuild`, including input normalization, offline text measurements, optional OCR, native paths/tables, asset-sheet processing, formula assets and resumable page jobs. Upstream MIT attribution and pinned source hashes are verified by `rebuild capabilities --verify-source`.
+- Add Scene table merges/row weights, saved-table grid and merge audits, and actual cell vertical-alignment/margin settings with a reproducible merged-table example.
+
+### Changed
+
+- Keep existing Scene/data-chart workflows; provide `--with-editable` for isolated optional dependencies and `rebuild --offline` for local processing.
+- Apply Windows/Linux preview-font discovery and UTF-8 subprocess execution to the vendored backend with recorded patch hashes.
+- Align guides and research notes with the offline core tools versus the optional networked OCR/image services of the complete backend.
+
 ## [2.18.0] - 2026-10-16
 
 ### Added

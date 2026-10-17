@@ -53,3 +53,24 @@ def test_manifest_packaged_zip_is_installable(tmp_path):
     report = json.loads((rebuilt / "reproduction.json").read_text(encoding="utf-8"))
     assert report["status"] == "pass"
     assert len(report["decks"]) == 6
+    # Exercise the new table helper from the actual manifest-built installation.
+    merged = tmp_path / "merged-table.pptx"
+    subprocess.run(
+        [sys.executable, str(installed / "scripts/build_editable_ppt.py"),
+         str(installed / "examples/merged-table.scene.json"), str(merged)],
+        check=True, capture_output=True, text=True,
+    )
+    checked = subprocess.run(
+        [sys.executable, str(installed / "scripts/audit_editability.py"), str(merged),
+         "--scene", str(installed / "examples/merged-table.scene.json")],
+        check=True, capture_output=True, text=True,
+    )
+    assert not json.loads(checked.stdout)["errors"]
+    assert "Copyright (c) 2026 ningzimu" in (installed / "references/upstream-editable.md").read_text(encoding="utf-8")
+    backend = subprocess.run(
+        [sys.executable, str(installed / "slidemuse.py"), "rebuild", "capabilities", "--verify-source"],
+        check=True, capture_output=True, encoding="utf-8",
+    )
+    capabilities = json.loads(backend.stdout)
+    assert capabilities["dependencies_ready"]
+    assert not capabilities["source_integrity"]["mismatches"]

@@ -8,6 +8,7 @@ from pathlib import Path
 from json_io import read_json
 from jsonschema import Draft202012Validator
 from PIL import Image
+from table_layout import merge_owners
 
 SCHEMA = Path(__file__).resolve().parents[1] / "references" / "scene.schema.json"
 
@@ -101,6 +102,12 @@ def validate_scene(scene: dict, base: Path) -> list[str]:
                     raise ValueError(f"Ragged table: {label}")
                 if "column_widths" in e and len(e["column_widths"]) != cols:
                     raise ValueError(f"Table column widths mismatch: {label}")
+                if "row_heights" in e and len(e["row_heights"]) != len(e["rows"]):
+                    raise ValueError(f"Table row heights mismatch: {label}")
+                try:
+                    merge_owners(e)
+                except ValueError as error:
+                    raise ValueError(f"{label}: {error}") from error
             if kind == "shape" and "corner_radius" in e and e["shape"] != "roundRect":
                 raise ValueError(f"Corner radius requires roundRect: {label}")
             if kind == "chart":

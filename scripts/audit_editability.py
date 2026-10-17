@@ -21,6 +21,7 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.util import Inches
 from scene import asset_path, load_scene, walk
 from speaker_notes import check_notes
+from table_layout import table_errors
 from text_layout import inspect_deck, risk_warning
 
 
@@ -286,9 +287,8 @@ def audit(pptx: Path, scene_path: Path | None = None) -> dict:
                     if child_ids != [child["id"] for child in e["children"]]:
                         errors.append(f"{label}: group membership/order differs")
                 if e["type"] == "table":
-                    actual = [[c.text for c in row.cells] for row in shape.table.rows]
-                    if actual != e["rows"]:
-                        errors.append(f"{label}: table content differs")
+                    errors.extend(f"{label}: {error}" for error in
+                                  table_errors(shape.table, e, wanted_box[2], wanted_box[3]))
                 if e["type"] == "chart":
                     chart = shape.chart
                     actual = [

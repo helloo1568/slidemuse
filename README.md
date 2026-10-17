@@ -10,7 +10,7 @@
 重点面向**挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛**，也适用于**学术汇报、论文答辩、项目路演、课程展示与电影质感 PPT**，支持图片转可编辑 PPT。
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.18.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.19.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -148,7 +148,7 @@ IRENA 六页统计导读提供**原生文字、一张表格和三张嵌入工作
 | **📝 准确内容，有据可循** | **Page Spec** 保存确认过的文字、数字、来源与元素 ID；可将图片观察记录与关键内容逐项比对，修改后只复查受影响页。 |
 | **🔁 修改有记录，任务可接续** | `deck-spec.md` 保存制作状态，`scene.json` 保存布局。局部修改针对受影响的元素与素材，可重新导出。 |
 | **🔍 交付有检查依据** | 脚本检查原生对象、文字、表格与图表数据、层级及整页底图残留；统一渲染工具生成逐页预览和基准对照，质量回归可生成版本绑定评分卡。 |
-| **🔓 开放、可迁移、可扩展** | **MIT 开源**，兼容具备所需能力的 Agent；本地 Python 工具不发起网络请求，也不需要 API Key。 |
+| **🔓 开放、可迁移、可扩展** | **MIT 开源**，兼容具备所需能力的 Agent；基本 Scene 工具离线运行；完整重建后端支持本地处理及可选 OCR/图像接口。 |
 
 > **运行方式：** SlideMuse 是 Agent 技能。宿主负责读材料、视觉理解与生图；仓库脚本负责合并、裁剪、编译和审查。完整制作需要宿主具备相应能力。模型选择参见[运行环境与模型说明](references/models.md)。
 
@@ -273,7 +273,7 @@ python slidemuse/install.py --client opencode
 | 柱形、条形、折线、饼图、环形图 | 原生图表 + 内嵌数据工作簿 | 数据、图表样式 |
 | 照片、人物、复杂插画 | 独立图片对象 | 移动、缩放、裁剪、替换 |
 
-复杂插画内部仍是像素。识别、分层和背景补全依赖宿主工具；本地脚本不包含自动 OCR 或分割模型。结构审查不能代替视觉验收，不能保证恢复被遮挡的信息。详见[能力边界与验收](docs/guide.md)。
+复杂插画内部仍是像素。识别、分层和背景补全依赖宿主工具；完整重建后端提供本地文字尺寸提示、素材板处理及可选 OCR；几何提示不等于文字识别。结构审查不能代替视觉验收，不能保证恢复被遮挡的信息。详见[能力边界与验收](docs/guide.md)。
 
 ## 已有任务：检查、运行与恢复
 
@@ -319,7 +319,7 @@ python slidemuse.py run task/job.json task-output
 
 感谢 [Hugo He 的 PPT Master](https://github.com/hugohe3/ppt-master)、[banana-slides](https://github.com/Anionex/banana-slides) 和 [PPTAgent](https://github.com/icip-cas/PPTAgent) 带来的方法启发，以及小黑盒作者“玩家22186848”和 B 站 UP 主“一往无前河井”的教程分享。场景编译器为独立实现，来源与取舍见[调研记录](references/research.md)。
 
-本地脚本无需 API Key；宿主生图与视觉服务可能接收所提供的材料，费用与隐私规则以宿主为准。
+基本工具无需 API Key；完整重建的联网 OCR/图像接口需按所选服务配置。宿主或第三方服务可能接收材料，费用与隐私规则以实际服务为准。
 
 <div align="center">
 
@@ -330,3 +330,7 @@ python slidemuse.py run task/job.json task-output
 [MIT License](LICENSE) © 2026 风清云影（[helloo1568](https://github.com/helloo1568)）
 
 </div>
+
+### 完整图片转可编辑后端（2.19.0）
+
+集成 [ningzimu/image-to-editable-ppt-skill](https://github.com/ningzimu/image-to-editable-ppt-skill) 的完整安装用后端，保留 MIT 来源。支持 PDF/PPTX 输入、文字尺寸提示、原生曲线和表格、素材去背拆分、公式及逐页恢复。使用 `python install.py --client codex --with-editable` 安装扩展依赖，再运行 `python slidemuse.py rebuild --help`。详见[完整接入指南](references/editable-backend.md)。

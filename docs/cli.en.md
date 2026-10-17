@@ -43,3 +43,7 @@ The parser supports this repository's `package>=numeric-version` format. Ambiguo
 If the isolated Python cannot start, use a known working Python to invoke `python scripts/doctor.py --json` directly and diagnose that interpreter. Repair the isolated installation by rerunning the repository installer. Sanitize local paths before sharing reports.
 
 Diagnosis does not test the host agent's document reading, vision or image generation. The public sample starts with approved images and structured inputs; reproduction does not establish host image-generation availability.
+
+## Complete reconstruction backend
+
+`python slidemuse.py rebuild <command>` runs the pinned backend without a global editppt installation. Use `install.py --with-editable` for the optional isolated dependencies, `rebuild capabilities --verify-source` for local availability/source checks, and `rebuild --offline prepare <input> --job-dir <run>` for local preparation. See the [integration guide](../references/editable-backend.md).

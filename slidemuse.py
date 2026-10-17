@@ -20,6 +20,7 @@ COMMANDS = {
     "audit": ("scripts/audit_editability.py", (), "Audit native PPTX objects"),
     "review": ("scripts/review_panel.py", (), "Export a review panel or import its records"),
     "sample": ("showcase/editable-irena/reproduce.py", (), "Rebuild the public editable sample"),
+    "rebuild": ("scripts/editable_backend.py", (), "Complete image-to-editable backend; see references/editable-backend.md"),
 }
 
 

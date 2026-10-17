@@ -50,7 +50,7 @@ Step 2 的 `page-spec.json` 是上游语义契约，保存已确认文字、数�
 | line | id,type,x1,y1,x2,y2 | color,line_width,arrow: none/end/both |
 | image | id,type,x,y,w,h,path | fit,role: asset/background/reference,rotation |
 | group | id,type,children | name |
-| table | id,type,x,y,w,h,rows | column_widths,header,header_fill,header_color,fill 及文字样式 |
+| table | id,type,x,y,w,h,rows | column_widths,row_heights,merges,header,header_fill,header_color,fill 及文字样式 |
 | chart | id,type,x,y,w,h,chart_type,categories,series | legend,data_labels,number_format,font,font_size,rotation |
 
 颜色格式 #RRGGBB，shape 的 fill/line 可设 null 表示无填充/无边框。
@@ -59,8 +59,22 @@ shape 支持 rect、roundRect、ellipse、triangle、diamond、chevron、rightAr
 文本 align 为 left/center/right；valign 为 top/middle/bottom。
 文本换行写 \n。富文本分段样式暂未实现，必要时拆成多个稳定命名的文本框。
 
-table.rows 为二维字符串数组，所有行列数一致；列宽是正数权重。
-本版不支持合并单元格；复杂表格需扩展实现或记录限制。
+table.rows 为二维字符串数组，所有行列数一致；`column_widths` 与 `row_heights` 是正数权重，数量分别匹配列数和行数，省略时均分。权重缩放到整个表格框；不能生成零尺寸单元格。
+
+`merges` 为可选矩形合并列表，每项为 `{row, col, row_span, col_span}`，行列下标从 0 开始，跨度为正整数，至少覆盖两个单元格。左上角保存文字，被覆盖位置必须为 `""`；禁止越界、重复或重叠合并。不提供合并字段的旧 Scene 仍可使用。例：
+
+```json
+{
+  "id": "results", "type": "table", "x": 100, "y": 100, "w": 1200, "h": 500,
+  "rows": [["实验结果", ""], ["A", "10"], ["B", "20"]],
+  "column_widths": [2, 1], "row_heights": [1.5, 1, 1],
+  "merges": [{"row": 0, "col": 0, "row_span": 1, "col_span": 2}]
+}
+```
+
+导出使用原生 PowerPoint 合并单元格；审查同时核对内容、合并边界及行列比例。合并区域沿用左上角所在行的表头/正文样式；斜线表头、单元格内图片和逐单元格样式暂未实现。复杂表格应记录限制，实际渲染核对，不虚称完整支持。来源与适配说明见[上游参考](upstream-editable.md)。
+
+可复跑示例为 `examples/merged-table.scene.json`（明确标注的合成功能验证数据）；使用 `build_editable_ppt.py` 编译后再执行 `audit_editability.py` 和 `render_deck.py`。
 chart_type 支持 column/bar/line/pie/doughnut。
 series 为 [{name, values, color?}]，数值数量匹配 categories。
 pie/doughnut 只接受单组非负且总和大于 0 的数据。原生图表包含可编辑工作簿。
