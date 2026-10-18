@@ -16,6 +16,7 @@
   ],
   "properties": {
     "version": {"const": "1.0"},
+    "content_policy": {"const": "1.0", "description": "Current role-aware content checks; old frozen specs remain readable."},
     "title": {"type": "string", "minLength": 1},
     "content_approved": {"const": true},
     "content_version": {"type": "string", "minLength": 1},
@@ -108,13 +109,22 @@
                    "timeline", "data-evidence", "architecture", "case-study", "summary", "qa"]
         },
         "key_points": {
-          "description": "Approved support points for a content page. New Page Specs must declare 3-5; older drafts stay readable.",
+          "description": "Standard content pages: 3-5; documented density exceptions use role-aware ranges.",
           "type": "array",
-          "minItems": 3,
-          "maxItems": 5,
+          "minItems": 1,
+          "maxItems": 8,
           "items": {"type": "string", "minLength": 1},
           "uniqueItems": true
         },
+        "density": {
+          "type": "object", "additionalProperties": false, "required": ["mode"],
+          "properties": {
+            "mode": {"enum": ["standard", "evidence-led", "brief", "detailed"]},
+            "reason": {"type": "string", "minLength": 1}
+          }
+        },
+        "explanation": {"type": "string", "minLength": 1},
+        "boundary": {"type": "string", "minLength": 1},
         "core_message": {"type": "string", "minLength": 1},
         "visual_brief": {"type": "string", "minLength": 1},
         "source_refs": {

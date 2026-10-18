@@ -45,3 +45,7 @@ python slidemuse.py doctor --require-renderer --backend powerpoint
 如果隔离环境的 Python 本身无法启动，可使用已知可运行的 Python 执行 `python scripts/doctor.py --json`，诊断该解释器；隔离环境需通过重新运行仓库安装器修复。提交问题前检查日志中的本地路径并脱敏。
 
 诊断不探测宿主 Agent 的读材料、视觉理解或生图能力。样板复现从已批准图片与结构化输入开始，不能证明宿主生图可用。
+
+### 2.21.0 content and delivery checks
+
+`validate <page-spec> --content --strict` checks current role-aware content. `generate prepare --page-spec <page-spec> --out-dir <deck>` carries the same approved content to generation; `generate review <deck> --init` creates pending observations, and `generate review <deck>` verifies the completed record before guarded assembly. `rebuild --offline prepare --page-spec <page-spec> --job-dir <run>` carries approved text/data into rebuilding prompts. See [content-density.md](../references/content-density.md).

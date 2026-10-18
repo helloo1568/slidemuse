@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+## [2.21.0] - 2026-10-18
+
+### Changed
+
+- Replace the universal bullet quota with role-aware density defaults and explicit exceptions; reconcile prompts and remove the unsupported total-flow claim from the example.
+- Add shared content checks, Page Spec adapters for generation/rebuilding, and hash-bound generated-image observations. These checks do not authenticate sources or prove visual quality.
+- Guard generation assembly against unfinished/missing/extra pages, changed images/prompts, stale reviews and aspect-ratio changes; preserve exact embedded image bytes and notes, and retain prior PPTX on failure.
+- Keep old frozen Page Specs readable. Legacy generation jobs without a content contract report that content was not checked.
+
+
 ## [2.20.0] - 2026-10-17
 
 ### Added

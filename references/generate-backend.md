@@ -14,7 +14,7 @@ python slidemuse.py generate --help
 
 额外依赖装入本技能隔离环境。普通安装也保留完整源码；需要扩展运行能力时使用 `--with-generate`，或用技能解释器安装 `requirements-generate.txt`。`capabilities` 只检查可用性和来源，不读取凭证或测试外部服务。
 
-**一条任务只用一个事实源。** SlideMuse 主流程用 `page-spec.json` + `slides/NN-*.png` + `build_image_ppt.py`；本后端用已确认大纲 + `prompts/slide_NN.json` + `slide_jobs.json` + `origin_image/slide_NN.png` + `assemble_ppt.py`。两者不混用：`slide_jobs.json` 不能当成 `page-spec.json`，反之亦然。S1–S5 的门禁、内容确认和视觉选型两套流程完全相同，本后端不放宽任何门禁，也不替代内容大纲的要点密度要求（见 [content-outline.md](content-outline.md)）。
+**一条任务只用一个事实源。** SlideMuse 主流程用 `page-spec.json` + `slides/NN-*.png` + `build_image_ppt.py`；本后端用已确认大纲 + `prompts/slide_NN.json` + `slide_jobs.json` + `origin_image/slide_NN.png` + `assemble_ppt.py`。任务格式不能互换；`prepare --page-spec` 负责将同一批准内容投影到生成格式，稳定 ID、文字和数据仍保留。S1–S5 的门禁、内容确认和视觉选型两套流程完全相同，本后端不放宽任何门禁，也不替代内容大纲的要点密度要求（见 [content-outline.md](content-outline.md)）。
 
 ## 能力覆盖
 
@@ -42,7 +42,7 @@ python slidemuse.py generate assemble "<base_dir>" "<deck>.pptx"
 
 - 每张成品图必须由**已确认的生图后端**产出，并写入 `sample_generation_method` 让子代理沿用同一路径；`result` 会拒绝把 Pillow、SVG、HTML/CSS、python-pptx 或手工拼图登记为成品图。
 - 只有真实 worker 才能 `dispatch`；`status` 的 `dispatchable_slides` 与 `dispatch_slots_available` 决定还能分派几页，慢不代表失联。
-- 每页围绕内容大纲的 3–5 条支撑要点写提示，标题、要点和结论必须出现在图片本身，不得只留在提示词里。
+- 每页围绕批准内容（普通内容页默认 3–5 条支撑，例外见 content-density.md）写提示，标题、要点和结论必须出现在图片本身，不得只留在提示词里。
 - 需要严格输入素材时，在 `required_images` 标记角色与保真要求，并在 S1 内容门禁处让用户核对素材图→页映射。
 - 状态以脚本记录为准：`slide_jobs.json` 中仍有 `pending`、`dispatched` 或 `blocked` 的页面时不得组装。
 
@@ -77,3 +77,9 @@ python slidemuse.py render "<实际最终PPTX路径>" "<work>/office-review"
 ```
 
 核对页数、页序、画幅、文字与裁切，再交付 PPTX、已确认大纲、`slide_jobs.json`、逐页任务与提示、`speech.md`（如有）和渲染预览。结构通过不等于视觉通过；无渲染器时只写“仅完成结构验证”。完整接入不表示每张生成的图片都无需复查。
+
+## 2.21.0 内容与交付适配
+
+`prepare` 在写任务前执行当前内容检查：普通内容页默认 3–5 条，例外带理由；内容页同时保留结论、来源和解释。`prepare --write-template <path>` 生成当前完整示例；不覆盖已有模板。也可直接使用 `prepare --page-spec <approved.json> --out-dir <deck>`，内容与稳定 ID 完整进入提示和 `slidemuse-content.json`。这是一份内容的适配投影，不把两种任务文件混为同一格式。
+
+新任务在 `result` 登记后先运行 `generate review <deck> --init`，实际看图填写 `content-review.json` 并运行同一命令核对。组装检查当前合同、提示、观察和图片哈希、页面集合/顺序、完成状态及画幅，保留原图字节，不再自动压缩。失败不会替换已有 PPTX。旧任务无内容合同会报告 `legacy_not_checked`，不意味着已通过新内容验收。详细命令及例外见[内容密度与画面验收](content-density.md)。

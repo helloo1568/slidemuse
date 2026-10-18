@@ -151,7 +151,7 @@ def test_slide_role_accepts_the_published_enum_only(page_spec):
         spec["slides"][0]["role"] = role
         assert validate_page_spec(spec, page_spec.parent)["slides"] == 1
     spec["slides"][0]["role"] = "agenda-list"
-    with pytest.raises(ValueError, match="schema"):
+    with pytest.raises(ValueError, match="schema|density|duplicate|readable"):
         validate_page_spec(spec, page_spec.parent)
 
 
@@ -174,7 +174,7 @@ def test_slide_key_points_reject_the_wrong_density(page_spec, points):
     spec, _ = load_page_spec(page_spec)
     spec["slides"][0]["role"] = "concept"
     spec["slides"][0]["key_points"] = points
-    with pytest.raises(ValueError, match="schema"):
+    with pytest.raises(ValueError, match="schema|density|duplicate|readable"):
         validate_page_spec(spec, page_spec.parent)
 
 

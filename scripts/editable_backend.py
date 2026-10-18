@@ -76,6 +76,13 @@ def page_prompt(argv, root=ROOT):
     directory = helpers["page_dir_for"](run, page)
     output = helpers["resolve_prompt_out"](run, directory, args.out)
     prompt = helpers["build_prompt"](run, page, directory)
+    semantic = run / "slidemuse-page-content.json"
+    if semantic.is_file():
+        content = json.loads(semantic.read_text(encoding="utf-8"))
+        index = int(page["page_index"]) - 1
+        prompt += ("\n\nApproved SlideMuse page content (reuse exact text, data, source labels and stable IDs; "
+                   "OCR is only a geometry hint, not authority to rewrite):\n"
+                   + json.dumps(content["slides"][index], ensure_ascii=False, indent=2))
     prefix = command_prefix(root)
     prompt = re.sub(r"(?<![\w/])editppt(?=\s+(?:prepare|run|page|image|formula|doctor|config|setup)\b)",
                     lambda match: prefix, prompt)
@@ -96,6 +103,9 @@ def page_prompt(argv, root=ROOT):
 
 
 def main(argv=None):
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     argv = list(sys.argv[1:] if argv is None else argv)
     offline = bool(argv and argv[0] == "--offline")
     if offline:
@@ -109,6 +119,19 @@ def main(argv=None):
         return 1 if result.get("source_integrity", {}).get("mismatches") else 0
     if argv[:1] == ["page-prompt"]:
         return page_prompt(argv[1:])
+    semantic = None
+    job_dir = None
+    if argv[:1] == ["prepare"] and any(a.split("=", 1)[0] == "--page-spec" for a in argv):
+        from validate_page_spec import load_page_spec
+        parser = argparse.ArgumentParser(description="Prepare rebuilding with an approved Page Spec semantic contract")
+        parser.add_argument("--page-spec", type=Path, required=True)
+        parser.add_argument("--job-dir", type=Path, required=True)
+        args, extra = parser.parse_known_args(argv[1:])
+        source = args.page_spec.resolve()
+        semantic, _ = load_page_spec(source, require_images=True, strict=True, content=True)
+        argv = ["prepare", *extra, "--job-dir", str(args.job_dir),
+                *[str((source.parent / s["image_file"]).resolve()) for s in semantic["slides"]]]
+        job_dir = args.job_dir
     entry = ROOT / VENDOR / SKILL / "cli/editppt/cli.py"
     if not entry.is_file():
         print("SlideMuse: packaged editable backend is missing; reinstall the skill.", file=sys.stderr)
@@ -130,7 +153,13 @@ def main(argv=None):
             for name in ("OPENAI_API_KEY", "OPENAI_BASE_URL", "PADDLE_OCR_TOKEN"):
                 env.pop(name, None)
         try:
-            return subprocess.run([sys.executable, str(entry), *argv], env=env, check=False).returncode
+            result = subprocess.run([sys.executable, str(entry), *argv], env=env, check=False).returncode
+            if result == 0 and semantic is not None:
+                # Separate immutable content snapshot; image coordinates and manifest
+                # assets keep the upstream format and are not invented here.
+                (job_dir / "slidemuse-page-content.json").write_text(
+                    json.dumps(semantic, ensure_ascii=False, indent=2), encoding="utf-8")
+            return result
         except KeyboardInterrupt:
             return 130
 

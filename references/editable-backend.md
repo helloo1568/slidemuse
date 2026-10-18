@@ -82,3 +82,7 @@ python slidemuse.py render <实际最终PPTX路径> work/office-review
 ```
 
 实际核对文字、表格、曲线、素材、页序和备注，再抽查编辑；结构通过不等于视觉通过。交付最终 PPTX、输入/页映射、已有 Page Spec/内容契约、逐页 Manifest、引用素材、任务记录、验证报告和真实渲染预览；原生数据图表仍交付 Scene。说明公式/图像的编辑边界及低置信度项。完整接入不表示每张复杂图片都能无损还原。
+
+## 同一批准内容的传递
+
+可用 `rebuild --offline prepare --page-spec <approved.json> --job-dir <run>` 直接从批准图片准备重建，同时保存 `slidemuse-page-content.json`；后续 `page-prompt` 会携带对应页原文、来源、数据和稳定 ID，OCR 只辅助几何。Page Spec 需先通过 `validate --content --require-images --strict`。直接图片输入仍沿用原入口。

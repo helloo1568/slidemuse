@@ -29,7 +29,9 @@ def deck_spec(name="示例课件"):
             {"number": 1, "title": "封面", "role": "cover", "intent": "开始汇报",
              "key_points": ["主题", "场合", "署名"]},
             {"number": 2, "title": "证据", "role": "data-evidence", "intent": "展示来源数据",
-             "key_points": ["来源与口径", "图形表达的关系", "结论边界"]},
+             "key_points": ["来源与口径", "图形表达的关系", "结论边界"],
+             "core_message": "合成数据用于结构测试", "source_refs": ["合成测试 fixture"],
+             "explanation": "检查数据文字是否完整传递"},
         ],
     }
 
@@ -88,6 +90,15 @@ def test_dispatch_result_and_assemble_produce_deck_with_notes(tmp_path):
     jobs = json.loads((deck / "slide_jobs.json").read_text(encoding="utf-8"))
     assert jobs["run_status"] == "slides_recorded"
     assert (deck / "origin_image/slide_02.png").is_file()
+    # Synthetic observations test the review protocol, not actual image quality.
+    from generation_delivery import CHECKS
+    assert invoke("--offline", "review", deck, "--init").returncode == 0
+    record = json.loads((deck / "content-review.json").read_text(encoding="utf-8"))
+    contract = json.loads((deck / "slidemuse-content.json").read_text(encoding="utf-8"))
+    for observation, page in zip(record["slides"], contract["pages"]):
+        observation.update(observed_text="\n".join(page["expected_text"]),
+                           notes="Synthetic protocol fixture only", checks=dict.fromkeys(CHECKS, "pass"))
+    (deck / "content-review.json").write_text(json.dumps(record), encoding="utf-8")
     assembled = invoke("--offline", "assemble", tmp_path, f"{deck.name}.pptx")
     assert assembled.returncode == 0, assembled.stdout + assembled.stderr
     presentation = Presentation(tmp_path / deck.name / f"{deck.name}.pptx")

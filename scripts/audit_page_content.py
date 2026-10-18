@@ -81,6 +81,11 @@ def audit(spec_path: Path, slides: list[dict], observations: dict) -> dict:
             if element["kind"] == "text" and element["confirmation_status"] != "unresolved"
         ]
         expected += [("required_visible_values", value) for value in slide.get("required_visible_values", [])]
+        if spec_path.is_file():
+            spec = read_json(spec_path)
+            if spec.get("content_policy") == "1.0":
+                from content_density import visible_text
+                expected += [("content_contract", value) for value in visible_text(slide)]
         for element_id, value in expected:
             if compact(value) and compact(value) not in observed:
                 missing_numbers = [number for number in numbers(value) if compact_number(number) not in observed_numbers]

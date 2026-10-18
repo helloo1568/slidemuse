@@ -7,6 +7,7 @@ import argparse
 import math
 from pathlib import Path
 
+from content_density import validate_content
 from json_io import read_json
 from jsonschema import Draft202012Validator
 from PIL import Image, ImageOps
@@ -36,7 +37,8 @@ def _relative_path(base: Path, value: str) -> Path:
 
 
 def validate_page_spec(
-    spec: dict, base: Path, require_images: bool = False, strict: bool = False
+    spec: dict, base: Path, require_images: bool = False, strict: bool = False,
+    content: bool = False,
 ) -> dict:
     _finite(spec)
     schema = read_json(SCHEMA)
@@ -57,6 +59,7 @@ def validate_page_spec(
     slide_ids, page_numbers, element_count, unresolved = set(), set(), 0, 0
     image_paths = set()
     for expected_page, slide in enumerate(spec["slides"], start=1):
+        validate_content(slide, required=content or spec.get("content_policy") == "1.0")
         if slide["id"] in slide_ids:
             raise ValueError(f"Duplicate slide id: {slide['id']}")
         slide_ids.add(slide["id"])
@@ -120,9 +123,9 @@ def validate_page_spec(
     }
 
 
-def load_page_spec(path: Path, require_images: bool = False, strict: bool = False):
+def load_page_spec(path: Path, require_images: bool = False, strict: bool = False, content: bool = False):
     spec = read_json(path)
-    result = validate_page_spec(spec, path.resolve().parent, require_images, strict)
+    result = validate_page_spec(spec, path.resolve().parent, require_images, strict, content)
     return spec, result
 
 
@@ -131,8 +134,9 @@ def main():
     parser.add_argument("page_spec", type=Path)
     parser.add_argument("--require-images", action="store_true")
     parser.add_argument("--strict", action="store_true")
+    parser.add_argument("--content", action="store_true", help="Require current role-aware content contract; old specs stay readable without this flag")
     args = parser.parse_args()
-    _, result = load_page_spec(args.page_spec, args.require_images, args.strict)
+    _, result = load_page_spec(args.page_spec, args.require_images, args.strict, args.content)
     print(
         f"Page Spec valid: {result['slides']} slides, "
         f"{result['elements']} semantic elements, {result['unresolved']} unresolved"

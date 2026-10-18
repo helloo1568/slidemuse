@@ -1,0 +1,20 @@
+{
+  "deck_name": "客流变化解读示例",
+  "language": "Chinese",
+  "goal": "用明确标注的合成数据演示比较与结论边界；不代表真实实验。",
+  "selected_image_backend": "built-in image tool",
+  "style": {"name": "科研答辩风", "visual_direction": "蓝白学术风，优先呈现数据比较和解释；减少装饰，不缩小关键文字。"},
+  "slides": [{
+    "id": "s01",
+    "number": 1,
+    "title": "公交与轨道客流呈相反变化",
+    "role": "data-evidence",
+    "core_message": "轨道同比增速高于公交 8 个百分点。",
+    "key_points": ["公交同比 -5%，轨道同比 +3%。", "两者相差 8 个百分点。", "增速差异不能证明乘客转移。"],
+    "source_refs": ["合成示例数据，仅用于功能验证"],
+    "explanation": "按相同统计期比较，3 - (-5) = 8 个百分点。",
+    "boundary": "未提供基期人数，无法判断总客流变化；不能推断出行者转移。",
+    "layout": {"intent": "数据图承担比较，旁边保留计算解释与边界。"},
+    "visual_elements": {"main_visual": "两根同比增长率柱，零轴清楚，标注公交 -5% 与轨道 +3%。"}
+  }]
+}
