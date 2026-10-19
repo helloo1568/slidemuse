@@ -19,10 +19,10 @@
   "representative_pages": ["s01", "s02", "s03"],
   "overview_aspect_ratio": [16, 9],
   "options": [
-    {"option": 1, "file": "styles/01-sorter.png", "slide_ids": ["s01", "s02", "s03"]},
-    {"option": 2, "file": "styles/02-sorter.png", "slide_ids": ["s01", "s02", "s03"]},
-    {"option": 3, "file": "styles/03-sorter.png", "slide_ids": ["s01", "s02", "s03"]},
-    {"option": 4, "file": "styles/04-sorter.png", "slide_ids": ["s01", "s02", "s03"]}
+    {"option": 1, "file": "styles/01-sorter.png", "layout": "styles/01-layout.json", "slide_ids": ["s01", "s02", "s03"]},
+    {"option": 2, "file": "styles/02-sorter.png", "layout": "styles/02-layout.json", "slide_ids": ["s01", "s02", "s03"]},
+    {"option": 3, "file": "styles/03-sorter.png", "layout": "styles/03-layout.json", "slide_ids": ["s01", "s02", "s03"]},
+    {"option": 4, "file": "styles/04-sorter.png", "layout": "styles/04-layout.json", "slide_ids": ["s01", "s02", "s03"]}
   ]
 }
 ```
@@ -32,12 +32,12 @@
 ## 必须执行的检查
 
 ```sh
-python "<skill-dir>/scripts/validate_style_options.py" "<work>/style-options.json"
+python "<skill-dir>/scripts/validate_style_options.py" "<work>/style-options.json" --require-layout
 ```
 
 脚本检查恰好四个有序且唯一的方案编号、代表页数量与页序、图像存在且可读取、不重复的路径/像素内容，以及 EXIF 校正后的横向画幅与声明比例。允许单像素取整误差。竖向长图、少于/多于四套、重复候选或缺图都不能通过。
 
-脚本不识别图片内部的缩略页，也不验证视觉风格差异和图中文字。Agent 仍需逐张检查：确为缩略网格、页面数量正确、同内容同页序、文字与数据一致、风格有区别。不能把“脚本通过”称作“缩略图视觉验收通过”。
+新任务还要给每个 option 添加 `layout` 路径，指向本地排版工具输出的几何记录。严格检查核对总览哈希、内部框与实际内容框、目标画幅、占框率、页序，以及源图实测裁切与总览中的像素；比例错误的窄页放进横框不能通过。没有布局记录的旧任务仍可读取，但明确返回内部几何未检查，不能据此认证版式。脚本不自动发现页面边界，也不验证视觉风格差异和图中文字。Agent 仍需逐张检查：框是否完整、数量正确、同内容同页序、文字与数据一致、风格有区别。不能把“脚本通过”称作“缩略图视觉验收通过”。
 
 检查失败仅修对应方案并替换当前指针；四套全部通过结构检查和视觉检查后才能宣布“方案已齐”，进入 S4 等待用户选择（或按已有代选授权执行）。
 
@@ -55,10 +55,11 @@ python "<skill-dir>/scripts/validate_style_options.py" "<work>/style-options.jso
   "width": 1600,
   "height": 900,
   "slide_aspect_ratio": [16, 9],
+  "require_native_aspect": true,
   "slides": [
-    {"file": "styles/initial.png", "box": [0, 0, 1600, 900], "label": "01"},
-    {"file": "styles/initial.png", "box": [0, 920, 1600, 900], "label": "02"},
-    {"file": "styles/initial.png", "box": [0, 1840, 1600, 900], "label": "03"}
+    {"slide_id": "s01", "file": "styles/initial.png", "box": [0, 0, 1600, 900], "label": "01"},
+    {"slide_id": "s02", "file": "styles/initial.png", "box": [0, 920, 1600, 900], "label": "02"},
+    {"slide_id": "s03", "file": "styles/initial.png", "box": [0, 1840, 1600, 900], "label": "03"}
   ]
 }
 ```
@@ -66,7 +67,9 @@ python "<skill-dir>/scripts/validate_style_options.py" "<work>/style-options.jso
 已有独立单页文件时省略 `box`。可用 `font` 指定已安装字体路径。路径相对布局 JSON，必须在其目录范围内。工具拒绝覆盖源图，输出存在时默认拒绝覆盖，使用新版本文件名或明确传 `--overwrite`。
 
 ```sh
-python "<skill-dir>/scripts/build_style_overview.py" "<work>/overview-layout.json" "<work>/styles/01-sorter-local.png"
+python "<skill-dir>/scripts/build_style_overview.py" "<work>/overview-layout.json" "<work>/styles/01-sorter-local.png" --layout "<work>/styles/01-layout.json"
 ```
 
 完成后检查图片，再更新 `style-options.json` 中相同方案编号的文件指针，并运行总览验证器。保留原图与布局 JSON 便于重现；不新增候选编号，不把工具的零生图调用记录当作先前生图也免费。
+
+例如方案 1 指针为 `{"option": 1, "file": "styles/01-sorter-local.png", "layout": "styles/01-layout.json", "slide_ids": ["s01", "s02", "s03"]}`。直接生成的总览同样先实测完整页框再本地排版保存记录，不需要另生高清单页。如果内部画幅确实不符，可保留为带局限的风格参考并明确几何未通过，选定后用正式代表页校准；不能靠 padding 消去检查结果。

@@ -3,7 +3,7 @@ name: slidemuse
 description: 将书籍、PDF、论文、报告或文字材料制作成视觉优先的图片版 PPT，适用于竞赛、答辩、路演、课程展示和读书分享；明确要求可编辑时，通过 Scene 或完整图片重建后端还原 PPTX，也支持直接还原已有图片/PDF/图片版 PPTX。新制作包含需求和大纲确认、四套风格选型及逐页生图；不用于直接修改已有可编辑 PPTX。
 ---
 
-# SlideMuse · 2.21.0
+# SlideMuse · 2.22.0
 
 本技能只有一条主流程：**内容提炼 → 图片 PPT 生成 → 可编辑 PPTX 还原**。
 用户负责确认内容与风格，Agent 负责按已确认规格执行；不得把流程改写成“先做原生信息层”的编辑优先路线。
@@ -16,6 +16,7 @@ description: 将书籍、PDF、论文、报告或文字材料制作成视觉优�
 - 下文命令中的 `python` 均表示上述技能解释器，不要求用户把依赖安装进全局 Python 环境。
 - 任务材料和产物必须放在独立工作目录，不得写入技能安装目录。
 - 已确认的 Page Spec 和已准备的 Scene 可使用[可恢复交付流水线](references/pipeline.md)统一编译、逐页渲染、审查和生成待办；待审记录必须实际审阅后填写，不得自动改为通过。
+- S5 逐页图片用 [`produce` 制作记录](references/page-production.md)登记宿主原图、合成精确证据、保留修订与审阅状态；Page Spec 是最终坐标的唯一来源，自动生成的制作状态摘要替代反复追加的当前状态叙述。
 - `init_deck.py` 只生成任务配置，`run_deck.py --check` 只读预检。中文待办定位问题页面及文件；工具不会替代需求确认、图片批准或真实审阅。
 - 可编辑编译和审计提供[原生文字溢出预警](references/text-layout.md)，定位文本框和表格单元格。估算无风险不代表放得下；风险项须实际查看渲染，不自动缩字、删内容或填写通过。
 - 流水线渲染后生成[本地逐页审阅面板](references/review-panel.md)，可对照画面填写记录、下载并导入；导入后需重新运行评分，不自动通过。
@@ -108,7 +109,7 @@ description: 将书籍、PDF、论文、报告或文字材料制作成视觉优�
 实际生成四套时，把当前候选写入 `style-options.json`，逐张核对缩略页网格与内容，并执行以下检查。结构与视觉检查均通过后，才进入 S4 宣布当前四套方案已齐；不将修正中间稿计为新方案。合法豁免四套预览的任务不要求创建此清单。
 
 ```sh
-python "<skill-dir>/scripts/validate_style_options.py" "<work>/style-options.json"
+python "<skill-dir>/scripts/validate_style_options.py" "<work>/style-options.json" --require-layout
 ```
 
 ## Step 2：生成图片版 PPT（S5）
@@ -124,8 +125,8 @@ python "<skill-dir>/scripts/validate_page_spec.py" "<work>/page-spec.json" --str
 
 内容稿已有可选讲稿时，按[讲稿保留](references/speaker-notes.md)同步到 `slides[].speaker_notes`，不加入生图可见文案；图片版构建器会保存已声明讲稿。
 
-3. 按 `01-title.png`、`02-title.png` 的零填充序号逐页生成。每次提示包含锁定视觉规范、Page Spec 中的准确内容、页码和总页数。
-4. 每页立即检查画幅、文字、数据、裁切、溢出和跨页一致性。含关键数字、日期、专名或必现图表标签的页面，按 [Page Spec 内容核对](references/page-spec.md)建立绑定当前图片哈希的看图记录，并运行 `audit_page_content.py --require-complete`；缺失项修复后才能批准该页。脚本只比对观察记录，不负责 OCR；图表数据及未识别的小字仍需视觉核对。按证据素材参考分别记录文字、图形、素材和目标展示尺寸的检查，只写本页实际观察；受保护素材的像素检查失败时不得批准。通过后更新最终图片路径、状态、提示词和必要的 `bbox_hint`。失败只重做对应页。
+3. 用 `produce prepare` 建立当前制作状态和提示快照，按 `01-title.png`、`02-title.png` 的零填充序号逐页生成；宿主返回原图后用 `produce compose` 登记和合成证据。每次提示包含锁定视觉规范、Page Spec 中的准确内容、页码和总页数。
+4. 每页立即检查画幅、文字、数据、裁切、溢出和跨页一致性。用 `produce review-init` 创建待审记录，实际审阅后用 `produce accept` 提交；语义映射、来源、可读性、密度与视觉关系分别记录，不能复制预期文本充当观察。含关键数字、日期、专名或必现图表标签的页面，也可按 [Page Spec 内容核对](references/page-spec.md)运行 `audit_page_content.py --require-complete`，下游交付继续使用该观察格式。脚本只比对观察记录，不负责 OCR；图表数据及未识别的小字仍需视觉核对。按证据素材参考检查文字、图形、素材和目标展示尺寸；受保护素材的像素检查失败时不得批准。最终路径和坐标写回 Page Spec，制作状态由工具维护。失败只重做对应页。
 5. 同一页文字连续两次不准确时停止重试：按 Prompt 2A 生成保留全部主视觉的无字页面，再用 `scripts/overlay_text.py` 叠加准确文字并栅格化；叠字前后核对主视觉未丢失。Step 2 不提前移除 Step 3 才需拆分的主体。
    图表数字与几何分别检查，并检查未声明的数据视觉。同一几何问题连续两次检查失败时停止生图重试，按图表可靠性参考准备精确区域修复；程序改图须遵守当前宿主工具的授权要求，既有授权覆盖时不重复询问。
 6. 全部页面通过后运行交付验证和合并：

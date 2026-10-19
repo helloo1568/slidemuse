@@ -44,6 +44,23 @@ python slidemuse.py rebuild --offline prepare --page-spec work/page-spec.json --
 
 不设固定图文百分比或通用字数。代表页校准沿用既有内容/风格授权，不增加确认步骤。
 
+有效密度看每个区域提供了什么新信息。原图已包含案例注释时，正文解释比较或局限，避免再抄一遍同样的案例清单。地图和图表优先检查目标尺寸下的地名、图例、坐标和单位；必要时从原始数据导出适合投影的版本或制作有记录的局部放大图，归档原始证据，写明裁切/重绘及来源，不能默默改变证据。
+
+## 语义与页面文字分开
+
+默认仍按旧合同要求语义字段逐字可见。需要图表承担论点或精简重复句时，可在 Page Spec 中声明 `display.coverage`：每项用 `claim`（如 `core_message`、`key_points/0`、`explanation`、`boundary`、`source_refs/0`）映射到一个或多个已确认 `element_ids`。所有存在的语义字段都须覆盖；允许多个论点由同一图表承载，但不因此证明语义已经表达正确。
+
+```json
+"display": {"coverage": [
+  {"claim": "core_message", "element_ids": ["comparison-chart", "takeaway"]},
+  {"claim": "key_points/0", "element_ids": ["comparison-chart"]},
+  {"claim": "explanation", "element_ids": ["denominator-caption"]},
+  {"claim": "source_refs/0", "element_ids": ["source-footer"]}
+]}
+```
+
+这是字段示意，实际列表必须覆盖该页全部语义路径。采用该合同后，逐字可见清单由标题、确认的 text 元素和 `required_visible_values` 组成；语义字段保留完整传递给后端及人工审阅，不再强迫把它们各抄一遍。关键数字、单位和必须出现的边界措辞仍写入实际 text 元素或 `required_visible_values`。`produce` 的 `semantic_coverage` 审阅逐项核对映射是否成立，不能靠填写映射绕过内容确认。
+
 生成后端观察记录绑定当前内容、提示和图片：
 
 ```sh

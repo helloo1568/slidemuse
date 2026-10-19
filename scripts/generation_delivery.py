@@ -10,7 +10,7 @@ import runpy
 import tempfile
 from pathlib import Path
 
-from audit_page_content import compact
+from audit_page_content import text_present
 from content_density import validate_content, visible_text
 from filelock import FileLock
 from json_io import read_json
@@ -63,10 +63,12 @@ def prepare_spec(spec):
         context = slide.get("local_context", {})
         slide["local_context"] = {"original_context": context, "approved_content": {
             key: slide[key] for key in ("id", "core_message", "key_points", "explanation", "boundary",
-                                       "source_refs", "density", "elements", "required_visible_values", "speaker_notes")
+                                       "source_refs", "density", "elements", "display", "required_visible_values", "speaker_notes")
             if key in slide}, "required_visible_text": visible_text(slide)}
         slide["constraints"] = [*slide.get("constraints", []),
             ("Render every required_visible_text item exactly; keep evidence, explanation and boundaries visible. "
+             "When display.coverage is supplied, approved semantic fields describe meaning carried by mapped elements; "
+             "do not repeat them as extra bullets. Review semantic coverage separately. "
              "Keep speaker_notes off the image. Do not replace substantive content with decoration or invent evidence.")]
     return spec
 
@@ -76,7 +78,7 @@ def from_page_spec(path):
     spec, _ = load_page_spec(path, strict=True, content=True)
     for slide in spec["slides"]:
         if any("preserve_asset" in e for e in slide["elements"]):
-            raise ValueError("Protected evidence requires the Page Spec production pipeline; do not regenerate its pixels through generate")
+            raise ValueError("Protected evidence requires the Page Spec production pipeline: use slidemuse.py produce prepare; do not regenerate its pixels through generate")
     result = {"deck_name": spec["title"], "language": "Chinese", "goal": spec["title"],
             "selected_image_backend": "built-in image tool", "style": spec["style"],
             "content_version": spec["content_version"], "content_authorization": spec["content_authorization"],
@@ -172,7 +174,7 @@ def review(deck, record, initialize=False):
         text = item.get("observed_text", "")
         if not isinstance(text, str):
             raise TypeError("observed_text must be a transcription string")
-        missing = [s for s in page["expected_text"] if compact(s) not in compact(text)]
+        missing = [s for s in page["expected_text"] if not text_present(s, text)]
         checks = item.get("checks", {})
         passed = all(checks.get(c) == "pass" for c in CHECKS)
         if missing or not passed or not str(item.get("notes", "")).strip():

@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
+import os
 from pathlib import Path
 
 from json_io import read_json
@@ -38,6 +40,7 @@ def build_overview(spec_path: Path, output: Path, overwrite: bool = False) -> di
     if output.exists() and not overwrite:
         raise ValueError("Output exists; choose a new filename or use --overwrite")
     images = []
+    source_sizes = []
     for slide in slides:
         if not isinstance(slide, dict) or not isinstance(slide.get("file"), str):
             raise TypeError("Each slide needs a file path")
@@ -57,6 +60,9 @@ def build_overview(spec_path: Path, output: Path, overwrite: bool = False) -> di
             if x < 0 or y < 0 or w <= 0 or h <= 0 or x + w > image.width or y + h > image.height:
                 raise ValueError("Crop box is outside the source image")
             image = image.crop((x, y, x + w, y + h))
+        if spec.get("require_native_aspect", False) and abs(image.width - image.height * ratio) > max(1, ratio) + 1e-6:
+            raise ValueError("Thumbnail source aspect differs from slide_aspect_ratio; padding cannot repair composition")
+        source_sizes.append(list(image.size))
         images.append(image)
     columns = 1 if len(images) == 1 else 2 if len(images) <= 4 else 3 if len(images) <= 6 else 4
     rows = math.ceil(len(images) / columns)
@@ -67,6 +73,7 @@ def build_overview(spec_path: Path, output: Path, overwrite: bool = False) -> di
     tile_w = min(cell_w, int(cell_h * ratio))
     tile_h = round(tile_w / ratio)
     left = (width - columns * tile_w - (columns - 1) * gap) // 2
+    top = header + max(0, (height - header - margin - rows * (tile_h + label_h) - (rows - 1) * gap) // 2)
     canvas = Image.new("RGB", (width, height), "#EBEDF0")
     draw = ImageDraw.Draw(canvas)
     fonts = [spec.get("font"), *FONT_CANDIDATES]
@@ -79,7 +86,7 @@ def build_overview(spec_path: Path, output: Path, overwrite: bool = False) -> di
     tiles = []
     for index, (slide, image) in enumerate(zip(slides, images)):
         x = left + (index % columns) * (tile_w + gap)
-        y = header + (index // columns) * (tile_h + label_h + gap)
+        y = top + (index // columns) * (tile_h + label_h + gap)
         draw.rectangle((x, y, x + tile_w - 1, y + tile_h - 1), fill="white")
         fitted = ImageOps.contain(image, (tile_w, tile_h), Image.Resampling.LANCZOS)
         px, py = x + (tile_w - fitted.width) // 2, y + (tile_h - fitted.height) // 2
@@ -89,10 +96,19 @@ def build_overview(spec_path: Path, output: Path, overwrite: bool = False) -> di
         if draw.textbbox((0, 0), label, font=label_font)[2] > tile_w:
             raise ValueError("Thumbnail label is too wide")
         draw.text((x, y + tile_h + max(1, round(3 * scale))), label, font=label_font, fill="#364658")
-        tiles.append({"label": label, "box": [x, y, tile_w, tile_h], "source": slide["file"]})
+        native = abs(image.width - image.height * ratio) <= max(1, ratio) + 1e-6
+        tiles.append({"label": label, "slide_id": slide.get("slide_id", label),
+                      "box": [x, y, tile_w, tile_h], "content_box": [px, py, fitted.width, fitted.height],
+                      "source": slide["file"], "source_pixels": source_sizes[index],
+                      "source_crop": slide.get("box"), "native_aspect": native,
+                      "occupancy": fitted.width * fitted.height / (tile_w * tile_h)})
     output.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(output)
-    return {"output": str(output), "pixels": [width, height], "tiles": tiles, "image_generation_calls": 0}
+    return {"output": str(output), "pixels": [width, height], "tiles": tiles,
+            "source_root": os.path.relpath(spec_path.parent, output.parent),
+            "image_sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+            "slide_aspect_ratio": aspect, "native_composition": all(t["native_aspect"] for t in tiles),
+            "image_generation_calls": 0}
 
 
 def main():
@@ -100,9 +116,15 @@ def main():
     parser.add_argument("spec", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--layout", type=Path, help="Write hash-bound thumbnail geometry beside the overview")
     args = parser.parse_args()
     try:
+        if args.layout and (args.layout.resolve() in (args.spec.resolve(), args.output.resolve()) or args.layout.exists() and not args.overwrite):
+            raise ValueError("Layout path must be a new independent file (or use --overwrite)")
         result = build_overview(args.spec, args.output, args.overwrite)
+        if args.layout:
+            args.layout.parent.mkdir(parents=True, exist_ok=True)
+            args.layout.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     except (TypeError, ValueError, OSError) as error:
         parser.exit(2, f"build_style_overview: {error}\n")
     print(json.dumps(result, ensure_ascii=True, indent=2))

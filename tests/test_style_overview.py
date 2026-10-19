@@ -68,3 +68,33 @@ def test_layout_count_and_bounds(overview_spec, count):
         assert 0 <= x < x + w <= 1600
         assert 0 <= y < y + h < 900
         assert w / h == pytest.approx(4 / 3, abs=0.01)
+
+
+def test_tall_content_is_disclosed_and_strict_mode_rejects_padding(overview_spec):
+    spec = json.loads(overview_spec.read_text())
+    spec["slides"][0]["box"] = [0, 0, 160, 140]
+    overview_spec.write_text(json.dumps(spec))
+    result = build_overview(overview_spec, overview_spec.with_suffix(".png"))
+    assert not result["native_composition"]
+    assert result["tiles"][0]["occupancy"] < .7
+    spec["require_native_aspect"] = True
+    overview_spec.write_text(json.dumps(spec))
+    with pytest.raises(ValueError, match="padding"):
+        build_overview(overview_spec, overview_spec.with_name("strict.png"))
+
+
+def test_bound_geometry_checks_real_source_pixels(overview_spec):
+    from validate_style_options import validate_layout
+    spec = json.loads(overview_spec.read_text())
+    for index, slide in enumerate(spec["slides"], 1):
+        slide["slide_id"] = f"s{index:02}"
+    overview_spec.write_text(json.dumps(spec))
+    output = overview_spec.with_suffix(".png")
+    result = build_overview(overview_spec, output)
+    pages = [f"s{i:02}" for i in range(1, 4)]
+    assert validate_layout(result, output, output.parent, pages, [16, 9]).startswith("verified_native")
+    with Image.open(overview_spec.parent / "strip.png") as image:
+        image.paste("yellow", (0, 0, 160, 90))
+        image.save(overview_spec.parent / "strip.png")
+    with pytest.raises(ValueError, match="pixels differ"):
+        validate_layout(result, output, output.parent, pages, [16, 9])

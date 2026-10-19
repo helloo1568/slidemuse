@@ -35,6 +35,21 @@ def compact_number(value: str) -> str:
     return compact(value).replace(",", "")
 
 
+def text_present(expected: str, observed: str) -> bool:
+    """Substring text matching must not accept 132% as the required 32%."""
+    if compact(expected) not in compact(observed):
+        return False
+    actual = [compact_number(value) for value in numbers(observed)]
+    for number in numbers(expected):
+        token = compact_number(number)
+        if token.endswith(("%", "‰")):
+            if token not in actual:
+                return False
+        elif not any(token == value.rstrip("%‰") for value in actual):
+            return False
+    return True
+
+
 def image_path(spec_path: Path, slide: dict) -> Path:
     if slide["image_status"] not in ("generated", "revision", "approved"):
         raise ValueError(f"Page image is not ready for transcription: {slide['id']}")
@@ -72,7 +87,6 @@ def audit(spec_path: Path, slides: list[dict], observations: dict) -> dict:
         text = observation.get("observed_text")
         if status not in ("partial", "complete") or not isinstance(text, str):
             raise ValueError(f"{slide_id}: status must be partial/complete and observed_text must be a string")
-        observed = compact(text)
         observed_numbers = {compact_number(number) for number in numbers(text)}
         findings = []
         expected = [
@@ -87,7 +101,7 @@ def audit(spec_path: Path, slides: list[dict], observations: dict) -> dict:
                 from content_density import visible_text
                 expected += [("content_contract", value) for value in visible_text(slide)]
         for element_id, value in expected:
-            if compact(value) and compact(value) not in observed:
+            if compact(value) and not text_present(value, text):
                 missing_numbers = [number for number in numbers(value) if compact_number(number) not in observed_numbers]
                 findings.append({
                     "element_id": element_id,

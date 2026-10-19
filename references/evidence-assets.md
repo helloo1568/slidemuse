@@ -26,6 +26,8 @@ S1 发现科研地图、实验截图、仪器结果、精确数据图时识别�
 
 合成时使用经 EXIF 校正的源图 RGB 像素及 Pillow `Image.Resampling.LANCZOS` 缩放。可复用 `preserved_assets.expected_patch(base, declaration)` 获取精确补丁，粘贴到预留矩形；整页保存为不透明 PNG、新文件名。除白底处理等已明确的变换外，预先制作的源图仍需人工核对来源、内容与图例完整性，哈希不能证明来源真实。
 
+新 S5 制作可直接用 [`slidemuse.py produce`](page-production.md) 完成以上合成与恢复，避免临时脚本维护另一份坐标。此入口输出像素尺寸固定为 Page Spec canvas，因此其中的 region 同时位于该输出画布内；旧规格仍按实际最终 PNG 解释。
+
 `validate_page_spec.py --strict` 检查源文件哈希、画幅与区域不重叠；加 `--require-images` 时比较最终 PNG 区域的实际 RGB 像素与按规定缩放的源图。内容不符、裁切或有损重编码将拒绝交付。`build_image_ppt.py` 继承检查，并拒绝对含此契约的页面执行 `--max-width` 或 `--jpeg-quality` 二次压缩。此检查只证明声明区域保留了给定素材，**不证明全页内容、地图本身或数据分析正确**。
 
 旧 Page Spec 没有此字段仍可加载，不追认历史页已保真。新任务中需保留的证据图必须声明；遗漏声明仍需 Agent 在逐页素材清单中发现，脚本不能识别地图。
