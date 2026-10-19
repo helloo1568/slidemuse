@@ -114,7 +114,7 @@ Step 3  Page Spec + 页面图片 → scene.json → 原生可编辑 PPTX → 结
 
 ### 大纲要展开到什么程度
 
-先说明受众的核心问题、材料支持的整套回答和页间推进。每页注明页面类型（`cover`、`agenda`、`section-divider`、`concept`、`process`、`comparison`、`timeline`、`data-evidence`、`architecture`、`case-study`、`summary`、`qa` 之一）。内容页写出结论与 3–5 条支撑要点、可定位的来源、解释及适用边界，并列明实际展示的文案和图表；要点少于 3 条视为密度不足，多于 5 条须拆页或下沉为讲稿，换词重复标题和并列孤立数字不算要点。可选讲稿单列，不能承担全部关键证据。封面、过渡和图表主导页按各自必答内容处理，不强行填满。仍不以统一字数或文字占比判定深度。
+先说明受众的核心问题、材料支持的整套回答和页间推进。每页注明页面类型（`cover`、`agenda`、`section-divider`、`concept`、`process`、`comparison`、`timeline`、`data-evidence`、`architecture`、`case-study`、`summary`、`qa` 之一）。普通内容页默认 3–5 条有区别的支撑要点，并包含结论、可定位来源、解释及适用边界；图表主导、简洁聚焦和密集查阅页按[密度规则](../references/content-density.md)声明例外及理由。列明实际展示的文案和图表，避免重复标题或为条目数量堆孤立数字；图表承载的论点可通过 `display.coverage` 映射，仍须实际核对语义和必现值。可选讲稿单列，不能藏起关键证据。封面和过渡按作用处理，不设统一字数或文字占比。S5 的原图、证据合成和逐页恢复使用 [`produce`](../references/page-production.md)。
 
 内容自检检查目标覆盖、页间推进、要点密度与页面类型、论证深度、事实口径、可见内容完整及篇幅。记录判断依据、问题页和修正结果，阻塞项未解决时留在 S1。来源薄弱时缩小结论，不能编造机制或因果。语义自检不能由 Page Spec 校验或交付评分代替，详见[内容深度与自检](../references/content-outline.md)和[内容稿模板](../references/deck-spec-template.md)。
 
