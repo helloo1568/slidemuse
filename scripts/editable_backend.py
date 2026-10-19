@@ -83,6 +83,11 @@ def page_prompt(argv, root=ROOT):
         prompt += ("\n\nApproved SlideMuse page content (reuse exact text, data, source labels and stable IDs; "
                    "OCR is only a geometry hint, not authority to rewrite):\n"
                    + json.dumps(content["slides"][index], ensure_ascii=False, indent=2))
+        if "display" in content["slides"][index]:
+            from content_density import visible_text
+            prompt += ("\nThe display.coverage mapping carries semantic claims through confirmed elements; "
+                       "do not add semantic fields as repeated visible bullets. Exact visible text:\n"
+                       + json.dumps(visible_text(content["slides"][index]), ensure_ascii=False, indent=2))
     prefix = command_prefix(root)
     prompt = re.sub(r"(?<![\w/])editppt(?=\s+(?:prepare|run|page|image|formula|doctor|config|setup)\b)",
                     lambda match: prefix, prompt)

@@ -21,6 +21,7 @@ python slidemuse.py doctor
 | `run task/job.json task-output` | `scripts/run_deck.py` | 编译、渲染、评分或接续任务 |
 | `render deck.pptx previews` | `scripts/render_deck.py` | 生成真实渲染预览 |
 | `validate page-spec.json --strict` | `scripts/validate_page_spec.py` | 验证规格 |
+| `produce prepare page-spec.json` | `scripts/page_production.py` | [图片制作与恢复](../references/page-production.md)：宿主原图归档、精确证据合成、逐页审阅和坐标修改 |
 | `audit deck.pptx --scene scene.json` | `scripts/audit_editability.py` | 检查原生对象 |
 | `review task/job.json task-output` | `scripts/review_panel.py` | 生成审阅面板或导入记录 |
 | `sample --verify --output sample-output` | `showcase/editable-irena/reproduce.py` | 重建公开样板的六套 PPTX |

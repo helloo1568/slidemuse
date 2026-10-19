@@ -142,6 +142,7 @@ def project_review_contract(spec):
                 "slides": [], "omitted_data_fields": 0}
     for slide in spec["slides"]:
         page = {key: slide[key] for key in ("id", "page_number", "title", "core_message",
+                                          "role", "key_points", "explanation", "boundary", "display",
                                           "source_refs", "required_visible_values", "speaker_notes")
                 if key in slide}
         page["elements"] = []

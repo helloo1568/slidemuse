@@ -1,6 +1,6 @@
 name: slidemuse
 display_name: SlideMuse
-version: 2.21.0
+version: 2.22.0
 description: >-
   SlideMuse 是视觉优先的 AI PPT Skill，重点适用于挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛 PPT，同时适用于电影质感 PPT、比赛答辩、创新创业路演、学术汇报、论文答辩、项目汇报、课程展示和图片转可编辑 PPT。
   按固定三阶段流程将材料制作成图片版 PPT，并在明确授权后还原为可编辑 PPTX：
@@ -334,7 +334,10 @@ files:
   - vendor/codex-ppt/skills/codex-ppt/scripts/image_providers/openai_compatible.py
   - vendor/codex-ppt/tests/test_image_gen_models.py
   - scripts/content_density.py
+  - scripts/page_production.py
+  - references/page-production.md
   - scripts/generation_delivery.py
   - references/content-density.md
   - examples/generation-content.example.json
   - tests/test_generation_delivery.py
+  - tests/test_page_production.py

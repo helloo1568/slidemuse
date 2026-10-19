@@ -17,6 +17,7 @@ def validate_content(slide, *, required=False):
     """Check declared content only; a source label does not prove source truth."""
     if required and (not isinstance(slide.get("title"), str) or not slide["title"].strip()):
         raise ValueError("Every page requires a readable title")
+    validate_display(slide)
     role = slide.get("role")
     if role not in ROLES:
         if required or role is not None:
@@ -54,6 +55,42 @@ def validate_content(slide, *, required=False):
             raise ValueError("Content page requires locatable source_refs (label synthetic/proposed content explicitly)")
 
 
+def semantic_claims(slide):
+    """Stable paths whose meaning must survive a display rewrite."""
+    claims = {key for key in ("core_message", "explanation", "boundary") if slide.get(key)}
+    for key in ("key_points", "source_refs"):
+        claims.update(f"{key}/{index}" for index, _ in enumerate(slide.get(key, [])))
+    return claims
+
+
+def validate_display(slide):
+    display = slide.get("display")
+    if display is None:
+        return
+    if not isinstance(display, dict) or set(display) != {"coverage"} or not isinstance(display["coverage"], list):
+        raise ValueError("display requires only a coverage array")
+    elements = {e["id"]: e for e in slide.get("elements", [])}
+    seen = set()
+    for item in display["coverage"]:
+        if not isinstance(item, dict) or set(item) != {"claim", "element_ids"}:
+            raise ValueError("Display coverage needs claim and element_ids")
+        claim, ids = item["claim"], item["element_ids"]
+        if not isinstance(claim, str) or claim in seen or claim not in semantic_claims(slide):
+            raise ValueError("Unknown or duplicate display claim")
+        if (not isinstance(ids, list) or not ids or any(not isinstance(i, str) for i in ids)
+                or len(set(ids)) != len(ids) or any(i not in elements for i in ids)):
+            raise ValueError("Display coverage must name existing unique elements")
+        for identifier in ids:
+            element = elements[identifier]
+            if element.get("confirmation_status") == "unresolved" or element.get("kind") not in ("text", "image", "chart", "table"):
+                raise ValueError("Display coverage needs confirmed text or evidence")
+            if element.get("kind") == "text" and not str(element.get("text", "")).strip():
+                raise ValueError("Display text must be nonempty")
+        seen.add(claim)
+    if seen != semantic_claims(slide):
+        raise ValueError("Display coverage must map every semantic claim, including sources and boundaries")
+
+
 def visible_text(slide):
     """One visible-content list for generator prompts and image observations."""
     values = [slide.get("title", ""), slide.get("core_message", ""), *slide.get("key_points", []),
@@ -61,6 +98,11 @@ def visible_text(slide):
               *slide.get("required_visible_values", [])]
     values += [e["text"] for e in slide.get("elements", [])
                if e.get("kind") == "text" and e.get("confirmation_status") != "unresolved"]
+    if "display" in slide:
+        validate_display(slide)
+        values = [slide.get("title", ""), *slide.get("required_visible_values", [])] + [
+            e["text"] for e in slide.get("elements", [])
+            if e.get("kind") == "text" and e.get("confirmation_status") != "unresolved"]
     # Structured table/chart contents stay in the contract for separate visual review;
     # only explicitly declared visible strings must match a transcription.
     return list(dict.fromkeys(value for value in values if isinstance(value, str) and value.strip()))

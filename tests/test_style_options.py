@@ -27,6 +27,13 @@ def test_four_current_candidates_pass(choices, tmp_path):
     assert "required" in result["visual_review"]
 
 
+def test_strict_geometry_cannot_silently_fall_back_to_outer_canvas(choices, tmp_path):
+    with pytest.raises(ValueError, match="layout is required"):
+        validate_style_options(choices, tmp_path, require_layout=True)
+    result = validate_style_options(choices, tmp_path)
+    assert all("not_checked" in option["thumbnail_geometry"] for option in result["options"])
+
+
 @pytest.mark.parametrize("size", [(90, 160), (160, 160), (240, 90)])
 def test_rejects_vertical_strip_and_wrong_canvas(choices, tmp_path, size):
     Image.new("RGB", size, "red").save(tmp_path / choices["options"][0]["file"])

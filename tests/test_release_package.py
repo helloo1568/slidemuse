@@ -28,6 +28,13 @@ def test_manifest_packaged_zip_is_installable(tmp_path):
     installed = Path(result["target"])
     installed_manifest = yaml.safe_load((installed / "manifest.yaml").read_text(encoding="utf-8"))
     assert installed_manifest["version"] == manifest["version"]
+    production = subprocess.run(
+        [sys.executable, str(installed / "slidemuse.py"), "produce", "status",
+         str(installed / "examples/page-spec.example.json")],
+        check=True, capture_output=True, text=True,
+    )
+    assert json.loads(production.stdout)["pages"]["s01"]["status"] == "pending"
+    assert not (installed / "examples/.page-spec-production").exists()
     assert (installed / "docs/cli.md").is_file()
     assert (installed / "docs/cli.en.md").is_file()
     assert (installed / "README.md").is_file()

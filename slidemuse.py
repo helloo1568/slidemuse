@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 COMMANDS = {
+    "produce": ("scripts/page_production.py", (), "Compose, resume and review Page Spec image production"),
     "doctor": ("scripts/doctor.py", (), "Check Python, dependencies and renderer discovery"),
     "init": ("scripts/init_deck.py", (), "Create a job from prepared specifications"),
     "check": ("scripts/run_deck.py", ("--check",), "Read-only job preflight"),

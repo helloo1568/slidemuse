@@ -11,7 +11,7 @@ Especially strong for **university competition presentations**—including Chall
 Reconstruct slide images as native editable PowerPoint (PPTX) when needed.
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.21.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.22.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -44,7 +44,7 @@ For manual installation and requirements, see [Quick start](#quick-start).
 | Continue an existing task | Input preflight, resumable stages, affected-page rendering, and a consolidated per-page action queue. |
 | Review the deliverable | Object and content checks, scorecards bound to current files, and an optional offline per-page review panel. |
 
-Current version: **2.20.0**. The [outline density floor](references/content-outline.md) now declares a layout role per page and requires 3-5 distinct supporting points on every content page: fewer than three means the page lacks density, more than five means it must be split. A reusable [style library](references/style-library.md) and the [complete image-generation backend](references/generate-backend.md) are also included. See the [changelog](CHANGELOG.md) for details. These tools support production and validation; actual content and visuals still need review.
+Current version: **2.22.0**. The new [`produce` workflow](references/page-production.md) archives host-generated originals, composites protected evidence, resumes individual pages and preserves bound reviews. Thumbnail checks verify internal geometry, and resolution records distinguish original pixels from upscaled output. [Content-density rules](references/content-density.md) let charts carry semantic claims without repeating every claim as a bullet, while retaining mandatory-value checks and actual review. See the [changelog](CHANGELOG.md); structural checks do not prove source truth or display readability.
 2.16.0 adds bounded rendering, automatic environment invalidation and page-scoped dependency caching. Optional PowerPoint measurements locate text overflow and overlap. Real six-page backend controls and [production event logs](references/production-metrics.md) preserve repair cost and first-delivery outcomes; see the [pipeline guide](references/pipeline.md).
 
 
@@ -199,7 +199,7 @@ Also useful for **大创 (undergraduate innovation and entrepreneurship training
 
 Content approval precedes style selection by default. Stage 3 requires an explicit editable-deck request. Existing slide images or scanned PDFs can enter reconstruction directly. Preview skips and delegated choices follow the [full workflow rules](docs/guide.en.md).
 
-The outline includes a reviewable draft for each slide: its layout role, claim, 3-5 distinct supporting points, traceable evidence, interpretation, and actual visible content. Fewer than three points means the page lacks density; more than five means it must be split or its minor material demoted into notes. Covers and transitions follow their own required content without being padded, and there is still no universal word count or text ratio. Before style selection, the agent reviews content quality, then obtains approval or explicit authority to decide the content. Image generation preserves approved analysis and necessary qualifications. See the [content-depth reference](references/content-outline.md) (Chinese).
+The outline includes a reviewable draft for each slide: its layout role, claim, supporting points, traceable evidence, interpretation, and actual visible content. Ordinary content pages default to 3-5 distinct points; evidence-led, focused and dense reference pages declare a justified exception under the [density rules](references/content-density.md). Covers and transitions follow their purpose. A semantic coverage mapping can let charts carry facts without repeating them as bullets; mandatory values and necessary qualifications still require actual review. Before style selection, the agent reviews content quality, then obtains approval or explicit authority to decide the content. There is no universal word count or text ratio. See the [content-depth reference](references/content-outline.md) (Chinese).
 
 <a id="quick-start"></a>
 

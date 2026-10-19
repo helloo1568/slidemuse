@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
-KINDS = {"start", "generation", "revision", "review", "delivery", "end", "preparation"}
+KINDS = {"start", "generation", "revision", "review", "delivery", "end", "preparation", "user_wait"}
 
 
 def seal(value):
@@ -66,7 +66,7 @@ def locked_log(path):
                 fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
-def append(path, task_id, kind, *, page_id=None, seconds=None, status=None, note="", at=None):
+def append(path, task_id, kind, *, page_id=None, seconds=None, status=None, note="", at=None, phase=None):
     path = path.resolve()
     if kind not in KINDS or not task_id.strip() or not note.strip():
         raise ValueError("Declare task, supported event kind and a factual note")
@@ -78,6 +78,10 @@ def append(path, task_id, kind, *, page_id=None, seconds=None, status=None, note
         raise ValueError("Only delivery events declare pass/fail/incomplete")
     event = {"version": "1.0", "task_id": task_id, "kind": kind, "at": at or datetime.now(timezone.utc).isoformat(),
              "page_id": page_id, "seconds": seconds, "status": status, "note": note}
+    if phase is not None:
+        if phase not in ("content", "style", "production", "delivery"):
+            raise ValueError("phase must be content/style/production/delivery")
+        event["phase"] = phase
     moment = timestamp(event["at"])
     with locked_log(path):
         prior = read_events(path) if path.exists() else []
@@ -102,11 +106,24 @@ def summarize(path):
     ends = [e for e in events if e["kind"] == "end"]
     deliveries = [e for e in events if e["kind"] == "delivery"]
     reviews = [e for e in events if e["kind"] == "review"]
+    waits = [e for e in events if e["kind"] == "user_wait"]
+    durations = {}
+    for event in events:
+        if event.get("phase") and event["kind"] != "user_wait":
+            bucket = durations.setdefault(event["phase"], {"recorded_seconds": None, "events_without_duration": 0})
+            if event["seconds"] is None:
+                bucket["events_without_duration"] += 1
+            else:
+                bucket["recorded_seconds"] = (bucket["recorded_seconds"] or 0) + event["seconds"]
     return {"task_id": events[0]["task_id"] if events else None, "events": len(events),
             "generation_calls": sum(e["kind"] == "generation" for e in events),
             "revised_page_count": len({e["page_id"] for e in events if e["kind"] == "revision"}),
             "review_seconds": sum(e["seconds"] for e in reviews if e["seconds"] is not None) if any(e["seconds"] is not None for e in reviews) else None,
             "review_events_without_duration": sum(e["seconds"] is None for e in reviews),
+            "phase_durations": durations,
+            "recorded_user_wait_seconds": sum(e["seconds"] for e in waits if e["seconds"] is not None) if any(e["seconds"] is not None for e in waits) else None,
+            "user_wait_events_without_duration": sum(e["seconds"] is None for e in waits),
+            "wall_time_includes_unclassified_waits": True,
             "wall_seconds": (timestamp(ends[-1]["at"]) - timestamp(starts[0]["at"])).total_seconds() if starts and ends else None,
             "first_delivery_status": deliveries[0]["status"] if deliveries else None,
             "final_delivery_status": deliveries[-1]["status"] if deliveries else None,
@@ -133,6 +150,7 @@ def main():
     parser.add_argument("--kind", choices=sorted(KINDS))
     parser.add_argument("--page")
     parser.add_argument("--seconds", type=float)
+    parser.add_argument("--phase", choices=("content", "style", "production", "delivery"))
     parser.add_argument("--delivery-status", choices=("pass", "fail", "incomplete"))
     parser.add_argument("--note", default="")
     parser.add_argument("--at")
@@ -141,7 +159,7 @@ def main():
     if args.kind:
         if not args.task:
             parser.error("--kind requires --task")
-        append(args.log, args.task, args.kind, page_id=args.page, seconds=args.seconds, status=args.delivery_status, note=args.note, at=args.at)
+        append(args.log, args.task, args.kind, page_id=args.page, seconds=args.seconds, status=args.delivery_status, note=args.note, at=args.at, phase=args.phase)
     result = aggregate([args.log, *args.aggregate]) if args.aggregate is not None else summarize(args.log)
     print(json.dumps(result, ensure_ascii=True, indent=2))
 

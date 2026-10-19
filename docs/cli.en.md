@@ -21,6 +21,7 @@ The launcher prefers `.venv/Scripts/python.exe` on Windows or `.venv/bin/python`
 | `run task/job.json task-output` | `scripts/run_deck.py` | Build, render, evaluate or resume |
 | `render deck.pptx previews` | `scripts/render_deck.py` | Render an actual PPTX |
 | `validate page-spec.json --strict` | `scripts/validate_page_spec.py` | Validate specifications |
+| `produce prepare page-spec.json` | `scripts/page_production.py` | [Resume image production](../references/page-production.md): original snapshots, protected evidence composition, bound reviews and region updates |
 | `audit deck.pptx --scene scene.json` | `scripts/audit_editability.py` | Check native objects |
 | `review task/job.json task-output` | `scripts/review_panel.py` | Export a review panel or import records |
 | `sample --verify --output sample-output` | `showcase/editable-irena/reproduce.py` | Rebuild all six public sample decks |

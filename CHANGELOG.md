@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [2.22.0] - 2026-10-19
+
+### Added
+
+- Add `produce` for resumable Page Spec image production: immutable original/output/intent/review snapshots, atomic state commits with recoverable output projection, single-page invalidation and protected-evidence composition.
+- Bind thumbnail geometry to source crops and actual overview pixels; strict selection checks reject padded, incorrectly proportioned internal slides. Legacy outer-canvas checks explicitly remain unverified.
+- Allow explicit semantic-to-display coverage so charts can carry claims without repeating every semantic field as literal bullets. Mandatory visible values remain checked; semantic coverage needs actual review.
+- Record original/final resolution and explicit upscaling, separate measured phase durations and user waits, and preserve unknown historical timing.
+- Reject numeric substring false positives such as treating 132% as the required 32%; keep notes-only changes from invalidating approved images.
+- Align both README languages and user guides with role-aware density exceptions instead of a universal bullet quota.
+
 ## [2.21.0] - 2026-10-18
 
 ### Changed

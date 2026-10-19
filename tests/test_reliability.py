@@ -15,6 +15,21 @@ from update_data_bindings import page_dependencies
 pytest_plugins = ['test_run_deck']
 
 
+def test_phase_timing_does_not_invent_unrecorded_waits(tmp_path):
+    log = tmp_path / "work.jsonl"
+    append(log, "phase-fixture", "start", note="Synthetic start")
+    append(log, "phase-fixture", "generation", seconds=12, phase="style", note="Synthetic measured call")
+    append(log, "phase-fixture", "review", phase="style", note="Synthetic untimed review")
+    before = summarize(log)
+    assert before["recorded_user_wait_seconds"] is None
+    assert before["phase_durations"]["style"] == {"recorded_seconds": 12, "events_without_duration": 1}
+    append(log, "phase-fixture", "user_wait", seconds=30, phase="style", note="Synthetic measured wait")
+    result = summarize(log)
+    assert result["recorded_user_wait_seconds"] == 30
+    assert result["phase_durations"] == before["phase_durations"]
+    assert result["wall_time_includes_unclassified_waits"] is True
+
+
 def test_bom_spec_survives_build_render_and_evaluation(pipeline_case):
     job, work, spec, scene, _ = pipeline_case
     for name, value in (("page-spec.json", spec), ("scene.json", scene)):

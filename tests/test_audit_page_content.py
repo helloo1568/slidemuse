@@ -59,3 +59,11 @@ def test_cli_creates_transcription_template(tmp_path):
     assert result.returncode == 0, result.stderr
     observation = json.loads(target.read_text(encoding="utf-8"))
     assert len(observation["slides"][0]["image_sha256"]) == 64
+
+
+def test_required_numeric_values_must_not_match_inside_larger_numbers():
+    from audit_page_content import text_present
+    assert not text_present("32%", "132%")
+    assert not text_present("351", "1351")
+    assert text_present("32", "32%")
+    assert text_present("32%", "覆盖率32%，另一个值132%")
