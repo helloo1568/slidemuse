@@ -17,6 +17,9 @@ def save(path, value):
 
 @pytest.fixture
 def pipeline_case(tmp_path, monkeypatch):
+    # Rendering is simulated in this fixture. Machine font discovery belongs to
+    # the dedicated environment tests and the real-backend regression controls.
+    monkeypatch.setattr(run_deck, "fingerprint", lambda: {"binaries": {}, "fonts": {}})
     root = Path(__file__).resolve().parents[1]
     spec = json.loads((root / "examples/page-spec.example.json").read_text(encoding="utf-8"))
     base = spec["slides"][0]

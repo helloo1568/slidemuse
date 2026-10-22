@@ -1,12 +1,33 @@
 import json
+import re
 import subprocess
 import sys
 import zipfile
 from pathlib import Path
+from urllib.parse import unquote
 
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_packaged_document_links_do_not_require_excluded_showcase_files():
+    manifest = yaml.safe_load((ROOT / "manifest.yaml").read_text(encoding="utf-8"))
+    names = set(manifest["files"])
+    for name in sorted(names):
+        if not name.endswith(".md"):
+            continue
+        document = ROOT / name
+        text = document.read_text(encoding="utf-8")
+        links = re.findall(r"\]\(<?([^)>]+)>?\)", text)
+        links += re.findall(r'(?:href|src)="([^"]+)"', text)
+        for link in links:
+            if re.match(r"^[A-Za-z]+:", link) or link.startswith("#") or "<" in link:
+                continue
+            raw = unquote(link.split("#")[0].split("?")[0])
+            target = (document.parent / raw).resolve()
+            if raw and target.is_relative_to(ROOT) and target.is_file():
+                assert target.relative_to(ROOT).as_posix() in names, (name, link)
 
 
 def test_manifest_packaged_zip_is_installable(tmp_path):
@@ -50,16 +71,15 @@ def test_manifest_packaged_zip_is_installable(tmp_path):
          str(installed / "examples" / "page-spec.example.json"), "--strict"],
         check=True, capture_output=True, text=True,
     )
-    sample = installed / "showcase" / "editable-irena"
-    assert (sample / "decks" / "editable.pptx").is_file()
-    rebuilt = tmp_path / "sample-rebuilt"
-    subprocess.run(
-        [sys.executable, str(installed / "slidemuse.py"), "sample", "--verify", "--output", str(rebuilt)],
-        check=True, capture_output=True, text=True,
+    assert not (installed / "showcase").exists()
+    assert not any(name.startswith("showcase/") for name in manifest["files"])
+    optional = subprocess.run(
+        [sys.executable, str(installed / "slidemuse.py"), "sample"],
+        capture_output=True, text=True, check=False,
     )
-    report = json.loads((rebuilt / "reproduction.json").read_text(encoding="utf-8"))
-    assert report["status"] == "pass"
-    assert len(report["decks"]) == 6
+    assert optional.returncode == 2
+    assert "sample.zip" in optional.stderr
+    assert "Reinstall" not in optional.stderr
     # Exercise the new table helper from the actual manifest-built installation.
     merged = tmp_path / "merged-table.pptx"
     subprocess.run(
@@ -92,3 +112,20 @@ def test_manifest_packaged_zip_is_installable(tmp_path):
     assert (installed / "references/generate-backend.md").is_file()
     assert (installed / "references/style-library.md").is_file()
     assert (installed / "requirements-generate.txt").is_file()
+
+
+def test_separate_sample_rebuilds_with_core_runtime(tmp_path):
+    # Exercise the actual optional release asset, including its original sealed inputs.
+    unpacked = tmp_path / "sample"
+    with zipfile.ZipFile(ROOT / "showcase/editable-irena/sample.zip") as archive:
+        archive.extractall(unpacked)
+    sample = unpacked / "editable-irena"
+    output = tmp_path / "sample-output"
+    subprocess.run(
+        [sys.executable, str(sample / "reproduce.py"), "--verify",
+         "--runtime", str(ROOT), "--output", str(output)],
+        check=True, capture_output=True, text=True,
+    )
+    report = json.loads((output / "reproduction.json").read_text(encoding="utf-8"))
+    assert report["status"] == "pass"
+    assert len(report["decks"]) == 6

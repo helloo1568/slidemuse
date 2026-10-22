@@ -1,19 +1,21 @@
 # Complete editable sample
 
+The default installation and core archive omit this demo. Download `sample.zip` separately from [GitHub Releases](https://github.com/helloo1568/slidemuse/releases) after 2.23.0 is published, or use the existing repository ZIP below. Extract it into a task directory. From a full checkout, `python install.py --client codex --with-sample` includes it with the skill.
+
 The six-slide Chinese IRENA statistics overview includes finished native/image decks, four independent edit exercises and a complete ZIP with a pinned runtime.
 
-[Sample and reproduction guide](../showcase/editable-irena/README.en.md) · [Offline viewer](../showcase/editable-irena/index.html) · [中文](editable-sample.md)
+[Sample and reproduction guide](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/README.en.md) · [Offline viewer](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/index.html) · [中文](editable-sample.md)
 
 <p align="center">
-<a href="../showcase/editable-irena/previews/editable-03.webp"><img src="../showcase/editable-irena/previews/editable-03.webp" alt="Original native chart: solar 452 GW" width="49%"></a>
-<a href="../showcase/editable-irena/previews/chart-edit.webp"><img src="../showcase/editable-irena/previews/chart-edit.webp" alt="Synthetic edit: solar 460 GW with updated explanations" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/previews/editable-03.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/editable-irena/previews/editable-03.webp" alt="Original native chart: solar 452 GW" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/previews/chart-edit.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/editable-irena/previews/chart-edit.webp" alt="Synthetic edit: solar 460 GW with updated explanations" width="49%"></a>
 </p>
 
-- [Editable PPTX](../showcase/editable-irena/decks/editable.pptx?raw=true)
-- [Image PPTX](../showcase/editable-irena/decks/image.pptx?raw=true)
-- [Complete sample ZIP](../showcase/editable-irena/sample.zip?raw=true)
-- [Edit demonstration MP4](../showcase/editable-irena/demo.mp4?raw=true)
-- [Source metadata and cited pages](../showcase/editable-irena/source/source.json)
+- [Editable PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/decks/editable.pptx?raw=true)
+- [Image PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/decks/image.pptx?raw=true)
+- [Complete sample ZIP](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/sample.zip?raw=true)
+- [Edit demonstration MP4](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/demo.mp4?raw=true)
+- [Source metadata and cited pages](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/source/source.json)
 
 After extracting the ZIP:
 

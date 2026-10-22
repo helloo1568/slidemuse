@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+## [2.23.0] - 2026-10-22
+
+### Changed
+
+- Shorten the skill entrypoint and move legacy state codes to recovery guidance. Read supplied materials before recommending length; use stated defaults for unspecified style, page count and image delivery, and ask only about material ambiguities. Preserve content/style choices and honor existing delegation.
+- Focus ordinary production and local edits on content, affected pages and actual rendering; formal scorecards, cost logs and multi-material benchmarks remain available when needed. Existing seals and benchmark records are unchanged.
+- Omit showcase assets from the core release and IRENA from default installations. Publish the original self-contained `sample.zip` separately with its checksum; full checkouts can opt in with `install.py --with-sample`. Explain optional-sample retrieval instead of asking users to reinstall a healthy core skill.
+- Document validation by change scope, retaining full release and compatibility checks where needed.
+- Use a deterministic environment in simulated pipeline tests instead of repeatedly scanning machine fonts. Dedicated fingerprint invalidation tests and real-render controls remain in place.
+
 ## [2.22.0] - 2026-10-19
 
 ### Added

@@ -58,7 +58,7 @@ jobs:
       - name: Package manifest files and release notes
         run: |
           python - <<'PY'
-          import hashlib, os, re, zipfile
+          import hashlib, os, re, shutil, zipfile
           from pathlib import Path
           import yaml
           root = Path.cwd()
@@ -75,7 +75,12 @@ jobs:
                   if not source.is_relative_to(root) or not source.is_file():
                       raise ValueError(f'Invalid manifest file: {name}')
                   z.write(source, 'slidemuse/' + name)
-          (out / 'SHA256SUMS.txt').write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + '  ' + archive.name + '\n')
+          # The reproducible demo is an optional asset, not part of the core skill.
+          sample = out / 'sample.zip'
+          shutil.copyfile(root / 'showcase/editable-irena/sample.zip', sample)
+          (out / 'SHA256SUMS.txt').write_text(''.join(
+              hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + path.name + '\n'
+              for path in (archive, sample)))
           changelog = Path('CHANGELOG.md').read_text()
           section = changelog.split(f'## [{version}]', 1)[1].split('\n## [', 1)[0]
           notes = '\n'.join(section.splitlines()[1:]).strip()
@@ -95,6 +100,7 @@ jobs:
           from pathlib import Path
           import yaml
           files = yaml.safe_load(Path('manifest.yaml').read_text())['files']
+          files.append('showcase/editable-irena/sample.zip')
           result = subprocess.run(
               ['git', 'diff', '--quiet', os.environ['RELEASE_TAG'], 'HEAD', '--', *files],
               check=False,
@@ -109,4 +115,4 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "SlideMuse $RELEASE_TAG" \
             --notes-file dist/release-notes.md \
-            "dist/slidemuse-$RELEASE_TAG.zip" dist/SHA256SUMS.txt
+            "dist/slidemuse-$RELEASE_TAG.zip" dist/sample.zip dist/SHA256SUMS.txt

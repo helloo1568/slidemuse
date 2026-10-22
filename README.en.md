@@ -11,7 +11,7 @@ Especially strong for **university competition presentations**—including Chall
 Reconstruct slide images as native editable PowerPoint (PPTX) when needed.
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.22.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.23.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -32,6 +32,8 @@ Run the repository's install.py to register the skill, install isolated dependen
 
 Then say: `Use $slidemuse to turn this PDF into a 10-slide competition presentation.`
 
+The agent reads your material, presents a content plan, then offers style choices. You do not need to learn state codes or fill in checklists. Delegated decisions continue without repeated approval; request an editable version when needed.
+
 For manual installation and requirements, see [Quick start](#quick-start).
 
 ### What the current version supports
@@ -44,8 +46,7 @@ For manual installation and requirements, see [Quick start](#quick-start).
 | Continue an existing task | Input preflight, resumable stages, affected-page rendering, and a consolidated per-page action queue. |
 | Review the deliverable | Object and content checks, scorecards bound to current files, and an optional offline per-page review panel. |
 
-Current version: **2.22.0**. The new [`produce` workflow](references/page-production.md) archives host-generated originals, composites protected evidence, resumes individual pages and preserves bound reviews. Thumbnail checks verify internal geometry, and resolution records distinguish original pixels from upscaled output. [Content-density rules](references/content-density.md) let charts carry semantic claims without repeating every claim as a bullet, while retaining mandatory-value checks and actual review. See the [changelog](CHANGELOG.md); structural checks do not prove source truth or display readability.
-2.16.0 adds bounded rendering, automatic environment invalidation and page-scoped dependency caching. Optional PowerPoint measurements locate text overflow and overlap. Real six-page backend controls and [production event logs](references/production-metrics.md) preserve repair cost and first-delivery outcomes; see the [pipeline guide](references/pipeline.md).
+Current version: **2.23.0**. Reasonable defaults cover unspecified style, length and delivery. The usual decisions are the content plan and style; existing authority is honored without repeated approval. The core archive excludes showcase assets, with the IRENA sample available separately. See the [changelog](CHANGELOG.md).
 
 
 ---
@@ -59,13 +60,13 @@ Current version: **2.22.0**. The new [`produce` workflow](references/page-produc
 The six-slide Chinese IRENA overview contains **native text, one table and three charts with embedded workbooks**. The complete sample includes the source report, image/native decks, four independent editing exercises, a pinned runtime and reproduction commands.
 
 <p align="center">
-<a href="showcase/editable-irena/previews/editable-03.webp"><img src="showcase/editable-irena/previews/editable-03.webp" alt="Before: native chart with solar at 452 GW" width="49%"></a>
-<a href="showcase/editable-irena/previews/chart-edit.webp"><img src="showcase/editable-irena/previews/chart-edit.webp" alt="After: synthetic solar 460 GW exercise with synchronized chart and explanations" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/previews/editable-03.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/editable-irena/previews/editable-03.webp" alt="Before: native chart with solar at 452 GW" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/previews/chart-edit.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/editable-irena/previews/chart-edit.webp" alt="After: synthetic solar 460 GW exercise with synchronized chart and explanations" width="49%"></a>
 </p>
 
 <p align="center"><sub>Original native slide &nbsp; · &nbsp; Actual PowerPoint export after editing</sub></p>
 
-[Editable PPTX](showcase/editable-irena/decks/editable.pptx?raw=true) · [Complete sample ZIP](showcase/editable-irena/sample.zip?raw=true) · [Edit demonstration](showcase/editable-irena/demo.mp4?raw=true) · [Reproduction guide](docs/editable-sample.en.md)
+[Editable PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/decks/editable.pptx?raw=true) · [Complete sample ZIP](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/sample.zip?raw=true) · [Edit demonstration](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/demo.mp4?raw=true) · [Reproduction guide](docs/editable-sample.en.md)
 
 <sub>The original uses selected 2024 statistics and the 2025 report-time scenario; edited pages visibly identify synthetic practice values. Source report © IRENA 2025. Reproduction starts from approved images and structured inputs.</sub>
 
@@ -73,54 +74,54 @@ The six-slide Chinese IRENA overview contains **native text, one table and three
 
 Three complete competition decks, **8 slides each**, alongside the Snowline Watch and Glaze Reborn showcases. Click any preview to view the full-size image.
 
-[Browse all 24 competition slides](docs/competition-portfolio.md) · [Local portfolio browser](showcase/competition-portfolio/index.html)
+[Browse all 24 competition slides](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md) · [Local portfolio browser](https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/index.html)
 
 ### Weld Inspect · Manufacturing
 
 A weld inspection concept for small-batch manufacturing, covering image capture, quality gates, human review, and comparative evaluation.
 
 <p align="center">
-<a href="showcase/competition-portfolio/assets/weld/01.webp"><img src="showcase/competition-portfolio/assets/weld/01.webp" alt="Weld Inspect · Manufacturing 01: Project cover" width="49%"></a>
-<a href="showcase/competition-portfolio/assets/weld/04.webp"><img src="showcase/competition-portfolio/assets/weld/04.webp" alt="Weld Inspect · Manufacturing 04: Algorithm and data architecture" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/weld/01.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/weld/01.webp" alt="Weld Inspect · Manufacturing 01: Project cover" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/weld/04.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/weld/04.webp" alt="Weld Inspect · Manufacturing 04: Algorithm and data architecture" width="49%"></a>
 </p>
 
 <p align="center"><sub>01 / Project cover &nbsp; · &nbsp; 04 / Algorithm and data architecture</sub></p>
 
-[View all 8 slides](docs/competition-portfolio.md#焊隙智检) · [Download image PPTX](showcase/competition-portfolio/decks/weld.pptx?raw=true)
+[View all 8 slides](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md#焊隙智检) · [Download image PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/decks/weld.pptx?raw=true)
 
 ### Junction Foresight · Transportation
 
 A roadside warning concept for conflicts between pedestrians and turning vehicles, covering risk assessment, scenario validation, and false-alarm tradeoffs.
 
 <p align="center">
-<a href="showcase/competition-portfolio/assets/junction/01.webp"><img src="showcase/competition-portfolio/assets/junction/01.webp" alt="Junction Foresight · Transportation 01: Project cover" width="49%"></a>
-<a href="showcase/competition-portfolio/assets/junction/06.webp"><img src="showcase/competition-portfolio/assets/junction/06.webp" alt="Junction Foresight · Transportation 06: Fixed-replay comparison" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/junction/01.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/junction/01.webp" alt="Junction Foresight · Transportation 01: Project cover" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/junction/06.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/junction/06.webp" alt="Junction Foresight · Transportation 06: Fixed-replay comparison" width="49%"></a>
 </p>
 
 <p align="center"><sub>01 / Project cover &nbsp; · &nbsp; 06 / Fixed-replay comparison</sub></p>
 
-[View all 8 slides](docs/competition-portfolio.md#路口先知) · [Download image PPTX](showcase/competition-portfolio/decks/junction.pptx?raw=true)
+[View all 8 slides](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md#路口先知) · [Download image PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/decks/junction.pptx?raw=true)
 
 ### Neighbor Care · Community services
 
 A community support concept for older adults living alone, covering human dispatch, responsibilities, service metrics, and ongoing operations.
 
 <p align="center">
-<a href="showcase/competition-portfolio/assets/neighbor/01.webp"><img src="showcase/competition-portfolio/assets/neighbor/01.webp" alt="Neighbor Care · Community services 01: Project cover" width="49%"></a>
-<a href="showcase/competition-portfolio/assets/neighbor/04.webp"><img src="showcase/competition-portfolio/assets/neighbor/04.webp" alt="Neighbor Care · Community services 04: Service network and responsibilities" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/neighbor/01.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/neighbor/01.webp" alt="Neighbor Care · Community services 01: Project cover" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/neighbor/04.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/neighbor/04.webp" alt="Neighbor Care · Community services 04: Service network and responsibilities" width="49%"></a>
 </p>
 
 <p align="center"><sub>01 / Project cover &nbsp; · &nbsp; 04 / Service network and responsibilities</sub></p>
 
-[View all 8 slides](docs/competition-portfolio.md#邻里守望) · [Download image PPTX](showcase/competition-portfolio/decks/neighbor.pptx?raw=true)
+[View all 8 slides](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md#邻里守望) · [Download image PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/decks/neighbor.pptx?raw=true)
 
 ### Snowline Watch · Glacier blue & silver
 
 A glacier inspection and ecological early-warning concept, covering the setting, problem, solution, and technology comparison.
 
 <p align="center">
-<a href="showcase/snowline-watch-01.png"><img src="showcase/preview/snowline-watch-01.webp" alt="Snowline Watch 01: Project cover" width="49%"></a>
-<a href="showcase/snowline-watch-04.png"><img src="showcase/preview/snowline-watch-04.webp" alt="Snowline Watch 04: Technology comparison" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/snowline-watch-01.png"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/preview/snowline-watch-01.webp" alt="Snowline Watch 01: Project cover" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/snowline-watch-04.png"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/preview/snowline-watch-04.webp" alt="Snowline Watch 04: Technology comparison" width="49%"></a>
 </p>
 
 <p align="center"><sub>01 / Project cover &nbsp; · &nbsp; 04 / Technology comparison</sub></p>
@@ -130,13 +131,13 @@ A glacier inspection and ecological early-warning concept, covering the setting,
 A craft-themed competition concept connecting the problem, solution, and process technology through a red-and-gold palette.
 
 <p align="center">
-<a href="showcase/red-gold-competition-03.png"><img src="showcase/preview/red-gold-competition-03.webp" alt="Glaze Reborn 03: Solution" width="49%"></a>
-<a href="showcase/red-gold-competition-04.png"><img src="showcase/preview/red-gold-competition-04.webp" alt="Glaze Reborn 04: Process technology" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/red-gold-competition-03.png"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/preview/red-gold-competition-03.webp" alt="Glaze Reborn 03: Solution" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/red-gold-competition-04.png"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/preview/red-gold-competition-04.webp" alt="Glaze Reborn 04: Process technology" width="49%"></a>
 </p>
 
 <p align="center"><sub>03 / Solution &nbsp; · &nbsp; 04 / Process technology</sub></p>
 
-[View all 7 style samples](docs/style-showcase.md)
+[View all 7 style samples](https://github.com/helloo1568/slidemuse/blob/main/docs/style-showcase.md)
 
 <sub>These are original concepts with synthetic demonstration data. Competition deck downloads are image-based PPTX files; style samples demonstrate visual output. Slide content is in Chinese.</sub>
 

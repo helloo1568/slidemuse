@@ -58,6 +58,13 @@ def main(argv=None) -> int:
     relative, extra, _ = COMMANDS[args.command]
     script = ROOT / relative
     if not script.is_file():
+        if args.command == "sample":
+            parser.exit(
+                2, "slidemuse: the optional IRENA sample is not installed. "
+                "Download sample.zip from https://github.com/helloo1568/slidemuse/releases, "
+                "extract it and run: python reproduce.py --verify --output <task-directory>. "
+                "From a full repository checkout you can also install with --with-sample.\n",
+            )
         parser.exit(2, f"slidemuse: missing packaged tool: {relative}. Reinstall SlideMuse.\n")
     command = [str(runtime_python(ROOT)), str(script), *args.arguments, *extra]
     try:

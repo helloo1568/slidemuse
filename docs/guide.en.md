@@ -4,12 +4,14 @@
 
 ## Current workflow contract
 
+Provide the source to begin. The agent can read it before recommending a length. Defaults are no style reference, a recommended page count, a 16:9 image deck, and the source language. Ask only about ambiguities that materially affect the result; users do not fill in a requirements form. State codes, logs and scorecards are managed by the agent.
+
 - One main path: new source material must become an image deck before editable reconstruction. Do not replace the workflow with editable-first authoring.
 - Content quality review: expand the outline into a slide-by-slide draft with claims, support, evidence, interpretation, and actual visible content. Fix content issues before style selection.
-- Two approval gates: after content review, present the draft separately and wait only if approval or explicit authority to decide the content is missing. Record the agent's quality judgment separately from user authorization.
+- Two user decisions: present the content plan, then offer style choices. Honor existing approval or delegated authority without repeated questions. Internal checks do not create extra approval rounds.
 - Deterministic style exemptions: only an explicit locked reference, preview skip, or delegated choice can change the four-option flow.
 - Page Spec bridge: preserve approved text, data, sources, stable IDs, and semantic intent while generating images so reconstruction does not repeat OCR or guess known content.
-- Explicit fast-forwarding: only clear instructions such as “skip previews,” “choose for me,” or “decide missing details” waive the corresponding gate.
+- Existing authority: honor requests to skip previews or choose within their scope. Use the defaults above for unspecified details and state them with the plan; defaults need no separate approval.
 - Image reconstruction: preserve visible content and layout while separating semantic elements.
 - A versioned JSON scene with stable IDs, geometry, stacking, groups and provenance.
 - Native text, shapes, arrows, nested groups, tables and charts with embedded workbooks.
@@ -68,6 +70,8 @@ It stages and validates the new version before replacing an existing installatio
 
 Invoke it as `$slidemuse` after installation. Keep task materials and outputs in a separate working directory.
 
+Showcase files are omitted by default. To include IRENA, run `python install.py --client codex --with-sample` from a full checkout, or download the [separate sample](editable-sample.en.md).
+
 ## Runtime environments
 
 | Environment | Image backend | Notes |
@@ -94,7 +98,7 @@ Remove duplicated content from the background and include the scene and assets.
 ## The one three-stage workflow
 
 ```text
-Confirm source, style reference, audience/use case, page count, and delivery scope
+Read the source and context, state defaults, clarify only material ambiguities
   ↓
 Step 1A Draft each slide → review/fix content → present draft → wait if approval or authority is missing
   ↓
@@ -105,7 +109,7 @@ Step 2  page-spec.json → generate and validate every slide image → image-onl
 Step 3  Page Spec + slide images → scene.json → native editable PPTX → structural and visual review
 ```
 
-Ordinary requests do not waive gates. Explicit authorization is interpreted narrowly.
+Unspecified details use the defaults above without an extra approval round. Honor existing authority and do not expand a local edit into authority over every stage.
 
 ### How detailed should the outline be?
 

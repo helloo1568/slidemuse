@@ -10,7 +10,7 @@
 重点面向**挑战杯（大挑/小挑）、中国国际大学生创新大赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、大创等竞赛**，也适用于**学术汇报、论文答辩、项目路演、课程展示与电影质感 PPT**，支持图片转可编辑 PPT。
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.22.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.23.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -31,6 +31,8 @@
 
 安装后直接说：`使用 $slidemuse，把这份 PDF 做成 10 页竞赛 PPT。`
 
+Agent 会先阅读材料、展示内容方案，再给风格选择。无需学习状态码或填写检查表；你已授权代定的部分直接继续。默认交付图片版，需要可编辑版时直接说明。
+
 手动安装与运行条件见[快速开始](#quick-start)。
 
 ### 当前版本能做什么
@@ -43,7 +45,7 @@
 | 接着上次继续做 | 输入预检、断点恢复、受影响页重渲染，以及集中列出的逐页待办。 |
 | 核对交付质量 | 对象与内容检查、当前文件绑定的评分卡，以及可选的离线逐页审阅面板。 |
 
-当前版本 **2.22.0**。新增 [`produce` 图片制作与恢复](references/page-production.md)：归档宿主原图、精确合成证据、单页返修并保留审阅记录；缩略图检查内部画幅，明确记录原图分辨率与放大。[信息密度规则](references/content-density.md)允许图表承担论点，通过语义覆盖映射减少重复正文，仍保留关键数字与逐页审阅。完整变更见 [CHANGELOG](CHANGELOG.md)；结构检查不代替内容、来源和展示可读性核验。
+当前版本 **2.23.0**。未指定的风格、页数和交付采用合理默认值；默认只在内容方案和风格选择处确认，已有授权直接继续。核心包不携带作品展示文件，IRENA 样板按需下载。完整变更见 [CHANGELOG](CHANGELOG.md)。
 
 ---
 
@@ -56,13 +58,13 @@
 IRENA 六页统计导读提供**原生文字、一张表格和三张嵌入工作簿图表**。完整样板包含源报告、图片版与可编辑版、四种独立修改练习，以及固定运行时和复现命令。
 
 <p align="center">
-<a href="showcase/editable-irena/previews/editable-03.webp"><img src="showcase/editable-irena/previews/editable-03.webp" alt="修改前：原生图表太阳能452 GW" width="49%"></a>
-<a href="showcase/editable-irena/previews/chart-edit.webp"><img src="showcase/editable-irena/previews/chart-edit.webp" alt="修改后：太阳能460 GW的合成练习，图表与说明同步" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/previews/editable-03.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/editable-irena/previews/editable-03.webp" alt="修改前：原生图表太阳能452 GW" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/previews/chart-edit.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/editable-irena/previews/chart-edit.webp" alt="修改后：太阳能460 GW的合成练习，图表与说明同步" width="49%"></a>
 </p>
 
 <p align="center"><sub>原版可编辑页 &nbsp; · &nbsp; 修改后的真实 PowerPoint 导出</sub></p>
 
-[下载可编辑 PPTX](showcase/editable-irena/decks/editable.pptx?raw=true) · [完整样板 ZIP](showcase/editable-irena/sample.zip?raw=true) · [修改演示视频](showcase/editable-irena/demo.mp4?raw=true) · [复现说明](docs/editable-sample.md)
+[下载可编辑 PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/decks/editable.pptx?raw=true) · [完整样板 ZIP](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/sample.zip?raw=true) · [修改演示视频](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/demo.mp4?raw=true) · [复现说明](docs/editable-sample.md)
 
 <sub>原版基于2024年统计和2025版报告时点情景；修改页显著标明合成练习值。源报告 © IRENA 2025。复现从已批准的图片与结构化输入开始。</sub>
 
@@ -70,54 +72,54 @@ IRENA 六页统计导读提供**原生文字、一张表格和三张嵌入工作
 
 三套完整竞赛作品，每套 **8 页**，以及「雪线守望」「釉光新生」两套风格展示。点击预览图可查看大图。
 
-[浏览完整 24 页竞赛作品](docs/competition-portfolio.md) · [本地作品集浏览器](showcase/competition-portfolio/index.html)
+[浏览完整 24 页竞赛作品](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md) · [本地作品集浏览器](https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/index.html)
 
 ### 焊隙智检 · 科技创新
 
 面向小批量制造的焊缝外观检测方案，展示采集、质量门控、人工复核与对照评测。
 
 <p align="center">
-<a href="showcase/competition-portfolio/assets/weld/01.webp"><img src="showcase/competition-portfolio/assets/weld/01.webp" alt="焊隙智检 · 科技创新 01: 项目封面" width="49%"></a>
-<a href="showcase/competition-portfolio/assets/weld/04.webp"><img src="showcase/competition-portfolio/assets/weld/04.webp" alt="焊隙智检 · 科技创新 04: 算法与数据处理架构" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/weld/01.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/weld/01.webp" alt="焊隙智检 · 科技创新 01: 项目封面" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/weld/04.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/weld/04.webp" alt="焊隙智检 · 科技创新 04: 算法与数据处理架构" width="49%"></a>
 </p>
 
 <p align="center"><sub>01 / 项目封面 &nbsp; · &nbsp; 04 / 算法与数据处理架构</sub></p>
 
-[查看完整 8 页](docs/competition-portfolio.md#焊隙智检) · [下载图片版 PPTX](showcase/competition-portfolio/decks/weld.pptx?raw=true)
+[查看完整 8 页](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md#焊隙智检) · [下载图片版 PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/decks/weld.pptx?raw=true)
 
 ### 路口先知 · 交通应用
 
 面向行人与转向车辆冲突的路侧预警方案，展示风险判断、场景验证及误报取舍。
 
 <p align="center">
-<a href="showcase/competition-portfolio/assets/junction/01.webp"><img src="showcase/competition-portfolio/assets/junction/01.webp" alt="路口先知 · 交通应用 01: 项目封面" width="49%"></a>
-<a href="showcase/competition-portfolio/assets/junction/06.webp"><img src="showcase/competition-portfolio/assets/junction/06.webp" alt="路口先知 · 交通应用 06: 固定回放的演示对照" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/junction/01.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/junction/01.webp" alt="路口先知 · 交通应用 01: 项目封面" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/junction/06.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/junction/06.webp" alt="路口先知 · 交通应用 06: 固定回放的演示对照" width="49%"></a>
 </p>
 
 <p align="center"><sub>01 / 项目封面 &nbsp; · &nbsp; 06 / 固定回放的演示对照</sub></p>
 
-[查看完整 8 页](docs/competition-portfolio.md#路口先知) · [下载图片版 PPTX](showcase/competition-portfolio/decks/junction.pptx?raw=true)
+[查看完整 8 页](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md#路口先知) · [下载图片版 PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/decks/junction.pptx?raw=true)
 
 ### 邻里守望 · 社区服务
 
 面向独居长者的社区支持服务方案，展示人工调度、责任分工、服务指标与持续运营。
 
 <p align="center">
-<a href="showcase/competition-portfolio/assets/neighbor/01.webp"><img src="showcase/competition-portfolio/assets/neighbor/01.webp" alt="邻里守望 · 社区服务 01: 项目封面" width="49%"></a>
-<a href="showcase/competition-portfolio/assets/neighbor/04.webp"><img src="showcase/competition-portfolio/assets/neighbor/04.webp" alt="邻里守望 · 社区服务 04: 服务网络与责任分工" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/neighbor/01.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/neighbor/01.webp" alt="邻里守望 · 社区服务 01: 项目封面" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/neighbor/04.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/neighbor/04.webp" alt="邻里守望 · 社区服务 04: 服务网络与责任分工" width="49%"></a>
 </p>
 
 <p align="center"><sub>01 / 项目封面 &nbsp; · &nbsp; 04 / 服务网络与责任分工</sub></p>
 
-[查看完整 8 页](docs/competition-portfolio.md#邻里守望) · [下载图片版 PPTX](showcase/competition-portfolio/decks/neighbor.pptx?raw=true)
+[查看完整 8 页](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md#邻里守望) · [下载图片版 PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/decks/neighbor.pptx?raw=true)
 
 ### 雪线守望 · 冰川蓝银科技
 
 高原冰川智能巡检与生态预警系统，以冰川蓝银配色呈现项目场景、痛点、方案与技术对比。
 
 <p align="center">
-<a href="showcase/snowline-watch-01.png"><img src="showcase/preview/snowline-watch-01.webp" alt="雪线守望 01: 项目封面" width="49%"></a>
-<a href="showcase/snowline-watch-04.png"><img src="showcase/preview/snowline-watch-04.webp" alt="雪线守望 04: 技术对比" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/snowline-watch-01.png"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/preview/snowline-watch-01.webp" alt="雪线守望 01: 项目封面" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/snowline-watch-04.png"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/preview/snowline-watch-04.webp" alt="雪线守望 04: 技术对比" width="49%"></a>
 </p>
 
 <p align="center"><sub>01 / 项目封面 &nbsp; · &nbsp; 04 / 技术对比</sub></p>
@@ -127,13 +129,13 @@ IRENA 六页统计导读提供**原生文字、一张表格和三张嵌入工作
 以红金配色呈现工艺主题，展示项目痛点、解决方案与工艺技术。
 
 <p align="center">
-<a href="showcase/red-gold-competition-03.png"><img src="showcase/preview/red-gold-competition-03.webp" alt="釉光新生 03: 解决方案" width="49%"></a>
-<a href="showcase/red-gold-competition-04.png"><img src="showcase/preview/red-gold-competition-04.webp" alt="釉光新生 04: 工艺技术" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/red-gold-competition-03.png"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/preview/red-gold-competition-03.webp" alt="釉光新生 03: 解决方案" width="49%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/red-gold-competition-04.png"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/preview/red-gold-competition-04.webp" alt="釉光新生 04: 工艺技术" width="49%"></a>
 </p>
 
 <p align="center"><sub>03 / 解决方案 &nbsp; · &nbsp; 04 / 工艺技术</sub></p>
 
-[查看全部 7 页风格示例](docs/style-showcase.md)
+[查看全部 7 页风格示例](https://github.com/helloo1568/slidemuse/blob/main/docs/style-showcase.md)
 
 <sub>作品均为原创概念展示，业务与技术数据为演示内容。三套竞赛作品提供图片版 PPTX；风格示例用于展示视觉效果。</sub>
 
