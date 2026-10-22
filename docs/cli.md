@@ -24,7 +24,7 @@ python slidemuse.py doctor
 | `produce prepare page-spec.json` | `scripts/page_production.py` | [图片制作与恢复](../references/page-production.md)：宿主原图归档、精确证据合成、逐页审阅和坐标修改 |
 | `audit deck.pptx --scene scene.json` | `scripts/audit_editability.py` | 检查原生对象 |
 | `review task/job.json task-output` | `scripts/review_panel.py` | 生成审阅面板或导入记录 |
-| `sample --verify --output sample-output` | `showcase/editable-irena/reproduce.py` | 重建公开样板的六套 PPTX |
+| `sample --verify --output sample-output` | `showcase/editable-irena/reproduce.py` | 重建可选样板；完整仓库用 `install.py --with-sample` 安装后可用 |
 | `rebuild <命令>` | `scripts/editable_backend.py` | [完整图片重建后端](../references/editable-backend.md)：输入、文字提示、路径/表格、素材板、公式和任务恢复；扩展依赖使用 `install.py --with-editable` |
 | `generate <命令>` | `scripts/generate_backend.py` | [完整图片生成后端](../references/generate-backend.md)：逐页任务与提示、分派/结果/阻塞登记、状态汇总、图片版组装和去底；扩展依赖使用 `install.py --with-generate` |
 

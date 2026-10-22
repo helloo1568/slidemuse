@@ -1,208 +1,89 @@
 ---
 name: slidemuse
-description: 将书籍、PDF、论文、报告或文字材料制作成视觉优先的图片版 PPT，适用于竞赛、答辩、路演、课程展示和读书分享；明确要求可编辑时，通过 Scene 或完整图片重建后端还原 PPTX，也支持直接还原已有图片/PDF/图片版 PPTX。新制作包含需求和大纲确认、四套风格选型及逐页生图；不用于直接修改已有可编辑 PPTX。
+description: 将书籍、PDF、论文、报告或文字制作成视觉统一的图片版 PPT，适用于竞赛、答辩、路演、课程展示和读书分享；按需还原可编辑 PPTX，也支持直接还原已有图片、PDF 或图片版 PPTX。不用于普通修改已有可编辑 PPTX。
 ---
 
-# SlideMuse · 2.22.0
+# SlideMuse · 2.23.0
 
-本技能只有一条主流程：**内容提炼 → 图片 PPT 生成 → 可编辑 PPTX 还原**。
-用户负责确认内容与风格，Agent 负责按已确认规格执行；不得把流程改写成“先做原生信息层”的编辑优先路线。
+新材料按 **内容提炼 → 图片 PPT → 按需可编辑还原** 制作。已有页面要求还原时直接进入重建。内容与视觉应准确、清楚、统一；检查服务于这几个结果。
 
-## 运行环境
+## 开始任务
 
-- 常用本地操作优先使用根目录 `slidemuse.py`：[命令指南](docs/cli.md)。入口自动选择当前安装目录的 `.venv`，保留任务路径、原脚本参数和退出码；`doctor --json` 可独立诊断缺失依赖。高级脚本继续按下方方式执行。
-- 通过仓库根目录的 `install.py` 安装时，技能目录会创建独立的 `.venv`，并在 `.skill-python` 中记录解释器绝对路径。
-- 执行任何 `scripts/*.py` 前，若 `.skill-python` 存在，优先使用其中的解释器；否则使用可用的 Python 3.10+。
-- 下文命令中的 `python` 均表示上述技能解释器，不要求用户把依赖安装进全局 Python 环境。
-- 任务材料和产物必须放在独立工作目录，不得写入技能安装目录。
-- 已确认的 Page Spec 和已准备的 Scene 可使用[可恢复交付流水线](references/pipeline.md)统一编译、逐页渲染、审查和生成待办；待审记录必须实际审阅后填写，不得自动改为通过。
-- S5 逐页图片用 [`produce` 制作记录](references/page-production.md)登记宿主原图、合成精确证据、保留修订与审阅状态；Page Spec 是最终坐标的唯一来源，自动生成的制作状态摘要替代反复追加的当前状态叙述。
-- `init_deck.py` 只生成任务配置，`run_deck.py --check` 只读预检。中文待办定位问题页面及文件；工具不会替代需求确认、图片批准或真实审阅。
-- 可编辑编译和审计提供[原生文字溢出预警](references/text-layout.md)，定位文本框和表格单元格。估算无风险不代表放得下；风险项须实际查看渲染，不自动缩字、删内容或填写通过。
-- 流水线渲染后生成[本地逐页审阅面板](references/review-panel.md)，可对照画面填写记录、下载并导入；导入后需重新运行评分，不自动通过。
+先检查用户已给的材料和上下文，必要时阅读材料来判断篇幅与用途。只询问会实质改变结果、又无法合理推断的信息，并一次问完；不要为了填满五个字段阻止阅读。
 
-## 平台与生图后端
+- 源材料不可访问、受众/任务存在相互冲突的解释、关键事实缺失时询问。
+- 未指定风格：按无参考处理；未指定页数：根据材料推荐并随内容稿展示；未指定交付：先做图片版；默认 16:9、沿用材料语言。使用场景可从上下文判断，无法判断且影响内容取舍时再问。把采用的默认值简要告诉用户，不额外等待确认默认值。
+- 用户已要求可编辑版，即已授权最后的重建阶段，不在图片版完成后重复询问。
+- 默认只在**内容方案**和**风格选择**处请用户决策。已有“你来定”“按这个做”“其余由你决定”等对应授权时继续执行，记录授权范围即可。明确修改也是该范围的授权。
+- 状态码、哈希、日志与检查文件由 Agent 管理，不要求用户理解或填写。进度只说明当前成果、需要选择的内容和实际阻塞项。
 
-- **最佳推荐：Codex + GPT Image 2.5。** Codex 暴露模型选择时，风格探索优先使用 GPT Image 2.5 Flare，成品页与精确参考编辑优先使用 GPT Image 2.5 Sunburst。
-- Codex 未暴露型号时调用其当前生图能力，不得声称指定了某个 2.5 子型号。
-- 其他 Agent 必须调用该 Agent 自身提供或已连接的图像生成/编辑能力，不得假设存在 Codex 专属工具。
-- 基本 Scene 工具保持离线。S6 的[完整图片转可编辑后端](references/editable-backend.md)可测量文字几何、处理输入、拆分素材并重建 PPTX；OCR 和图像服务为可选接口，按用户选定的后端与宿主工具规则使用。`rebuild --offline` 隔离外部配置与凭证发现。
+任务文件放到独立工作目录。用 `deck-spec.md` 保存内容稿、采用的需求、用户授权和当前进度；[规格模板](references/deck-spec-template.md)可按任务规模选用，保留实际信息，不机械填满无关栏目。恢复旧任务或修改已有交付时再读[变更与恢复](references/workflow-updates.md)。
 
-## 强制流程契约
+## 1. 内容方案
 
-以下是本技能的默认流程；明确的跳过、代定或代选授权只改变对应环节，不扩大其他阶段的授权：
+读取 [Prompt 1A](references/prompts.md)、[内容深度](references/content-outline.md)与[密度规则](references/content-density.md)。论文、政策或长报告再按需读[材料审阅](references/material-reading.md)。
 
-1. 每次行动前判断状态，只执行状态表允许的动作。
-2. 五项需求未齐时只确认缺失项；可检查文件存在性和页数等元数据，不得阅读正文、提炼内容或生图。
-3. 内容大纲必须展开成可审阅的逐页内容稿，经内容质量自检后单独展示。自检未通过时留在 S1 修正；通过后未获确认或明确代定授权时进入 S2 等待，不得生成风格总览。对应授权已明确时记录后继续，自检仍不可省略。
-4. 风格未锁定时默认生成四张独立的幻灯片浏览视图并等待选择；具体豁免只按“风格门禁”执行，不得自行判断跳过。
-5. 新材料必须先完成图片版。用户一开始要求可编辑版表示已授权最后阶段，但不能跳过图片版直接创作原生 PPTX。
-6. Step 2 开始前必须创建并验证 `page-spec.json`。它保存已确认文字、数据、来源、元素意图和稳定 ID；Step 3 不得重新 OCR 或改写其中的已知内容。
-7. “帮我做 PPT”“直接做一份”“按技能制作”不构成跳步授权。只按用户明确说出的跳过、代定或代选范围快进。
-8. 用户新指令与旧规格冲突时，按[变更与恢复规则](references/workflow-updates.md)更新已有规格、回退状态并标记受影响产物；尚未创建的 Page Spec 不提前创建。
-9. 当前 Agent 没有生图能力时停在对应状态并说明，不能用占位图冒充结果。
+先明确受众需要理解的问题和整套回答，再写逐页内容：页面作用、结论、实际展示文案、证据/数据及必要解释。内容页按其用途安排信息密度；图表能表达的关系不重复堆正文。封面和过渡页按作用简化。
 
-## 状态机
+核对材料事实、推断、计算和建议，修正无支撑结论、错误口径、缺失关键解释及篇幅问题。来源不够时缩小结论或询问必要事实，不编造数据。地图、实验截图等证据按[证据素材](references/evidence-assets.md)决定保留原图或可靠数据重绘。
 
-| 状态 | 进入条件 | 允许动作 | 阶段出口 |
-|---|---|---|---|
-| S0 需求未齐 | 五项需求至少一项未明确且无对应代定授权 | 询问缺失项；检查文件元数据 | 用户补充或明确授权 |
-| S1 内容提炼 | 五项需求齐全或缺失项已获代定授权 | 阅读材料、创建逐页内容稿、自检、修正并展示 | 自检通过且已展示后：无内容授权进入 S2；已有对应授权进入 S3 |
-| S2 等待内容确认 | 逐页内容稿已自检通过并展示 | 接收确认或修改；受影响内容回 S1 修正和自检 | 当前内容版本获确认或明确代定 |
-| S3 风格方案 | 当前内容稿自检通过、已展示且获确认或明确代定 | 按风格门禁生成四套总览或记录合法豁免 | 总览已展示或风格已合法锁定 |
-| S4 等待风格确认 | 四套总览已展示 | 接收选择/修改；已授权代选时记录选择 | 视觉规范锁定 |
-| S5 图片版制作 | 内容和风格均锁定 | 创建 Page Spec、逐页生成、验收并合并图片版 | 图片版交付或进入已授权 S6 |
-| S6 可编辑重建 | 用户明确要求可编辑，或要求从已有页面直接还原 | 分层、编写 Scene、编译、审查和渲染核对 | 可编辑交付完成 |
-| DONE 已交付 | 已完成用户要求的交付范围 | 记录交付版本；收到修改时按变更表恢复 | 本轮交付结束 |
+向用户展示整套叙事和逐页实际内容；长稿可分段呈现，不能只给标题表或文件链接。没有内容授权时在这里等待；已有对应授权时展示后继续。内容确定后再创建 Page Spec、风格图片和成品，不提前消耗生图调用。
 
-已有页面图片/扫描 PDF 要求还原时可从 S6 开始；先确认输入范围、原比例和编辑目标，再创建 `page-spec.json` 记录可见内容。
-已有可编辑 PPTX 只做普通修改时不走本技能，应保留原生结构；本技能已有 Scene 的后续修改按变更表恢复 S6。
+## 2. 风格和图片版
 
-## S0：确认五项需求
+读取 [Prompt 1B / 2](references/prompts.md)与[风格总览](references/style-options.md)。默认给四套使用相同内容的独立缩略图总览，让用户选择。沿用用户明确指定的模板，或按其明确的跳过/代选授权执行；已有选择不再询问。代选时仍生成四套并记录选择理由，跳过预览时记录 `skipped`。
 
-一次集中询问尚未明确的项目，已提供的不得重复询问：
+总览使用任务指定页面比例；最多八页时展示全部，更多页时选同一组六至八个代表页。每套一次生图，保留方案编号。纯尺寸、网格或边距问题用 `build_style_overview.py` 修正；内容或视觉问题才重试生图。实际生成四套时运行 `validate_style_options.py` 并看图核对，只展示每套最新有效候选。
 
-1. **源材料**：附件、路径、PDF、书籍或粘贴文字。
-2. **参考风格**：模板/图片/文字描述，或明确“没有参考风格”。
-3. **使用场景与受众**：课堂、读书分享、组会、周报、项目汇报、路演等。
-4. **页数预期**：固定页数、范围，或明确授权根据内容推荐。
-5. **交付范围**：图片版，或图片版完成后继续还原可编辑版。
-
-“没有参考风格”“页数由你推荐”“其余由你决定”是有效授权，必须原样记录。
-
-## 制作规格
-
-进入 S1 或 S6 后，把 [规格模板](references/deck-spec-template.md) 复制到任务目录并填写为 `deck-spec.md`。任务目录与技能安装目录分离。
-
-恢复任务、上下文压缩、用户改需求或阶段转换时，先读取并更新规格。用户修改或恢复到不同版本时读取[变更与恢复规则](references/workflow-updates.md)，核对基准图版本和已授权差异。规格记录状态、授权、确认版本、页序、生成状态、质量检查和交付路径。
-
-完整新制作从 S1 开始按[制作记录](references/production-metrics.md)创建任务日志，生图、失败调用、返修和交付发生时追加；恢复旧任务只记录真实可追溯事件，不估算补齐历史。日志不构成额外用户确认门禁。
-
-## Step 1A：内容提炼与确认（S1 → S2）
-
-进入后读取 [Prompt 1A](references/prompts.md)、[内容深度与自检](references/content-outline.md)及[密度与成品检查](references/content-density.md)。论文和长篇报告/政策按需读取[材料审阅](references/material-reading.md)，核对方法解释、实验口径、来源冲突及目标与观测的区别。
-
-1. 阅读材料，明确受众需要理解或决定的问题、整套回答和页间推进关系；按场景组织，避免只有目录和数据罗列。发现地图、实验截图或精确图表时，按[证据素材](references/evidence-assets.md)确定保留原图、数据重绘或概念示意；原始证据默认完整保留，不能只作为生图参考后宣称保真。
-2. 把完整页序和逐页内容稿写入 `deck-spec.md`。每页注明页面类型（12 种枚举之一）；内容页写出主要结论、支撑要点、可定位证据、解释及边界；普通页默认 3–5 条，图表主导/简洁/密集查阅页按 content-density.md 声明例外理由。不得重复标题、并列孤立数字或编造事实凑数。区分页面实际展示的文字/图表与可选讲稿；封面、过渡等页面按其作用处理。
-3. 按内容深度参考进行语义自检，记录当前版本、各项判断及问题页。论点无支撑、关键问题未回答、口径错误或内容空洞时先修正；材料不足就缩小结论、调整页序或列出必须补充的信息，不靠增加字数或编造因果过关。
-4. 自检通过后，单独展示整套叙事、页数、每页页面类型与结论、实际展示内容、证据/解释及待确认项，报告大纲位置和素材图→页映射，并声明尚未生成任何图片与 PPTX；不能只展示标题表或文件链接。缺少对应确认或代定授权时进入 S2 并停止；在此之前不得创建 Page Spec、风格总览、生图提示或成品图片。已有授权时记录原文、范围与当前版本后进入 S3。结合上下文判断授权，不要求固定口令，也不把单独的“继续”扩大成全阶段代定。
-5. 用户要求修改时只更新受影响页面，重做相关自检并再次展示；明确指定的修改是对该变更的授权，已明确的授权不重复询问。未决定的内容仍按门禁等待。自检通过不代表用户已确认，用户授权也不替代自检。
-
-## Step 1B：风格方案与确认（S3 → S4）
-
-进入后读取 [Prompt 1B](references/prompts.md) 和[缩略图总览验收](references/style-options.md)，按以下确定规则执行。用户要求复用、保存或指定已有风格库风格时读取[可复用风格库](references/style-library.md)：库中风格只是候选池，不代替本次的四套演绎与确认记录。
-
-| 用户指令 | 动作 |
-|---|---|
-| 无参考或只有宽泛风格方向 | 必须生成四套总览并等待选择 |
-| 提供参考但未明确“一比一沿用/严格照此制作” | 基于参考生成四套不越界的演绎并等待选择 |
-| 明确要求严格沿用指定模板/母版/页面风格 | 记录 `locked-reference`，不生成四套；把参考转成文字视觉规范 |
-| 明确说“跳过四套预览” | 记录 `skipped` 和授权原文；使用已给风格或请求其授权代定 |
-| 明确说“你代选” | 仍生成四套，Agent 选择并记录理由与 `delegated` |
-
-四套总览必须使用同一组代表页和相同内容，只改变视觉系统：总页数不超过 8 页时展示全部，超过 8 页时选 6–8 个覆盖主要页面类型的代表页。缩略页沿用任务指定比例，网格按数量适配，不补造页面。分别保存并展示方案 1–4；不得把四套拼成一张四宫格或用纯文字替代。总页数为 1 时，每套自然只有一页。
-
-总览默认采用横向 16:9 画布，缩略页等大、完整、留有间距，页码在缩略页下方；3 页采用 2×2 网格并留空一格，不做纵向整页长图。重试沿用原方案编号并明确说明替换哪一版，交付只列每套最新验收版，历史稿不作为新增方案。
-
-每套直接用一次生图生成含全部代表页的缩略图总览，正常四套共四次调用。风格选定前不逐页生成高清成品，再拼成总览。仅尺寸、排列、边距或外部页码有问题时，使用 `build_style_overview.py` 对已有图片本地缩放排版；需要拆分长图时先视觉确认每页裁切框，不为排版再次调用生图。内容或视觉本身有错才考虑针对性生图修复，并记录额外调用。
-
-实际生成四套时，把当前候选写入 `style-options.json`，逐张核对缩略页网格与内容，并执行以下检查。结构与视觉检查均通过后，才进入 S4 宣布当前四套方案已齐；不将修正中间稿计为新方案。合法豁免四套预览的任务不要求创建此清单。
+内容与风格确定后，按 [Page Spec](references/page-spec.md) 创建 `page-spec.json`，保留准确文案、数据、来源、稳定 ID、风格和授权。已有用户授权可直接记录为内容确认，不另索要固定口令。
 
 ```sh
-python "<skill-dir>/scripts/validate_style_options.py" "<work>/style-options.json" --require-layout
+python "<skill-dir>/slidemuse.py" validate "<work>/page-spec.json" --strict
 ```
 
-## Step 2：生成图片版 PPT（S5）
+按 [Prompt 2](references/prompts.md)逐页生成。用 [`produce`](references/page-production.md)归档原图、合成精确证据并记录逐页审阅；需要完整生成后端时再读[生成后端](references/generate-backend.md)。未记录在 Page Spec 的数据视觉不得装饰性添加。每页检查文字、数字、图表关系、可读性与整体风格，只返修有问题的页面。
 
-进入后读取 [Prompt 2](references/prompts.md)、[Page Spec](references/page-spec.md) 和 [模型说明](references/models.md)。含定量图表时读取[图表可靠性](references/chart-reliability.md)；含原始证据素材时读取[证据素材](references/evidence-assets.md)。多页任务先完成并检查一张实际画幅、信息密度有代表性的成品页，再作为后续视觉基准；复用该页，不额外生成样稿或增加确认门禁。多页任务需要逐页任务分派、并发生成和状态登记时，可按[完整图片生成后端](references/generate-backend.md)改用 `slidemuse.py generate`；一条任务只用一套产物，不混用 `page-spec.json` 与 `slide_jobs.json`。
+同一文字或图表问题连续两次无效时停止同类生图重试，按 [Prompt 2A](references/prompts.md)或[图表可靠性](references/chart-reliability.md)使用允许的准确区域/文字兜底。程序改图遵守宿主工具的实际授权；未解决的问题不能自动标为通过。
 
-1. 把确认后内容稿中所有页面展示内容与锁定视觉规范写入 `page-spec.json`，保留支撑结论的解释和必要边界，不能缩回“标题 + 大数字”；可选讲稿留在 `deck-spec.md`。每页填写 `slides[].role`（与 `deck-spec.md` 页面类型同一枚举），内容页填写 `slides[].key_points`（普通页默认 3–5 条，例外按[密度规则](references/content-density.md)声明）并与内容稿对应；新任务声明顶层 `content_policy: "1.0"`，内容页包含 `source_refs`、`explanation` 和必要的 `boundary`。新任务把配色、字体字号、网格间距和图片处理写入 `style.tokens`，保留可读的 `visual_spec`；若有已选参考图，写入 `reference_images`。每页为所有已知文字、数据、视觉主体和图表分配稳定 ID；位置可先写 `bbox_hint`。
-2. 生成第一张图片前必须运行：
-
-```sh
-python "<skill-dir>/scripts/validate_page_spec.py" "<work>/page-spec.json" --strict --content
-```
-
-内容稿已有可选讲稿时，按[讲稿保留](references/speaker-notes.md)同步到 `slides[].speaker_notes`，不加入生图可见文案；图片版构建器会保存已声明讲稿。
-
-3. 用 `produce prepare` 建立当前制作状态和提示快照，按 `01-title.png`、`02-title.png` 的零填充序号逐页生成；宿主返回原图后用 `produce compose` 登记和合成证据。每次提示包含锁定视觉规范、Page Spec 中的准确内容、页码和总页数。
-4. 每页立即检查画幅、文字、数据、裁切、溢出和跨页一致性。用 `produce review-init` 创建待审记录，实际审阅后用 `produce accept` 提交；语义映射、来源、可读性、密度与视觉关系分别记录，不能复制预期文本充当观察。含关键数字、日期、专名或必现图表标签的页面，也可按 [Page Spec 内容核对](references/page-spec.md)运行 `audit_page_content.py --require-complete`，下游交付继续使用该观察格式。脚本只比对观察记录，不负责 OCR；图表数据及未识别的小字仍需视觉核对。按证据素材参考检查文字、图形、素材和目标展示尺寸；受保护素材的像素检查失败时不得批准。最终路径和坐标写回 Page Spec，制作状态由工具维护。失败只重做对应页。
-5. 同一页文字连续两次不准确时停止重试：按 Prompt 2A 生成保留全部主视觉的无字页面，再用 `scripts/overlay_text.py` 叠加准确文字并栅格化；叠字前后核对主视觉未丢失。Step 2 不提前移除 Step 3 才需拆分的主体。
-   图表数字与几何分别检查，并检查未声明的数据视觉。同一几何问题连续两次检查失败时停止生图重试，按图表可靠性参考准备精确区域修复；程序改图须遵守当前宿主工具的授权要求，既有授权覆盖时不重复询问。
-6. 全部页面通过后运行交付验证和合并：
+合并图片版并实际渲染、查看结果：
 
 ```sh
-python "<skill-dir>/scripts/validate_page_spec.py" "<work>/page-spec.json" --require-images --strict
 python "<skill-dir>/scripts/build_image_ppt.py" "<work>/page-spec.json" "<work>/output/image-deck.pptx"
+python "<skill-dir>/slidemuse.py" render "<work>/output/image-deck.pptx" "<work>/output/image-review" --page-spec "<work>/page-spec.json"
 ```
 
-7. 导出按 Page Spec 的批准图片清单、页序和画幅进行；旧稿留在目录中不会加入成品。使用 `render_deck.py` 渲染并查看 `review.png`、`render-report.json`，核对页数、页序、画幅、文字和裁切。无可用渲染器时记录限制，不得声称视觉验收通过。未授权 S6 时记录 DONE 并交付；已授权时更新规格后进入 S6。
+用户要求可编辑版时直接继续，否则交付。没有渲染器时说明仅完成结构验证，不声称视觉验收通过。
 
-```sh
-python "<skill-dir>/scripts/render_deck.py" "<work>/output/image-deck.pptx" "<work>/output/image-review" --page-spec "<work>/page-spec.json"
-```
+## 3. 按需还原可编辑版
 
-## Step 3：还原可编辑 PPTX（S6）
+读取 [Prompt 3](references/prompts.md)、[重建与分层](references/reconstruction.md)和 [Scene 协议](references/scene-format.md)。已有图片/PDF直接还原、复杂曲线/表格/公式、文字测量或逐页恢复需求，按需选择[完整重建后端](references/editable-backend.md)，保留其 Manifest，不混用 Scene 格式。
 
-进入后读取 [Prompt 3](references/prompts.md) 和[重建与分层](references/reconstruction.md)。直接还原现有图片/PDF/图片版 PPTX，或涉及自动文字尺寸提示、复杂曲线、逐格表格样式、公式及逐页恢复时，使用[完整重建后端](references/editable-backend.md)；已有 Scene、原生数据图表或数据绑定继续读取 [Scene 协议](references/scene-format.md)，执行下面的 Scene 路线。完整后端保留其原始 Manifest 格式和验证报告，最终仍用本技能的 `render` 真实渲染，不混用两种格式。
+以 Page Spec 为语义来源、已批准页面为视觉基准。已知文字、数据、来源与稳定 ID 直接复用，不重新 OCR 或改写；只核验未确定项。用户已授权的差异记录后采用，不当作新冲突反复询问。
 
-1. 以 `page-spec.json` 为语义事实源、验收后的页面图片为视觉事实源。直接还原任务先从可见页面建立 Page Spec；用户要求保留原内容即视为对转录目标的授权，不代表低置信度文字已确认。
-2. Page Spec 已记录的文字、数据、来源和 ID 直接复用，不重新 OCR、改写或更换。按变更记录识别重建后的已授权修改；只有未记录或超出授权的图文冲突才请求确认。
-3. 每次处理 1–3 页，补齐精确坐标、层级、素材和置信度。文字、简单几何、表格和可靠数据图使用原生对象；复杂视觉拆成独立图片对象。直接重建需要校准字号、素材有断开细节或表格含合并单元格时，读取[上游参考与适配](references/upstream-editable.md)；表格使用 Scene 的行高权重与矩形合并，不猜造未能识别的结构。
-4. 从背景移除所有原生化文字和已拆主体并补全背景。原始整页图片只作核对证据，不能作为可编辑版底图。
-5. 按 [JSON Schema](references/scene.schema.json) 编写 `scene.json`，然后编译和审查：
+文字、简单形状、表格和有可靠数据的图表用原生对象；照片、人物及复杂插画用可独立移动的图片。从背景移除原生化文字和已拆主体，避免重影。整页截图不能充当可编辑底图。合并单元格和不等行高见[表格适配](references/upstream-editable.md)。
 
 ```sh
 python "<skill-dir>/scripts/build_editable_ppt.py" "<work>/scene.json" "<work>/output/editable.pptx" --page-spec "<work>/page-spec.json"
-python "<skill-dir>/scripts/audit_editability.py" "<work>/output/editable.pptx" --scene "<work>/scene.json" --output "<work>/output/editability.json"
+python "<skill-dir>/slidemuse.py" audit "<work>/output/editable.pptx" --scene "<work>/scene.json" --output "<work>/output/editability.json"
+python "<skill-dir>/slidemuse.py" render "<work>/output/editable.pptx" "<work>/output/editable-review" --page-spec "<work>/page-spec.json"
 ```
 
-6. 使用 `render_deck.py` 实际渲染并与 Page Spec 中已验收的基准图逐页核对，再抽查移动主体、修改文字和编辑图表数据。`review.png` 的第三列是像素差异，仅供定位，不能单凭差异数值判定合格。问题只修对应 Scene 元素或素材；同一问题连续两次无效时记录限制。
+查看实际渲染，核对原生对象、文字、图表和背景；抽查用户需要的编辑操作。数据修改时同步相关占比、差额、结论和讲稿，[数据依赖](references/data-bindings.md)可辅助；依赖未声明时仍需实际核对。局部修改复用有效页面，保留原版与失败记录。讲稿需求见[演讲备注](references/speaker-notes.md)。
 
-```sh
-python "<skill-dir>/scripts/render_deck.py" "<work>/output/editable.pptx" "<work>/output/editable-review" --page-spec "<work>/page-spec.json"
-```
+## 检查与交付
 
-质量回归或版本发布时读取[交付评测](references/evaluation.md)，为整套页面建立内容观察和逐页视觉复核记录，再运行 `evaluate_delivery.py` 生成与当前 PPTX、Page Spec、渲染图和记录哈希绑定的评分卡；可编辑版同时传入 Scene。评分卡为 `pass` 才可声称该版本通过完整评测，`incomplete` 不能视为通过。普通交付仍按上述逐页验收，不强制生成评测记录。
+按任务范围验证，不把跨材料评测变成普通制作门槛：
 
-## 交付契约
+- 普通制作：来源与内容核对、逐页看图、导出后真实渲染；可编辑版增加对象检查。
+- 局部修改：核对受影响页、数据依赖和导出结果，复用仍有效的检查；不重新选风格或审查未变内容。
+- 需要可复跑评分卡时才读[交付评测](references/evaluation.md)；跨材料质量比较时才读[多材料评测](references/benchmark.md)。保留原批次和首次/最终结果，不能把结构检查或样板复现称作生成质量提升。
 
-- **图片版**：`image-deck.pptx`、有序页面图片、`page-spec.json`、实际预览/检查说明。
-- **可编辑版**：在图片版基础上增加 `editable.pptx`、`scene.json`、引用的 `assets/`、`editability.json` 和渲染预览。
-- **完整重建后端输出**：按其参考交付逐页 Manifest、素材、页映射/备注、任务记录、验证报告及真实渲染预览；Scene 尚未表达的属性保留在 Manifest，不伪称已全部转换为 Scene。已有 Page Spec/内容契约继续保留。
-- **完整图片生成后端输出**：按[完整图片生成后端](references/generate-backend.md)交付已确认大纲、`slide_jobs.json`、逐页任务与提示、`origin_image/slide_NN.png`、`speech.md`（如有）、组装出的 `.pptx` 和真实渲染预览。它不替代图片版主流程，也不与 Page Spec 产物混用。
-- 说明字体替代、低置信度识别、AI 补全、独立栅格对象和待人工处理项。
-- 不能把整页截图加少量文本框、整页 SVG 或未拆分背景称作“每个元素可编辑”。
-- 默认不反复展示检查图、初稿和修复稿；工具已显示的图片不再重复嵌入。风格选择只列每套最新验收版，最终只列批准版本及一个清晰预览。用户需要比较或某页需决策时，明确页码/版本后展示相关图；检查与历史证据仍保存到任务目录。
-- 无渲染器时写明“仅完成结构验证”，不能声称视觉验收通过。
+自动保存已有工具产生的记录即可，不为每个小改动另造证据链或要求用户确认检查文件。完整新制作可用[制作日志](references/production-metrics.md)记录实际调用、返修与耗时；缺失历史标为未知。准备好规格后的自动编译/恢复见[流水线](references/pipeline.md)，集中人工查看见[审阅面板](references/review-panel.md)，溢出诊断见[文字布局](references/text-layout.md)。
 
-## 资源路由
+交付时优先展示成品链接、一个有效预览和实际限制。图片版附有序图片及 Page Spec；Scene 重建附 Scene、素材和对象检查结果；完整后端附对应 Manifest、任务记录和预览。辅助文件保存在任务目录，无需逐项向用户解释。默认不重复嵌入工具已展示的图片、初稿或修复稿。保留原文件，写入失败时可恢复；不改旧封存记录来制造通过。
 
-- [prompts.md](references/prompts.md)：进入对应 Step 后只读该阶段提示词。
-- [content-outline.md](references/content-outline.md)：S1/S2 创建、审阅和修改逐页内容稿时读取；提供深度判断、反例和内容自检，不以字数或字段齐全替代语义审阅。
-- [material-reading.md](references/material-reading.md)：S1 阅读论文或长篇报告/政策时按需读取，审阅机制解释、实验口径、实施关系与来源冲突。
-- [speaker-notes.md](references/speaker-notes.md)：有可选讲稿的 S5/S6 或仅修改讲稿时读取；保留演讲备注、核对实际 PPTX，按需导出独立讲稿。
-- [style-options.md](references/style-options.md)：仅 S3 生成、修正和验收四套缩略图总览时读取。
-- [style-library.md](references/style-library.md)：仅用户要求保存、复用或指定已有风格库风格时读取；说明两处风格来源、命名与 brief 字段。
-- [generate-backend.md](references/generate-backend.md)：S5 需要逐页任务分派、并发登记和图片版组装时读取；覆盖 `slidemuse.py generate` 的 `prepare`/`dispatch`/`result`/`blocker`/`assemble`、离线边界和上游参考。
-- [page-spec.md](references/page-spec.md)：仅 S5/S6 创建或更新 Page Spec 时读取。
-- [workflow-updates.md](references/workflow-updates.md)：仅用户改需求、交付后修改或跨版本恢复时读取。
-- [data-bindings.md](references/data-bindings.md)：修改表格/图表数据及其依赖正文、百分比、差额和讲稿时读取；提供可选契约、差异预览、独立待审草稿与交付检查，不代替来源和语义复核。
-- [models.md](references/models.md)：S3/S5 生图，以及 S6 需要背景清理/主体分离时读取。
-- [reconstruction.md](references/reconstruction.md) 与 [scene-format.md](references/scene-format.md)：仅 S6 读取。
-- [editable-backend.md](references/editable-backend.md)：S6 使用完整图片转可编辑能力时读取；覆盖输入归一化、文字测量、原生路径/表格、素材板、公式、任务恢复、外部后端和真实渲染。
-- [evaluation.md](references/evaluation.md)：仅质量回归、版本发布或需要可复跑评分卡时读取。
-- [benchmark.md](references/benchmark.md)：仅跨材料评测时读取；冻结全部案例、保留首次与修复后成绩、验证实际产物证据并按类别/划分汇总。
-- [pipeline.md](references/pipeline.md)：已准备好 Page Spec/Scene 后，使用可恢复交付、渲染超时、环境指纹、可选 PowerPoint 实测及逐页待办。
-- [production-metrics.md](references/production-metrics.md)：完整新制作从S1记录事件，质量回归按实际范围记录；保留生图次数、返修页、实测耗时与首次/最终交付结果。缺失部分不能凭估计补零。
-- [evidence-assets.md](references/evidence-assets.md)：S1识别科研证据素材，S5保持原图或可靠数据重绘，并进行分类型验收；`preserve_asset` 在最终PNG中校验真实素材像素。
-- [chart-reliability.md](references/chart-reliability.md)：S5 定量图表检查、有限修复或完整评测时读取；包括几何观察与精确水平条形区域兜底。
-- `validate_page_spec.py`：验证内容确认、页序、稳定 ID、画布边界和图片交付状态。
-- `overlay_text.py`：仅作为 Step 2 图片页的准确文字兜底。
-- `build_image_ppt.py`：仅用于 Step 2 图片版合并。
-- `render_deck.py`：渲染 PPTX 全部页面，生成逐页 PNG、总览和可选基准图对照；自动选择可用的 PowerPoint 或 LibreOffice/Poppler 后端。
-- `audit_page_content.py`：比对看图或 OCR 的逐页文字观察记录与 Page Spec，并拒绝复用图片哈希已变化的旧记录。
-- `plan_deck_update.py`：修改前保存已批准页面和参考图哈希，修改后规划需重做、复查或可复用的页面；不自动更改批准状态。
-- `evaluate_delivery.py`：汇总内容、视觉和可编辑性证据，拒绝旧版渲染或复核记录，产出交付评分卡。
+## 运行工具
 
-- [content-density.md](references/content-density.md)：S1/S5/S6 的密度判断、同一内容清单的传递、观察记录与生成交付检查；不是仅按条目数或占比评分。
+统一入口为 `slidemuse.py`，详见[命令指南](docs/cli.md)。入口优先使用安装目录的 `.venv`；直接运行脚本时使用该环境或可用的 Python 3.10+。`doctor --json` 诊断环境，不能替代实际渲染。默认安装不携带 IRENA 演示，获取方式见[样板说明](docs/editable-sample.md)。
+
+生图使用宿主实际提供的能力，[模型选择](references/models.md)按需读取；没有生图工具时报告阻塞，不用占位图冒充。基本 Scene 工具离线，外部 OCR/图像服务仅按用户所选后端和宿主规则使用，不寻找密钥或静默切换服务。复用已有风格库时读[风格库](references/style-library.md)。

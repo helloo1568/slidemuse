@@ -33,7 +33,8 @@ RUNTIME_PATHS = (
     "examples",
 )
 
-OPTIONAL_RUNTIME_PATHS = ("showcase/editable-irena", "docs", "vendor")
+OPTIONAL_RUNTIME_PATHS = ("docs", "vendor")
+SAMPLE_PATH = "showcase/editable-irena"
 OPTIONAL_RUNTIME_FILES = ("README.md", "README.en.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE",
                           "requirements-editable.txt", "requirements-generate.txt")
 
@@ -87,11 +88,18 @@ def check_target(target: Path, force: bool) -> None:
         )
 
 
-def copy_runtime(root: Path, target: Path) -> None:
+def copy_runtime(root: Path, target: Path, *, with_sample: bool = False) -> None:
     missing = [str(root / name) for name in RUNTIME_PATHS if not (root / name).exists()]
     if missing:
         raise RuntimeError(f"Missing runtime paths: {', '.join(missing)}")
+    if with_sample and not (root / SAMPLE_PATH / "reproduce.py").is_file():
+        raise RuntimeError(
+            "The optional sample is not included in the core archive. "
+            "Download sample.zip from https://github.com/helloo1568/slidemuse/releases "
+            "and run its reproduce.py, or use --with-sample from a full repository checkout."
+        )
     paths = (*RUNTIME_PATHS, *(name for name in OPTIONAL_RUNTIME_PATHS if (root / name).is_dir()),
+             *((SAMPLE_PATH,) if with_sample else ()),
              *(name for name in OPTIONAL_RUNTIME_FILES if (root / name).is_file()))
     for name in paths:
         source = root / name
@@ -169,6 +177,7 @@ def legacy_installs(home: Path, client: str, skill_name: str) -> list[Path]:
 def install_skill(
     root: Path, target: Path, client: str, skill_name: str, force: bool, skip_deps: bool,
     with_editable: bool = False, with_generate: bool = False,
+    with_sample: bool = False,
 ) -> Path:
     check_target(target, force)
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -176,7 +185,7 @@ def install_skill(
     backup: Path | None = None
     activated = False
     try:
-        copy_runtime(root, staging)
+        copy_runtime(root, staging, with_sample=with_sample)
         python = Path(sys.executable)
         if not skip_deps:
             python = install_dependencies(staging, target)
@@ -194,6 +203,7 @@ def install_skill(
             "source": str(root),
             "editable_backend": with_editable,
             "generate_backend": with_generate,
+            "sample_included": with_sample,
         }
         (staging / ".skill-install.json").write_text(
             json.dumps(marker, ensure_ascii=False, indent=2) + "\n",
@@ -294,6 +304,10 @@ def main() -> None:
         help="Also install dependencies for the complete image-generation backend.",
     )
     parser.add_argument(
+        "--with-sample", action="store_true",
+        help="Also copy the IRENA demo from a full repository checkout (omitted by default).",
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help="Replace an existing unrecognized skill directory.",
@@ -326,6 +340,7 @@ def main() -> None:
         "client": client,
         "skill": skill_name,
         "target": str(target),
+        "sample_included": args.with_sample,
     }
     if legacy:
         result["legacy_targets"] = [str(path) for path in legacy]
@@ -338,7 +353,7 @@ def main() -> None:
 
     try:
         python = install_skill(root, target, client, skill_name, args.force, args.skip_deps,
-                               args.with_editable, args.with_generate)
+                               args.with_editable, args.with_generate, args.with_sample)
     except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
         parser.exit(2, f"install: error: {exc}\n")
 

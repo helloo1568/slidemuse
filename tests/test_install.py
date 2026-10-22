@@ -206,3 +206,41 @@ def test_skip_deps_upgrade_drops_stale_python_pointer(tmp_path: Path) -> None:
 
     assert (target / "SKILL.md").read_text(encoding="utf-8").startswith("---")
     assert not (target / ".skill-python").exists()
+    assert not (target / "showcase").exists()
+    assert json.loads((target / ".skill-install.json").read_text(encoding="utf-8"))["sample_included"] is False
+
+
+def test_sample_is_explicitly_opt_in(tmp_path: Path) -> None:
+    completed = subprocess.run(
+        [sys.executable, str(ROOT / "install.py"), "--client", "codex",
+         "--home", str(tmp_path), "--skip-deps", "--with-sample", "--json"],
+        check=True, capture_output=True, text=True,
+    )
+    result = json.loads(completed.stdout)
+    target = Path(result["target"])
+    assert result["sample_included"] is True
+    assert (target / "showcase/editable-irena/reproduce.py").is_file()
+    assert (target / "showcase/editable-irena/decks/editable.pptx").is_file()
+    assert json.loads((target / ".skill-install.json").read_text(encoding="utf-8"))["sample_included"] is True
+
+
+def test_missing_optional_sample_preserves_existing_install(tmp_path: Path) -> None:
+    source, target = tmp_path / "source", tmp_path / "installed"
+    source.mkdir()
+    installer.copy_runtime(ROOT, source)
+    existing_install(target)
+    with pytest.raises(RuntimeError, match="optional sample"):
+        installer.install_skill(source, target, "codex", "slidemuse", False, True, with_sample=True)
+    assert (target / "SKILL.md").read_text() == "working old skill"
+    assert not list(tmp_path.glob(".installed-stage-*"))
+
+
+def test_core_upgrade_removes_previously_included_sample(tmp_path: Path) -> None:
+    target = tmp_path / "installed"
+    existing_install(target)
+    old_sample = target / "showcase/editable-irena"
+    old_sample.mkdir(parents=True)
+    (old_sample / "old-demo.pptx").write_bytes(b"old demo")
+    installer.install_skill(ROOT, target, "codex", "slidemuse", False, True)
+    assert not (target / "showcase").exists()
+    assert (target / "slidemuse.py").is_file()
