@@ -70,8 +70,6 @@ python slidemuse/install.py --client opencode
 
 安装完成后使用 `$slidemuse` 调用。任务材料和产物继续放在独立工作目录，不要写入 Skill 安装目录。
 
-默认安装不复制演示作品。需要随技能保留 IRENA 样板时，从完整仓库运行 `python install.py --client codex --with-sample`；精简包用户可按[样板说明](editable-sample.md)单独下载。
-
 ## 运行环境
 
 | 环境 | 生图方式 | 说明 |

@@ -3,7 +3,7 @@ name: slidemuse
 description: 将书籍、PDF、论文、报告或文字制作成视觉统一的图片版 PPT，适用于挑战杯、创新大赛、计算机设计、软件杯、服创、信息安全、集成电路、嵌入式、机械创新、化工设计、结构设计、智能车外赛项、研创赛等学科竞赛答辩，MPA/MPAcc 等案例陈述，教创赛与师范生说课，以及路演、答辩、课程展示和读书分享；按需还原可编辑 PPTX，也支持直接还原已有图片、PDF 或图片版 PPTX。不用于普通修改已有可编辑 PPTX。
 ---
 
-# SlideMuse · 2.24.2
+# SlideMuse · 2.24.3
 
 新材料按 **内容提炼 → 图片 PPT → 按需可编辑还原** 制作。已有页面要求还原时直接进入重建。内容与视觉应准确、清楚、统一；检查服务于这几个结果。
 
@@ -84,6 +84,6 @@ python "<skill-dir>/slidemuse.py" render "<work>/output/editable.pptx" "<work>/o
 
 ## 运行工具
 
-统一入口为 `slidemuse.py`，详见[命令指南](docs/cli.md)。入口优先使用安装目录的 `.venv`；直接运行脚本时使用该环境或可用的 Python 3.10+。`doctor --json` 诊断环境，不能替代实际渲染。默认安装不携带 IRENA 演示，获取方式见[样板说明](docs/editable-sample.md)。
+统一入口为 `slidemuse.py`，详见[命令指南](docs/cli.md)。入口优先使用安装目录的 `.venv`；直接运行脚本时使用该环境或可用的 Python 3.10+。`doctor --json` 诊断环境，不能替代实际渲染。
 
 生图使用宿主实际提供的能力，[模型选择](references/models.md)按需读取；没有生图工具时报告阻塞，不用占位图冒充。基本 Scene 工具离线，外部 OCR/图像服务仅按用户所选后端和宿主规则使用，不寻找密钥或静默切换服务。复用已有风格库时读[风格库](references/style-library.md)。

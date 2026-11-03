@@ -70,8 +70,6 @@ It stages and validates the new version before replacing an existing installatio
 
 Invoke it as `$slidemuse` after installation. Keep task materials and outputs in a separate working directory.
 
-Showcase files are omitted by default. To include IRENA, run `python install.py --client codex --with-sample` from a full checkout, or download the [separate sample](editable-sample.en.md).
-
 ## Runtime environments
 
 | Environment | Image backend | Notes |

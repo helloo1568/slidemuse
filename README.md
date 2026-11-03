@@ -10,7 +10,7 @@
 重点面向**挑战杯（大挑/小挑）、中国国际大学生创新大赛、计算机设计大赛、软件杯、服创大赛、信息安全作品赛、集创赛、嵌入式芯片赛、机创赛、化工设计竞赛、结构设计竞赛、交科赛、三创赛、正大杯、生命科学竞赛、节能减排、工创赛、3D 大赛、大广赛、睿抗、研创赛、MPA/MPAcc 案例大赛、IMA、CFA、iGEM、教学创新大赛、大创等竞赛与答辩场景**，也适用于**学术汇报、论文答辩、项目路演、课程展示与电影质感 PPT**，支持图片转可编辑 PPT。
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.24.2-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.24.3-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -45,7 +45,7 @@ Agent 会先阅读材料、展示内容方案，再给风格选择。无需学�
 | 接着上次继续做 | 输入预检、断点恢复、受影响页重渲染，以及集中列出的逐页待办。 |
 | 核对交付质量 | 对象与内容检查、当前文件绑定的评分卡，以及可选的离线逐页审阅面板。 |
 
-当前版本 **2.24.2**。未指定的风格、页数和交付采用合理默认值；默认只在内容方案和风格选择处确认，已有授权直接继续。完整变更见 [CHANGELOG](CHANGELOG.md)。
+当前版本 **2.24.3**。未指定的风格、页数和交付采用合理默认值；默认只在内容方案和风格选择处确认，已有授权直接继续。完整变更见 [CHANGELOG](CHANGELOG.md)。
 
 ---
 

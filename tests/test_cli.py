@@ -68,7 +68,7 @@ def test_unknown_command_and_missing_packaged_tool_fail(tmp_path, monkeypatch):
     assert invoke("not-a-command").returncode == 2
     monkeypatch.setattr(slidemuse, "ROOT", tmp_path)
     with pytest.raises(SystemExit) as error:
-        slidemuse.main(["sample"])
+        slidemuse.main(["doctor"])
     assert error.value.code == 2
 
 

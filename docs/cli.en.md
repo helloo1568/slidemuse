@@ -24,7 +24,6 @@ The launcher prefers `.venv/Scripts/python.exe` on Windows or `.venv/bin/python`
 | `produce prepare page-spec.json` | `scripts/page_production.py` | [Resume image production](../references/page-production.md): original snapshots, protected evidence composition, bound reviews and region updates |
 | `audit deck.pptx --scene scene.json` | `scripts/audit_editability.py` | Check native objects |
 | `review task/job.json task-output` | `scripts/review_panel.py` | Export a review panel or import records |
-| `sample --verify --output sample-output` | `showcase/editable-irena/reproduce.py` | Rebuild optional demo decks; use `install.py --with-sample` from a full checkout first |
 | `rebuild <command>` | `scripts/editable_backend.py` | [Complete reconstruction backend](../references/editable-backend.md); optional dependencies with `install.py --with-editable` |
 | `generate <command>` | `scripts/generate_backend.py` | [Complete image-generation backend](../references/generate-backend.md): per-slide jobs and prompts, dispatch/result/blocker state, status summary, image-deck assembly, chroma-key removal; optional dependencies with `install.py --with-generate` |
 
@@ -45,7 +44,7 @@ The parser supports this repository's `package>=numeric-version` format. Ambiguo
 
 If the isolated Python cannot start, use a known working Python to invoke `python scripts/doctor.py --json` directly and diagnose that interpreter. Repair the isolated installation by rerunning the repository installer. Sanitize local paths before sharing reports.
 
-Diagnosis does not test the host agent's document reading, vision or image generation. The public sample starts with approved images and structured inputs; reproduction does not establish host image-generation availability.
+Diagnosis does not test the host agent's document reading, vision or image generation.
 
 ## Complete reconstruction backend
 

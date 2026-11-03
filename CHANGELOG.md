@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [2.24.3] - 2026-11-03
+
+### Removed
+
+- 下线可编辑样板：删除 `showcase/editable-irena`（含 `sample.zip`、可编辑与图片版 PPTX、四份练习成品、`demo.mp4` 修改演示视频、previews、source、reproduce.py 与 scene/page-spec 输入），以及 `docs/editable-sample.md` 与英文版。
+- 移除与之配套的能力：`slidemuse.py sample` 命令、`install.py --with-sample` 参数与 `sample_included` 安装标记、CI 的样板重建步骤、发布流程中的 `sample.zip` 打包与 Release 资产。
+- 中英文 README、`SKILL.md`、`docs/cli.md`、`docs/guide.md` 中指向样板的说明与链接一并移除。
+
+### Changed
+
+- Release 资产现只含 `slidemuse-v<version>.zip` 与 `SHA256SUMS.txt`。
+
 ## [2.24.2] - 2026-11-01
 
 ### Removed
