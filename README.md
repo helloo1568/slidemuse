@@ -10,7 +10,7 @@
 重点面向**挑战杯（大挑/小挑）、中国国际大学生创新大赛、计算机设计大赛、软件杯、服创大赛、信息安全作品赛、集创赛、嵌入式芯片赛、机创赛、化工设计竞赛、结构设计竞赛、交科赛、三创赛、正大杯、生命科学竞赛、节能减排、工创赛、3D 大赛、大广赛、睿抗、研创赛、MPA/MPAcc 案例大赛、IMA、CFA、iGEM、教学创新大赛、大创等竞赛与答辩场景**，也适用于**学术汇报、论文答辩、项目路演、课程展示与电影质感 PPT**，支持图片转可编辑 PPT。
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.24.1-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.24.2-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -45,28 +45,13 @@ Agent 会先阅读材料、展示内容方案，再给风格选择。无需学�
 | 接着上次继续做 | 输入预检、断点恢复、受影响页重渲染，以及集中列出的逐页待办。 |
 | 核对交付质量 | 对象与内容检查、当前文件绑定的评分卡，以及可选的离线逐页审阅面板。 |
 
-当前版本 **2.24.1**。未指定的风格、页数和交付采用合理默认值；默认只在内容方案和风格选择处确认，已有授权直接继续。核心包不携带作品展示文件，IRENA 样板按需下载。完整变更见 [CHANGELOG](CHANGELOG.md)。
+当前版本 **2.24.2**。未指定的风格、页数和交付采用合理默认值；默认只在内容方案和风格选择处确认，已有授权直接继续。完整变更见 [CHANGELOG](CHANGELOG.md)。
 
 ---
 
 <a id="showcase"></a>
 
 ## 先看作品
-
-### 可编辑样板 · 下载后亲手修改
-
-IRENA 六页统计导读提供**原生文字、一张表格和三张嵌入工作簿图表**。完整样板包含源报告、图片版与可编辑版、四种独立修改练习，以及固定运行时和复现命令。
-
-<p align="center">
-<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/previews/editable-03.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/editable-irena/previews/editable-03.webp" alt="修改前：原生图表太阳能452 GW" width="49%"></a>
-<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/previews/chart-edit.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/editable-irena/previews/chart-edit.webp" alt="修改后：太阳能460 GW的合成练习，图表与说明同步" width="49%"></a>
-</p>
-
-<p align="center"><sub>原版可编辑页 &nbsp; · &nbsp; 修改后的真实 PowerPoint 导出</sub></p>
-
-[下载可编辑 PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/decks/editable.pptx?raw=true) · [完整样板 ZIP](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/sample.zip?raw=true) · [修改演示视频](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/demo.mp4?raw=true) · [复现说明](docs/editable-sample.md)
-
-<sub>原版基于2024年统计和2025版报告时点情景；修改页显著标明合成练习值。源报告 © IRENA 2025。复现从已批准的图片与结构化输入开始。</sub>
 
 ### 竞赛作品与风格展示
 
@@ -206,13 +191,13 @@ IRENA 六页统计导读提供**原生文字、一张表格和三张嵌入工作
 | 全国大学生机械创新设计大赛 | **机创赛 PPT / 机械创新设计大赛答辩 PPT** | 选题新颖实用、结构设计与理论方法、制作工艺与功能、实物演示与现场答辩。 |
 | [全国大学生交通运输科技大赛（交科赛）](http://www.nactrans.net/) | **交科赛 PPT / 交通运输科技大赛 PPT / 交通科技竞赛答辩** | 交通问题、方案设计、技术路线、实验或应用验证与创新价值。 |
 | 全国大学生化工设计竞赛 | **化工设计大赛 PPT / 化工设计竞赛答辩 PPT** | 工艺流程与绿色低碳、能量与物料集成、经济性分析、口头报告与两轮答辩。 |
-| 世界职业院校技能大赛 | **世校赛 PPT / 职业院校技能大赛汇报 PPT** | 固定四块展示汇报：项目设计（一线岗位痛点）、工作流程与核心技能（边操作边讲解）、主要成果（实物与测试数据）。 |
+| 世界职业院校技能大赛 | **世校赛 PPT / 职业院校技能大赛汇报 PPT** | 围绕项目设计、工作流程、核心技能与主要成果组织现场讲解，结合技能操作展示实物与测试数据；辅助 PPT 按当届赛道要求制作。 |
 | [全国大学生结构设计竞赛](http://www.structurecontest.com/) | **结构设计竞赛 PPT / 结构赛答辩 PPT** | 理论方案与计算书、模型制作与加载表现、现场陈述答辩、团队协作。 |
 | [全国大学生节能减排社会实践与科技竞赛](https://jienengjianpai.cn/) | **节能减排大赛 PPT / 节能减排竞赛答辩 PPT** | 能耗与排放问题、技术或社会实践方案、实测数据、减排效益核算、可推广性。 |
 | [全国三维数字化创新设计大赛（3D 大赛）](https://3dds.3ddl.net/) | **3D 大赛 PPT / 三维数字化大赛路演 PPT** | 数字建模与创新、工程实用性、商业或社会价值、路演与评委问辩。 |
 | [全国大学生广告艺术大赛（大广赛·策划案类）](https://www.sun-ada.net/) | **大广赛 PPT / 广告策划案提案 PPT** | 品牌与人群洞察、创意与命题契合、策划案逻辑与可执行、现场提案表达。 |
 | [睿抗机器人开发者大赛（RAICOM）](https://www.raicom.com.cn/) | **睿抗 PPT / RAICOM 答辩 PPT** | 赛项任务完成、设计创意、PPT 答辩表达。 |
-| [中国研究生创新实践系列大赛](https://cpipc.acge.org.cn/) | **研创赛 PPT / 研究生 AI 大赛答辩 PPT / 研电赛 PPT** | 技术创新、工程实现与效果、应用价值、匿名规范与 6+4 分钟表达节奏。 |
+| [中国研究生创新实践系列大赛](https://cpipc.acge.org.cn/) | **研创赛 PPT / 研究生 AI 大赛答辩 PPT / 研电赛 PPT** | 技术创新、工程实现与效果、应用价值；按具体子赛、届次与阶段确定匿名要求及汇报、问答时长。 |
 | [“正大杯”全国大学生市场调查与分析大赛](https://www.china-cssc.org/show-568-1912-1.html) | **正大杯 PPT / 市调大赛 PPT / 市场调查与分析大赛 PPT** | 调研问题、调查设计、数据分析、主要发现与建议。 |
 | [全国大学生生命科学竞赛](https://www.culsc.cn/) | **生命科学竞赛 PPT / 生命科学答辩 PPT** | 科学问题、实验设计与技术路线、数据与统计学、结论可靠性、答辩问答。 |
 | [中国大学生工程实践与创新能力大赛](http://www.gcxl.edu.cn/) | **工创赛 PPT / 工程实践与创新能力大赛答辩** | 任务拆解、方案对比、结构与控制设计、实测成绩、迭代改进。 |

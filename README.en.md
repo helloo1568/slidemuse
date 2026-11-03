@@ -11,7 +11,7 @@ Especially strong for **competition and defense presentations**—including Chal
 Reconstruct slide images as native editable PowerPoint (PPTX) when needed.
 
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-2.24.1-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.24.2-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-82b5ff?labelColor=14243c)](requirements.txt)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -46,7 +46,7 @@ For manual installation and requirements, see [Quick start](#quick-start).
 | Continue an existing task | Input preflight, resumable stages, affected-page rendering, and a consolidated per-page action queue. |
 | Review the deliverable | Object and content checks, scorecards bound to current files, and an optional offline per-page review panel. |
 
-Current version: **2.24.1**. Reasonable defaults cover unspecified style, length and delivery. The usual decisions are the content plan and style; existing authority is honored without repeated approval. The core archive excludes showcase assets, with the IRENA sample available separately. See the [changelog](CHANGELOG.md).
+Current version: **2.24.2**. Reasonable defaults cover unspecified style, length and delivery. The usual decisions are the content plan and style; existing authority is honored without repeated approval. See the [changelog](CHANGELOG.md).
 
 
 ---
@@ -54,21 +54,6 @@ Current version: **2.24.1**. Reasonable defaults cover unspecified style, length
 <a id="showcase"></a>
 
 ## See the results
-
-### Editable sample · Download and try an edit
-
-The six-slide Chinese IRENA overview contains **native text, one table and three charts with embedded workbooks**. The complete sample includes the source report, image/native decks, four independent editing exercises, a pinned runtime and reproduction commands.
-
-<p align="center">
-<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/previews/editable-03.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/editable-irena/previews/editable-03.webp" alt="Before: native chart with solar at 452 GW" width="49%"></a>
-<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/previews/chart-edit.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/editable-irena/previews/chart-edit.webp" alt="After: synthetic solar 460 GW exercise with synchronized chart and explanations" width="49%"></a>
-</p>
-
-<p align="center"><sub>Original native slide &nbsp; · &nbsp; Actual PowerPoint export after editing</sub></p>
-
-[Editable PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/decks/editable.pptx?raw=true) · [Complete sample ZIP](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/sample.zip?raw=true) · [Edit demonstration](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable-irena/demo.mp4?raw=true) · [Reproduction guide](docs/editable-sample.en.md)
-
-<sub>The original uses selected 2024 statistics and the 2025 report-time scenario; edited pages visibly identify synthetic practice values. Source report © IRENA 2025. Reproduction starts from approved images and structured inputs.</sub>
 
 ### Competition decks and visual styles
 
@@ -206,13 +191,13 @@ Use project proposals, research papers, survey reports, and the current competit
 | 全国大学生机械创新设计大赛 | **机创赛 PPT / mechanical innovation competition** | Novel and practical topic, mechanism design and methods, manufacturing and function, live demo and defense. |
 | [全国大学生交通运输科技大赛（交科赛）](http://www.nactrans.net/) | **交科赛 PPT / transportation science & technology competition** | Transportation problem, solution design, technical route, validation, and innovation value. |
 | 全国大学生化工设计竞赛 | **化工设计大赛 PPT / chemical engineering design** | Process design and decarbonization, energy and mass integration, economics, and oral report with two defense rounds. |
-| 世界职业院校技能大赛 | **世校赛 PPT / vocational college skills competition** | Fixed four-part presentation: project design, workflow and core skills explained while operating, and results with physical evidence and measured data. |
+| 世界职业院校技能大赛 | **世校赛 PPT / vocational college skills competition** | Explain project design, workflow, core skills, and results alongside practical operations, physical evidence, and measured data; prepare supporting slides according to the current track's requirements. |
 | [全国大学生结构设计竞赛](http://www.structurecontest.com/) | **结构设计竞赛 PPT / structural design competition** | Theoretical scheme and calculations, model build and loading performance, on-site statement, and teamwork. |
 | [全国大学生节能减排社会实践与科技竞赛](https://jienengjianpai.cn/) | **节能减排大赛 PPT / energy saving competition** | Energy and emission problem, technical or social solution, measured data, reduction benefit, and scalability. |
 | [全国三维数字化创新设计大赛（3D 大赛）](https://3dds.3ddl.net/) | **3D 大赛 PPT / 3D design competition** | Digital modeling and innovation, engineering usefulness, business or social value, and pitch with judge Q&A. |
 | [全国大学生广告艺术大赛（大广赛·策划案类）](https://www.sun-ada.net/) | **大广赛 PPT / advertising campaign proposal** | Brand and audience insight, creative fit with the brief, executable planning, and live proposal delivery. |
 | [睿抗机器人开发者大赛（RAICOM）](https://www.raicom.com.cn/) | **睿抗 PPT / RAICOM presentation** | Task completion, design creativity, and slide-based defense. |
-| [中国研究生创新实践系列大赛](https://cpipc.acge.org.cn/) | **研创赛 PPT / graduate innovation contest** | Technical novelty, implementation and results, application value, and anonymous 6+4 minute delivery. |
+| [中国研究生创新实践系列大赛](https://cpipc.acge.org.cn/) | **研创赛 PPT / graduate innovation contest** | Technical novelty, implementation and results, and application value; determine anonymity requirements and presentation and Q&A durations for the specific contest, edition, and stage. |
 | [“正大杯”全国大学生市场调查与分析大赛](https://www.china-cssc.org/show-568-1912-1.html) | **正大杯 PPT / market research presentation** | Research questions, survey design, data analysis, findings, and recommendations. |
 | [全国大学生生命科学竞赛](https://www.culsc.cn/) | **生命科学竞赛 PPT / life science competition** | Scientific question, experimental design, data and statistics, conclusion reliability, and Q&A. |
 | [中国大学生工程实践与创新能力大赛](http://www.gcxl.edu.cn/) | **工创赛 PPT / engineering practice competition** | Task breakdown, design comparison, structure and control, measured results, and iteration. |
