@@ -19,7 +19,7 @@ For work updates, teaching, research, competition pitches and defenses, product 
 
 <a id="showcase"></a>
 
-<img src="docs/assets/portfolio/style-coverflow.webp" alt="SlideMuse showcase: 15 styles with two consecutive slides each, a sharp enlarged center and blurred sides sliding left" width="100%">
+<img src="docs/assets/portfolio/style-coverflow-light.webp" alt="SlideMuse showcase: 15 styles with two consecutive slides each, a sharp enlarged center and blurred sides sliding left" width="100%">
 
 <p align="center"><sub>15 styles × 2 slides each · Each pair plays together</sub></p>
 
@@ -29,11 +29,11 @@ For work updates, teaching, research, competition pitches and defenses, product 
 
 Generate complete slide images first, then reconstruct them. Text, shapes, and tables become native objects; complex illustrations and photos become separate, replaceable image layers.
 
-<a href="docs/assets/portfolio/editable-cartoon.png"><img src="docs/assets/portfolio/editable-cartoon.png" alt="Cartoon illustration: source image and editable reconstruction, with 28 native objects and 19 independent image layers" width="100%"></a>
+<a href="docs/assets/portfolio/editable-cartoon.png"><img src="docs/assets/portfolio/editable-cartoon.webp" alt="Cartoon illustration: source image and editable reconstruction, with 28 native objects and 19 independent image layers" width="100%"></a>
 
-<a href="docs/assets/portfolio/editable-luxury.png"><img src="docs/assets/portfolio/editable-luxury.png" alt="Black and gold: source image and editable reconstruction, with 26 native objects and 3 independent image layers" width="100%"></a>
+<a href="docs/assets/portfolio/editable-luxury.png"><img src="docs/assets/portfolio/editable-luxury.webp" alt="Black and gold: source image and editable reconstruction, with 26 native objects and 3 independent image layers" width="100%"></a>
 
-<a href="docs/assets/portfolio/editable-blueprint.png"><img src="docs/assets/portfolio/editable-blueprint.png" alt="Architectural blueprint: source image and editable reconstruction, with 46 native objects and 4 independent image layers" width="100%"></a>
+<a href="docs/assets/portfolio/editable-blueprint.png"><img src="docs/assets/portfolio/editable-blueprint.webp" alt="Architectural blueprint: source image and editable reconstruction, with 46 native objects and 4 independent image layers" width="100%"></a>
 
 <sub>Source images on the left; PowerPoint renders on the right. Outlines and handles are drawn from actual PPTX object coordinates. Click any image to view it at full size. Showcase slide content is in Chinese.</sub>
 

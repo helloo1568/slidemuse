@@ -19,7 +19,7 @@
 
 <a id="showcase"></a>
 
-<img src="docs/assets/portfolio/style-coverflow.webp" alt="SlideMuse 作品轮播：15种风格，每种两页相邻播放，居中放大、两侧模糊、向左滑动" width="100%">
+<img src="docs/assets/portfolio/style-coverflow-light.webp" alt="SlideMuse 作品轮播：15种风格，每种两页相邻播放，居中放大、两侧模糊、向左滑动" width="100%">
 
 <p align="center"><sub>15 种风格 × 每种 2 页 · 同一风格连续展示</sub></p>
 
@@ -29,11 +29,11 @@
 
 先生成完整图片稿，再按图还原。文字、形状和表格成为原生对象，复杂插画与照片拆成可独立替换的图片层。
 
-<a href="docs/assets/portfolio/editable-cartoon.png"><img src="docs/assets/portfolio/editable-cartoon.png" alt="卡通插画：完整图片稿与可编辑还原对照，28个原生对象和19个独立图片层" width="100%"></a>
+<a href="docs/assets/portfolio/editable-cartoon.png"><img src="docs/assets/portfolio/editable-cartoon.webp" alt="卡通插画：完整图片稿与可编辑还原对照，28个原生对象和19个独立图片层" width="100%"></a>
 
-<a href="docs/assets/portfolio/editable-luxury.png"><img src="docs/assets/portfolio/editable-luxury.png" alt="黑金奢雅：完整图片稿与可编辑还原对照，26个原生对象和3个独立图片层" width="100%"></a>
+<a href="docs/assets/portfolio/editable-luxury.png"><img src="docs/assets/portfolio/editable-luxury.webp" alt="黑金奢雅：完整图片稿与可编辑还原对照，26个原生对象和3个独立图片层" width="100%"></a>
 
-<a href="docs/assets/portfolio/editable-blueprint.png"><img src="docs/assets/portfolio/editable-blueprint.png" alt="建筑蓝图：完整图片稿与可编辑还原对照，46个原生对象和4个独立图片层" width="100%"></a>
+<a href="docs/assets/portfolio/editable-blueprint.png"><img src="docs/assets/portfolio/editable-blueprint.webp" alt="建筑蓝图：完整图片稿与可编辑还原对照，46个原生对象和4个独立图片层" width="100%"></a>
 
 <sub>左侧为图片稿，右侧为 PowerPoint 渲染；边框与控制点依据实际 PPTX 对象坐标绘制。点击图片查看大图。</sub>
 
