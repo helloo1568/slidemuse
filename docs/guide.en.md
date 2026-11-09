@@ -42,7 +42,7 @@ See the [CLI guide](cli.en.md) for the unified local entry point, runtime diagno
 
 ### Recommended: let your agent install it
 
-Send this to Codex, Claude Code, or OpenCode:
+Send this to Codex, Claude Code, OpenCode, WorkBuddy, Trae, or Qoder:
 
 ```text
 Install SlideMuse from https://github.com/helloo1568/slidemuse .
@@ -58,17 +58,22 @@ git clone https://github.com/helloo1568/slidemuse.git slidemuse
 python slidemuse/install.py
 ```
 
-The installer detects Codex / Claude Code / OpenCode. It auto-selects only when exactly one client is detected; if multiple clients are present, it stops and asks you to pass `--client` to avoid installing into the wrong user-level skill directory. It then creates an isolated `.venv`, installs dependencies, and runs the strict Page Spec self-check:
+The installer detects Codex / Claude Code / OpenCode / WorkBuddy / Trae / Qoder, including separate Trae CN and Qoder CN profiles. It auto-selects only when exactly one client is detected; multiple clients require an explicit `--client`. It then creates an isolated `.venv`, installs dependencies, and runs the strict Page Spec self-check:
 
 ```sh
 python slidemuse/install.py --client codex
 python slidemuse/install.py --client claude
 python slidemuse/install.py --client opencode
+python slidemuse/install.py --client workbuddy
+python slidemuse/install.py --client trae
+python slidemuse/install.py --client trae-cn
+python slidemuse/install.py --client qoder
+python slidemuse/install.py --client qoder-cn
 ```
 
 It stages and validates the new version before replacing an existing installation, and restores the old version if final validation fails. If a skill with the previous name is present, the installer reports its location so you can remove it after confirming `$slidemuse` works.
 
-Invoke it as `$slidemuse` after installation. Keep task materials and outputs in a separate working directory.
+After installation, say "Use the slidemuse skill". Codex accepts `$slidemuse`, Claude Code / Qoder accept `/slidemuse`, and WorkBuddy / Trae also provide skill selection panels. See [client setup](clients.en.md) for paths, CN variants, and activation. Keep task materials and outputs in a separate working directory.
 
 ## Runtime environments
 

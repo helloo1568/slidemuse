@@ -7,7 +7,7 @@
 Create visually consistent image decks from PDFs, papers, reports, and notes, with editable PPTX reconstruction when needed.<br>
 For work updates, teaching, research, competition pitches and defenses, product pitches, and creative presentations.
 
-[![Version](https://img.shields.io/badge/version-2.24.4-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.25.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -58,7 +58,7 @@ Turn proposals, papers, research reports, and competition briefs into presentati
 
 ## Quick start
 
-Send this to **Codex / Claude Code / OpenCode**:
+Send this to **Codex / Claude Code / OpenCode / WorkBuddy / Trae / Qoder**:
 
 ```text
 Install SlideMuse from https://github.com/helloo1568/slidemuse .
@@ -66,10 +66,10 @@ Run the repository's install.py to register the skill, install isolated dependen
 If multiple clients are detected, pass --client for the one I am using.
 ```
 
-Then attach your material and ask:
+Then attach your material and ask (Codex also accepts `$slidemuse`):
 
 ```text
-Use $slidemuse to turn this report into a 10-slide project update for my team.
+Use the slidemuse skill to turn this report into a 10-slide project update for my team.
 Show a slide-by-slide content plan, then four style overviews for me to choose from.
 After I choose a style, create the image deck and reconstruct an editable PPTX.
 ```
@@ -90,7 +90,12 @@ If multiple clients are detected, specify the current one, for example:
 
 ```sh
 python slidemuse/install.py --client codex
+python slidemuse/install.py --client workbuddy
+python slidemuse/install.py --client trae
+python slidemuse/install.py --client qoder
 ```
+
+Use `--client trae-cn` for Trae CN and `--client qoder-cn` for Qoder CN. See [client setup](docs/clients.en.md) for installation paths and activation.
 
 The host agent provides document reading, vision, image generation, and local file tools. PPTX rendering uses an installed PowerPoint or LibreOffice + Poppler. See the [installation guide](docs/guide.en.md).
 
@@ -109,7 +114,7 @@ Supports speaker notes, task recovery, and local revisions. Existing slide image
 
 | Your next step | Resource |
 | :--- | :--- |
-| Installation and workflow | [Guide](docs/guide.en.md) · [Agent skill](SKILL.md) |
+| Installation and workflow | [Guide](docs/guide.en.md) · [Client setup](docs/clients.en.md) · [Agent skill](SKILL.md) |
 | Commands, recovery, and delivery checks | [CLI guide](docs/cli.en.md) · [Pipeline](references/pipeline.md) |
 | Image generation and editable reconstruction | [Generation backend](references/generate-backend.md) · [Reconstruction backend](references/editable-backend.md) |
 | Speaker notes, precise charts, and data updates | [Speaker notes](references/speaker-notes.md) · [Chart reliability](references/chart-reliability.md) |

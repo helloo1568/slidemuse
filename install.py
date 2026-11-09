@@ -20,6 +20,20 @@ CLIENT_DIRS = {
     "codex": Path(".agents") / "skills",
     "claude": Path(".claude") / "skills",
     "opencode": Path(".config") / "opencode" / "skills",
+    "workbuddy": Path(".workbuddy") / "skills",
+    "trae": Path(".trae") / "skills",
+    "trae-cn": Path(".trae-cn") / "skills",
+    "qoder": Path(".qoder") / "skills",
+    "qoder-cn": Path(".qoder-cn") / "skills",
+}
+
+CLIENT_COMMANDS = {
+    "codex": ("codex",),
+    "claude": ("claude",),
+    "opencode": ("opencode",),
+    "workbuddy": ("workbuddy",),
+    "trae": ("trae",),
+    "qoder": ("qoder", "qodercli"),
 }
 
 RUNTIME_PATHS = (
@@ -51,23 +65,36 @@ def read_skill_name(root: Path) -> str:
 
 
 def detect_client(home: Path) -> str:
-    candidates: list[str] = []
-    if shutil.which("codex") or (home / ".codex").exists() or (home / ".agents").exists():
-        candidates.append("codex")
-    if shutil.which("claude") or (home / ".claude").exists():
-        candidates.append("claude")
-    if shutil.which("opencode") or (home / ".config" / "opencode").exists():
-        candidates.append("opencode")
+    markers = {client: (directory.parent,) for client, directory in CLIENT_DIRS.items()}
+    markers["codex"] += (Path(".codex"),)
+    candidates = [client for client, paths in markers.items()
+                  if any((home / path).is_dir() for path in paths)]
+    for client, commands in CLIENT_COMMANDS.items():
+        # Regional IDEs can expose the same executable as the international IDE.
+        # A discovered CN profile must not invent a second international profile.
+        if client in candidates or f"{client}-cn" in candidates:
+            continue
+        if any(shutil.which(command) for command in commands):
+            candidates.append(client)
 
     if not candidates:
         return "codex"
     if len(candidates) == 1:
         return candidates[0]
     detected = ", ".join(candidates)
+    options = ", ".join(f"--client {client}" for client in CLIENT_DIRS)
     raise RuntimeError(
         f"Multiple supported clients detected: {detected}. "
-        "Re-run with --client codex, --client claude, or --client opencode."
+        f"Re-run with one of: {options}."
     )
+
+
+def skill_invocation(client: str, skill_name: str) -> str:
+    if client == "codex":
+        return f"${skill_name}"
+    if client in ("claude", "qoder", "qoder-cn"):
+        return f"/{skill_name}"
+    return f"Use the {skill_name} skill"
 
 
 def venv_python(venv_dir: Path) -> Path:
@@ -245,7 +272,8 @@ def install_skill(
 
 def emit(result: dict[str, object], as_json: bool) -> None:
     if as_json:
-        print(json.dumps(result, ensure_ascii=False))
+        # Machine output must survive both UTF-8 agent pipes and GBK terminals.
+        print(json.dumps(result, ensure_ascii=True))
         return
 
     if result.get("dry_run"):
@@ -253,7 +281,9 @@ def emit(result: dict[str, object], as_json: bool) -> None:
     else:
         print(f"[OK] {BRAND_NAME} installed successfully")
     print(f"  Client: {result['client']}")
-    print(f"  Skill:  ${result['skill']}")
+    print(f"  Skill:  {result['skill']}")
+    invocation = result.get("invocation") or skill_invocation(str(result["client"]), str(result["skill"]))
+    print(f"  Invoke: {invocation}")
     print(f"  Path:   {result['target']}")
     if result.get("python"):
         print(f"  Python: {result['python']}")
@@ -270,7 +300,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--client",
-        choices=("auto", "codex", "claude", "opencode"),
+        choices=("auto", *CLIENT_DIRS),
         default="auto",
         help="Target agent client. Defaults to automatic detection.",
     )
@@ -326,6 +356,7 @@ def main() -> None:
         "client": client,
         "skill": skill_name,
         "target": str(target),
+        "invocation": skill_invocation(client, skill_name),
     }
     if legacy:
         result["legacy_targets"] = [str(path) for path in legacy]

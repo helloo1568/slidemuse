@@ -42,7 +42,7 @@
 
 ### 推荐：让 Agent 自动安装
 
-把下面这句话发给 Codex、Claude Code 或 OpenCode：
+把下面这句话发给 Codex、Claude Code、OpenCode、WorkBuddy、Trae 或 Qoder：
 
 ```text
 安装 SlideMuse，仓库是 https://github.com/helloo1568/slidemuse 。
@@ -58,17 +58,22 @@ git clone https://github.com/helloo1568/slidemuse.git slidemuse
 python slidemuse/install.py
 ```
 
-安装器会检测 Codex / Claude Code / OpenCode。只检测到一个客户端时会自动选择；同时检测到多个客户端时会停止并要求通过 `--client` 明确指定，避免安装到错误的用户级 Skill 目录。之后会创建独立 `.venv`、安装依赖并运行严格 Page Spec 自检：
+安装器会检测 Codex / Claude Code / OpenCode / WorkBuddy / Trae / Qoder，也分别识别 Trae 与 Qoder 的国内版目录。只检测到一个客户端时会自动选择；同时检测到多个客户端时会要求通过 `--client` 明确指定。之后会创建独立 `.venv`、安装依赖并运行严格 Page Spec 自检：
 
 ```sh
 python slidemuse/install.py --client codex
 python slidemuse/install.py --client claude
 python slidemuse/install.py --client opencode
+python slidemuse/install.py --client workbuddy
+python slidemuse/install.py --client trae
+python slidemuse/install.py --client trae-cn
+python slidemuse/install.py --client qoder
+python slidemuse/install.py --client qoder-cn
 ```
 
 安装器会先在临时目录完成新版本安装和验证，失败时保留原有版本。若发现旧名称的技能目录，会提示其位置；确认 `$slidemuse` 可用后再自行移除旧目录。
 
-安装完成后使用 `$slidemuse` 调用。任务材料和产物继续放在独立工作目录，不要写入 Skill 安装目录。
+安装完成后可说“使用 slidemuse 技能”；Codex 可用 `$slidemuse`，Claude Code / Qoder 可用 `/slidemuse`，WorkBuddy / Trae 也可在技能面板选择。目录、国内版选项和启用方式见[客户端适配](clients.md)。任务材料和产物继续放在独立工作目录。
 
 ## 运行环境
 

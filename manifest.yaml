@@ -1,6 +1,6 @@
 name: slidemuse
 display_name: SlideMuse
-version: 2.24.4
+version: 2.25.0
 description: >-
   SlideMuse 是视觉优先的 AI PPT Skill，重点适用于挑战杯（大挑/小挑）、中国国际大学生创新大赛、中国大学生计算机设计大赛、中国软件杯、中国大学生服务外包创新创业大赛、全国大学生信息安全竞赛、全国大学生集成电路创新创业大赛、嵌入式芯片与系统设计竞赛、机械创新设计大赛、化工设计竞赛、结构设计竞赛、全国大学生交通运输科技大赛（交科赛）、三创赛、正大杯、全国大学生生命科学竞赛、节能减排社会实践与科技竞赛、工程实践与创新能力大赛（工创赛）、全国三维数字化创新设计大赛、大广赛、睿抗、中国研究生创新实践系列大赛、MPA 与 MPAcc 案例大赛、IMA、CFA Research Challenge、iGEM、全国高校教师教学创新大赛等竞赛与答辩 PPT，同时适用于电影质感 PPT、比赛答辩、创新创业路演、学术汇报、论文答辩、项目汇报、课程展示、教学说课和图片转可编辑 PPT。
   按固定三阶段流程将材料制作成图片版 PPT，并在明确授权后还原为可编辑 PPTX：
@@ -96,6 +96,7 @@ triggers:
 requires_api_keys: false
 platforms:
   - Codex with image generation and local file tools (recommended with GPT Image 2.5)
+  - Claude Code, OpenCode, WorkBuddy, Trae, and Qoder with native or connected image tools
   - Other agents with document reading, vision, native or connected image generation, and Python
 security_notes: >-
   Core Scene tools are offline. The optional complete reconstruction backend can use
@@ -112,6 +113,8 @@ files:
   - tests/test_doctor.py
   - docs/cli.md
   - docs/cli.en.md
+  - docs/clients.md
+  - docs/clients.en.md
   - docs/open-source-improvements-2026-10-08.md
   - docs/competition-expansion-proposal.md
   - scripts/json_io.py

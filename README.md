@@ -7,7 +7,7 @@
 将 PDF、论文、报告与笔记制作成风格统一的图片 PPT，按需还原为可编辑 PPTX。<br>
 用于工作汇报、教学培训、学术分享、竞赛答辩、产品路演与创意展示。
 
-[![Version](https://img.shields.io/badge/version-2.24.4-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.25.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -58,7 +58,7 @@
 
 ## 快速开始
 
-将下面的话发给 **Codex / Claude Code / OpenCode**：
+将下面的话发给 **Codex / Claude Code / OpenCode / WorkBuddy / Trae / Qoder**：
 
 ```text
 安装 SlideMuse，仓库是 https://github.com/helloo1568/slidemuse 。
@@ -66,10 +66,10 @@
 如果检测到多个客户端，请用 --client 指定当前客户端。
 ```
 
-安装后附上材料，直接说：
+安装后附上材料，直接说（Codex 也可使用 `$slidemuse`）：
 
 ```text
-使用 $slidemuse，把这份报告做成 10 页项目汇报 PPT，受众是团队同事。
+使用 slidemuse 技能，把这份报告做成 10 页项目汇报 PPT，受众是团队同事。
 先给我逐页内容方案，再提供四套风格总览供我选择。
 选定后制作图片版，并继续还原为可编辑 PPTX。
 ```
@@ -90,7 +90,12 @@ python slidemuse/install.py
 
 ```sh
 python slidemuse/install.py --client codex
+python slidemuse/install.py --client workbuddy
+python slidemuse/install.py --client trae
+python slidemuse/install.py --client qoder
 ```
+
+Trae 国内版使用 `--client trae-cn`，Qoder 国内版使用 `--client qoder-cn`。各客户端目录与启用方法见[客户端适配](docs/clients.md)。
 
 宿主 Agent 提供材料读取、视觉理解、生图与本地文件操作能力。PPTX 渲染使用已安装的 PowerPoint，或 LibreOffice + Poppler。完整安装说明见[使用指南](docs/guide.md#快速开始)。
 
@@ -109,7 +114,7 @@ python slidemuse/install.py --client codex
 
 | 想做什么 | 从这里开始 |
 | :--- | :--- |
-| 了解安装、流程与使用方法 | [使用指南](docs/guide.md) · [Agent 技能](SKILL.md) |
+| 了解安装、流程与使用方法 | [使用指南](docs/guide.md) · [客户端适配](docs/clients.md) · [Agent 技能](SKILL.md) |
 | 查看命令、恢复任务与检查交付 | [命令指南](docs/cli.md) · [交付流水线](references/pipeline.md) |
 | 深入图片生成与可编辑还原 | [图片生成](references/generate-backend.md) · [可编辑重建](references/editable-backend.md) |
 | 保留讲稿、精确绘图与更新数据 | [演讲备注](references/speaker-notes.md) · [图表与数据](references/chart-reliability.md) |
