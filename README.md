@@ -7,7 +7,7 @@
 将 PDF、论文、报告与笔记制作成风格统一的图片 PPT，按需还原为可编辑 PPTX。<br>
 用于工作汇报、教学培训、学术分享、竞赛答辩、产品路演与创意展示。
 
-[![Version](https://img.shields.io/badge/version-2.24.3-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.24.4-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -19,7 +19,7 @@
 
 <a id="showcase"></a>
 
-<img src="docs/assets/portfolio/style-coverflow-light.webp" alt="SlideMuse 作品轮播：15种风格，每种两页相邻播放，居中放大、两侧模糊、向左滑动" width="100%">
+<img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/portfolio/style-coverflow-light.webp" alt="SlideMuse 作品轮播：15种风格，每种两页相邻播放，居中放大、两侧模糊、向左滑动" width="100%">
 
 <p align="center"><sub>15 种风格 × 每种 2 页 · 同一风格连续展示</sub></p>
 
@@ -29,15 +29,15 @@
 
 先生成完整图片稿，再按图还原。文字、形状和表格成为原生对象，复杂插画与照片拆成可独立替换的图片层。
 
-<a href="docs/assets/portfolio/editable-cartoon.png"><img src="docs/assets/portfolio/editable-cartoon.webp" alt="卡通插画：完整图片稿与可编辑还原对照，28个原生对象和19个独立图片层" width="100%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/docs/assets/portfolio/editable-cartoon.png"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/portfolio/editable-cartoon.webp" alt="卡通插画：完整图片稿与可编辑还原对照，28个原生对象和19个独立图片层" width="100%"></a>
 
-<a href="docs/assets/portfolio/editable-luxury.png"><img src="docs/assets/portfolio/editable-luxury.webp" alt="黑金奢雅：完整图片稿与可编辑还原对照，26个原生对象和3个独立图片层" width="100%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/docs/assets/portfolio/editable-luxury.png"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/portfolio/editable-luxury.webp" alt="黑金奢雅：完整图片稿与可编辑还原对照，26个原生对象和3个独立图片层" width="100%"></a>
 
-<a href="docs/assets/portfolio/editable-blueprint.png"><img src="docs/assets/portfolio/editable-blueprint.webp" alt="建筑蓝图：完整图片稿与可编辑还原对照，46个原生对象和4个独立图片层" width="100%"></a>
+<a href="https://github.com/helloo1568/slidemuse/blob/main/docs/assets/portfolio/editable-blueprint.png"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/portfolio/editable-blueprint.webp" alt="建筑蓝图：完整图片稿与可编辑还原对照，46个原生对象和4个独立图片层" width="100%"></a>
 
 <sub>左侧为图片稿，右侧为 PowerPoint 渲染；边框与控制点依据实际 PPTX 对象坐标绘制。点击图片查看大图。</sub>
 
-[下载这 3 页可编辑 PPTX](showcase/editable/three-styles.pptx?raw=true) · [了解可编辑对象](docs/guide.md#每个元素可编辑是什么意思) · [更多作品](docs/style-showcase.md)
+[下载这 3 页可编辑 PPTX](https://github.com/helloo1568/slidemuse/blob/main/showcase/editable/three-styles.pptx?raw=true) · [了解可编辑对象](docs/guide.md#每个元素可编辑是什么意思) · [更多作品](https://github.com/helloo1568/slidemuse/blob/main/docs/style-showcase.md)
 
 <a id="competition"></a>
 
@@ -52,7 +52,7 @@
 | **调研与案例分析** | 正大杯、MPA / MPAcc、IMA、CFA：研究方法、数据分析、核心发现与建议。 |
 | **教学与学术展示** | 教创赛、师范生说课、校内或省级数模答辩：目标、方法、证据与成果表达。 |
 
-[查看完整赛事与答辩场景](docs/competition-scenarios.md) · [浏览 24 页完整竞赛作品](docs/competition-portfolio.md)
+[查看完整赛事与答辩场景](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-scenarios.md) · [浏览 24 页完整竞赛作品](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md)
 
 <a id="quick-start"></a>
 
@@ -113,7 +113,7 @@ python slidemuse/install.py --client codex
 | 查看命令、恢复任务与检查交付 | [命令指南](docs/cli.md) · [交付流水线](references/pipeline.md) |
 | 深入图片生成与可编辑还原 | [图片生成](references/generate-backend.md) · [可编辑重建](references/editable-backend.md) |
 | 保留讲稿、精确绘图与更新数据 | [演讲备注](references/speaker-notes.md) · [图表与数据](references/chart-reliability.md) |
-| 查看竞赛场景与完整作品 | [竞赛场景参考](docs/competition-scenarios.md) · [完整作品集](docs/competition-portfolio.md) |
+| 查看竞赛场景与完整作品 | [竞赛场景参考](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-scenarios.md) · [完整作品集](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md) |
 | 反馈与贡献 | [Discussions](https://github.com/helloo1568/slidemuse/discussions) · [贡献指南](CONTRIBUTING.md) · [更新记录](CHANGELOG.md) |
 
 感谢 [PPT Master](https://github.com/hugohe3/ppt-master)、[banana-slides](https://github.com/Anionex/banana-slides)、[PPTAgent](https://github.com/icip-cas/PPTAgent) 及教程作者带来的启发。集成后端保留 [codex-ppt-skill](https://github.com/ningzimu/codex-ppt-skill) 与 [image-to-editable-ppt-skill](https://github.com/ningzimu/image-to-editable-ppt-skill) 的 MIT 来源，详见[来源与取舍](references/research.md)。
