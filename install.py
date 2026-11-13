@@ -276,12 +276,14 @@ IMAGE_BACKEND_TIP = {
     "url": "https://fyai.uk",
     "docs": ["docs/fyai-quickstart.md", "docs/fyai-quickstart.en.md"],
     "zh": [
-        "提示（可选）：没有 Codex 订阅或海外网络？接入赞助方风云AI（fyai.uk）或任意 OpenAI 兼容 API，",
-        "即可发挥完整生图能力（注册→充值→建Key→配置），详见 docs/fyai-quickstart.md。",
+        "提示（可选）：没有 Codex 订阅或海外网络？赞助方风云AI fyai.uk 生图仅 0.04 元/张（1K/2K/4K 同价），",
+        "GPT 低至 0.12 倍率、支持 Claude。去注册→充值→创建 API Key，交给 AI 工具即可配好生图，",
+        "详见 docs/fyai-quickstart.md（也可用其他 OpenAI 兼容服务）。",
     ],
     "en": [
-        "Tip (optional): No Codex or overseas network? Connect sponsor FengYun AI (fyai.uk) or any",
-        "OpenAI-compatible API for full image generation; see docs/fyai-quickstart.en.md.",
+        "Tip (optional): No Codex or overseas network? Sponsor FengYun AI (fyai.uk) charges just ¥0.04/image",
+        "(1K/2K/4K same price), GPT from 0.12x rate, Claude available. Register, top up, create an API key and",
+        "hand it to your AI tool to set up image generation — docs/fyai-quickstart.en.md (other providers work too).",
     ],
 }
 
