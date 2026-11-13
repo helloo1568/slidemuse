@@ -2,6 +2,8 @@
 
 SlideMuse ships an OpenAI-compatible API generation backend — no separate skill to build and no environment variables to edit by hand. Once you have a key, paste the block below to your AI tool (Codex / Claude Code / Qoder / WorkBuddy / Trae, etc.) and it does the rest.
 
+Note: this guide only covers calling FengYun AI's image model **when generating PPTs with SlideMuse**. If you want to generate images anytime during a normal conversation ("draw a…", "add an illustration", "make a poster"), FengYun AI's announcement describes a more general approach: have your AI tool create a separate fyai-image skill so any chat can produce images directly. That is an independent setup and does not conflict with this guide — use whichever you need.
+
 ## Step 1: Get a key (about a minute)
 
 1. Sign up and log in at [fyai.uk](https://fyai.uk).
@@ -21,4 +23,4 @@ Please connect SlideMuse's image-generation backend to FengYun AI. I'm a beginne
 Use this backend for SlideMuse image generation from now on. Rules: only image models like gpt-image-2.6 on the image endpoint, never chat models; ¥0.04 per image, generate once per request.
 ```
 
-The config is written to a user-level `.env`; your key never enters the repository. The model is gpt-image-2.6, matching the backend default; it is written explicitly in the config for clarity. Generation still follows SlideMuse's normal flow: confirm content, pick a style, then generate and review page by page.
+The config is written to a user-level `.env`; your key never enters the repository. The image model is gpt-image-2.6. Generation still follows SlideMuse's normal flow: confirm content, pick a style, then generate and review page by page.
