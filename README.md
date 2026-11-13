@@ -26,7 +26,7 @@ GPT 调用低至 **0.12 倍率** · 生图 **0.04 元/张**（1K/2K/4K 同价）
 日常用 GPT、Claude 或批量出图都合适，想低成本用 AI 的可以看看。
 
 没有 Codex 订阅或海外网络环境，也想发挥 SlideMuse 的完整生图能力？<br>
-风云AI 提供 OpenAI 兼容 API，接入本技能生图后端即可 · [接入方法](docs/guide.md#完整图片生成后端2200)
+风云AI 提供 OpenAI 兼容 API，复制一段话即可接入生图后端 · [接入方法](docs/fyai-quickstart.md)
 
 </div>
 

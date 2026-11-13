@@ -26,7 +26,7 @@ GPT calls from **0.12× rate** · image generation **¥0.04 per image** (1K/2K/4
 A good fit for everyday GPT/Claude use and batch image generation on a budget.
 
 No Codex subscription or overseas network access, but want SlideMuse's full image-generation power?<br>
-FengYun AI's OpenAI-compatible API plugs into the skill's generation backend · [Setup guide](docs/guide.en.md#complete-image-generation-backend-2200)
+FengYun AI's OpenAI-compatible API plugs into the skill's generation backend — one paste to set up · [Setup guide](docs/fyai-quickstart.en.md)
 
 </div>
 
