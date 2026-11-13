@@ -57,6 +57,28 @@ def test_complete_sources_are_verified():
     assert "outline-driven-slide-jobs" in result["features"]
 
 
+def test_slidemuse_model_adaptation_defaults_and_sizes():
+    """Declared upstream patches: gpt-image-2.6 default with the GPT Image 2 size envelope."""
+    scripts = str(ROOT / "vendor/codex-ppt/skills/codex-ppt/scripts")
+    sys.path.insert(0, scripts)
+    try:
+        import codex_ppt_runtime
+        import image_gen
+        assert image_gen.DEFAULT_MODEL == "gpt-image-2.6"
+        assert codex_ppt_runtime.DEFAULT_MODEL == image_gen.DEFAULT_MODEL
+        for size in ("2560x1440", "3840x2160", "1536x1024"):
+            image_gen._validate_size(size, "gpt-image-2.6")
+        for size in ("4096x2160", "256x256", "1025x1024"):
+            with pytest.raises(SystemExit):
+                image_gen._validate_size(size, "gpt-image-2.6")
+        with pytest.raises(SystemExit):
+            image_gen._validate_quality("max", "gpt-image-2.6")
+        image_gen._validate_size("3840x2160", "gpt-image-2")
+        image_gen._validate_size("2560x1440", "gpt-image-2.5-flare")
+    finally:
+        sys.path.remove(scripts)
+
+
 def test_prepare_writes_per_slide_jobs_and_state(tmp_path):
     deck = run_pipeline(tmp_path)
     prompt = json.loads((deck / "prompts/slide_02.json").read_text(encoding="utf-8"))

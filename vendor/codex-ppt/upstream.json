@@ -48,5 +48,18 @@
   "excluded": {
     "skills/codex-ppt/.clawhubignore": "Upstream publication configuration; not part of the skill contract."
   },
-  "patches": {}
+  "patches": {
+    "skills/codex-ppt/scripts/image_gen.py": {
+      "sha256": "7949307ed76374246707d454efbfc13399578d15d48f2365584729c5eca91899",
+      "reason": "SlideMuse: default model gpt-image-2.6; gpt-image-2.6 joins the GPT Image 2 size envelope (2K/4K decks). Upstream hash retained in files."
+    },
+    "skills/codex-ppt/scripts/codex_ppt_runtime.py": {
+      "sha256": "fab9b971779ec4260be445559e6ee83843439968504edb48a84ff9aa4622c3b4",
+      "reason": "SlideMuse: default model gpt-image-2.6 to match image_gen."
+    },
+    "tests/test_image_gen_models.py": {
+      "sha256": "db834fb24099af8bc0610ef866403751367a31c858791e20cbb30548c6927fe5",
+      "reason": "SlideMuse: assert gpt-image-2.6 default and size envelope; 2.6 keeps the conservative xhigh/max quality boundary."
+    }
+  }
 }

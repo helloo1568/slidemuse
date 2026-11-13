@@ -4,7 +4,7 @@
 Used when Codex's built-in image tool is unavailable, when the user explicitly
 opts into API mode, or needs output controls exposed by the API.
 
-Defaults to gpt-image-2.5-flare and a structured prompt augmentation workflow.
+Defaults to gpt-image-2.6 and a structured prompt augmentation workflow.
 Reads OPENAI_API_KEY, and optionally OPENAI_BASE_URL for provider adapters or
 OpenAI-compatible proxy providers.
 """
@@ -27,7 +27,8 @@ from urllib.parse import urlparse
 from image_providers import create_image_provider
 from image_providers.atlascloud import atlascloud_model_for_operation
 
-DEFAULT_MODEL = "gpt-image-2.5-flare"
+# SlideMuse adaptation (declared in upstream.json patches): default to gpt-image-2.6.
+DEFAULT_MODEL = "gpt-image-2.6"
 DEFAULT_SIZE = "2560x1440"
 DEFAULT_QUALITY = "medium"
 DEFAULT_OUTPUT_FORMAT = "png"
@@ -247,7 +248,7 @@ def _validate_gpt_image_2_size(size: str) -> None:
 
 
 def _validate_size(size: str, model: str) -> None:
-    if _is_gpt_image_2_model(model) or _is_gpt_image_2_5_model(model):
+    if _is_gpt_image_2_model(model) or _is_gpt_image_2_5_model(model) or _is_gpt_image_2_6_model(model):
         _validate_gpt_image_2_size(size)
         return
 
@@ -292,6 +293,12 @@ def _is_gpt_image_2_5_model(model: str) -> bool:
         r"(?:^|/)gpt-image-2\.5-(?:flare|sunburst)(?:-\d{4}-\d{2}-\d{2})?(?:/|$)",
         model,
     ))
+
+
+def _is_gpt_image_2_6_model(model: str) -> bool:
+    # SlideMuse adaptation (declared in upstream.json patches): gpt-image-2.6
+    # shares the GPT Image 2 size envelope (up to 3840px edges, 2K/4K decks).
+    return bool(re.search(r"(?:^|/)gpt-image-2\.6(?:-\d{4}-\d{2}-\d{2})?(?:/|$)", model))
 
 
 def _validate_transparency(background: Optional[str], output_format: str) -> None:

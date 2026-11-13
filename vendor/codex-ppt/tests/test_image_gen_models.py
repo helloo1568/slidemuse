@@ -36,7 +36,7 @@ class ImageModelTests(unittest.TestCase):
                     image_gen._validate_quality(quality, model)
 
     def test_unknown_model_does_not_inherit_new_quality(self):
-        for model in ("gpt-image-2.5", "gpt-image-2.5-flare-invalid", "gpt-image-20"):
+        for model in ("gpt-image-2.5", "gpt-image-2.5-flare-invalid", "gpt-image-20", "gpt-image-2.6"):
             with self.subTest(model=model), self.assertRaises(SystemExit):
                 image_gen._validate_quality("max", model)
 
@@ -49,7 +49,7 @@ class ImageModelTests(unittest.TestCase):
         image_gen._validate_model_specific_options(model="gpt-image-1.5", background="transparent")
 
     def test_size_constraints_remain_enforced(self):
-        for model in ("gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2"):
+        for model in ("gpt-image-2.5-flare", "gpt-image-2.5-sunburst", "gpt-image-2", "gpt-image-2.6"):
             image_gen._validate_size("3840x2160", model)
             for size in ("4096x2160", "1025x1024", "3840x3840", "3840x1024", "256x256"):
                 with self.subTest(model=model, size=size), self.assertRaises(SystemExit):
@@ -68,7 +68,7 @@ class ImageModelTests(unittest.TestCase):
 
     def test_cli_defaults_preserve_size_and_quality(self):
         result = self.run_cli("generate", "--prompt", "slide", "--dry-run")
-        self.assertEqual(result["model"], "gpt-image-2.5-flare")
+        self.assertEqual(result["model"], "gpt-image-2.6")
         self.assertEqual(result["model"], codex_ppt_runtime.DEFAULT_MODEL)
         self.assertEqual(result["size"], "2560x1440")
         self.assertEqual(result["quality"], "medium")

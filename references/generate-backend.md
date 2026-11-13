@@ -2,7 +2,7 @@
 
 多页图片版制作需要逐页任务、子代理分派和状态登记时读取。统一入口为 `slidemuse.py generate`，不用另外安装名为 `codex-ppt` 的全局命令。
 
-上游为 `ningzimu/codex-ppt-skill`，完整安装用源码、文档、提示模板、12 套风格参考和测试随技能保留。[upstream.json](../vendor/codex-ppt/upstream.json)记录固定提交、原始文件哈希；[MIT 许可证](../vendor/codex-ppt/LICENSE)随包保留。上游 SKILL 是来源记录，当前任务仍以 SlideMuse 主入口、用户授权和宿主工具规则为准。
+上游为 `ningzimu/codex-ppt-skill`，完整安装用源码、文档、提示模板、12 套风格参考和测试随技能保留。[upstream.json](../vendor/codex-ppt/upstream.json)记录固定提交、原始文件哈希；[MIT 许可证](../vendor/codex-ppt/LICENSE)随包保留。上游 SKILL 是来源记录，当前任务仍以 SlideMuse 主入口、用户授权和宿主工具规则为准。SlideMuse 适配在 [upstream.json](../vendor/codex-ppt/upstream.json) 的 `patches` 中声明：默认生图模型改为 gpt-image-2.6，gpt-image-2.6 沿用 GPT Image 2 尺寸规则（最大边 3840px，支持 2K/4K）；xhigh/max 质量仍限 2.5 系列。原始上游哈希保留在 `files`，补丁哈希与理由记录在 `patches`，`capabilities --verify-source` 按补丁哈希校验。
 
 ## 安装和选择
 

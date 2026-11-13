@@ -137,6 +137,8 @@ files:
   - CONTRIBUTING.md
   - docs/guide.md
   - docs/guide.en.md
+  - docs/fyai-quickstart.md
+  - docs/fyai-quickstart.en.md
   - docs/acceptance-2026-09-18.md
   - docs/acceptance-2026-09-30.md
   - docs/acceptance-2026-10-01.md
