@@ -15,10 +15,10 @@ Please connect SlideMuse's image-generation backend to FengYun AI. I'm a beginne
 1. Ask me for the API key first; I'll paste it to you.
 2. In the SlideMuse skill directory, run in order:
    python slidemuse.py generate runtime bootstrap
-   python slidemuse.py generate runtime config --api-key <my-key> --base-url https://fyai.uk/v1 --model gpt-image-2
+   python slidemuse.py generate runtime config --api-key <my-key> --base-url https://fyai.uk/v1 --model gpt-image-2.6
    python slidemuse.py generate runtime doctor --check-api
 3. If verification fails, show me the HTTP status and the raw error; don't switch services on your own.
-Use this backend for SlideMuse image generation from now on. Rules: only image models like gpt-image-2 on the image endpoint, never chat models; ¥0.04 per image, generate once per request.
+Use this backend for SlideMuse image generation from now on. Rules: only image models like gpt-image-2.6 on the image endpoint, never chat models; ¥0.04 per image, generate once per request.
 ```
 
-The config is written to a user-level `.env`; your key never enters the repository. The model is pinned to gpt-image-2 (the image model named in FengYun AI's announcement) instead of the backend's default gpt-image-2.5-flare. Generation still follows SlideMuse's normal flow: confirm content, pick a style, then generate and review page by page.
+The config is written to a user-level `.env`; your key never enters the repository. The model is pinned to gpt-image-2.6 instead of the backend's default gpt-image-2.5-flare. Generation still follows SlideMuse's normal flow: confirm content, pick a style, then generate and review page by page.

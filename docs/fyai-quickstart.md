@@ -15,10 +15,10 @@ SlideMuse 自带 OpenAI 兼容的 API 生图后端，不需要另建技能，也
 1. 先问我要 API Key，我粘贴给你。
 2. 在 SlideMuse 技能目录依次运行：
    python slidemuse.py generate runtime bootstrap
-   python slidemuse.py generate runtime config --api-key <我的Key> --base-url https://fyai.uk/v1 --model gpt-image-2
+   python slidemuse.py generate runtime config --api-key <我的Key> --base-url https://fyai.uk/v1 --model gpt-image-2.6
    python slidemuse.py generate runtime doctor --check-api
 3. 验证失败时把 HTTP 状态码和报错原样告诉我，别自行换服务。
-以后用 SlideMuse 生图就走这个后端。规则：图片接口只填 gpt-image-2 这类图片模型，别填聊天模型；每张 0.04 元，同一需求只生成一次。
+以后用 SlideMuse 生图就走这个后端。规则：图片接口只填 gpt-image-2.6 这类图片模型，别填聊天模型；每张 0.04 元，同一需求只生成一次。
 ```
 
-配置写在用户级 `.env`，Key 不会进仓库。模型显式指定为 gpt-image-2（风云AI 公告指定的图片模型），不用后端默认的 gpt-image-2.5-flare。接入后生图仍按 SlideMuse 正常流程：先确认内容、再选风格、逐页生成并核对。
+配置写在用户级 `.env`，Key 不会进仓库。模型显式指定为 gpt-image-2.6，不用后端默认的 gpt-image-2.5-flare。接入后生图仍按 SlideMuse 正常流程：先确认内容、再选风格、逐页生成并核对。
