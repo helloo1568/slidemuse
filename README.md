@@ -17,6 +17,19 @@
 
 </div>
 
+<div align="center">
+
+<a href="https://fyai.uk"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/sponsor/fengyun-ai.jpg" alt="风云AI" width="72"></a>
+
+**本项目由 [风云AI](https://fyai.uk) 赞助** · 性价比很高的 AI 中转站<br>
+GPT 调用低至 **0.12 倍率** · 生图 **0.04 元/张**（1K/2K/4K 同价）· 支持 Claude 模型<br>
+日常用 GPT、Claude 或批量出图都合适，想低成本用 AI 的可以看看。
+
+没有 Codex 订阅或海外网络环境，也想发挥 SlideMuse 的完整生图能力？<br>
+风云AI 提供 OpenAI 兼容 API，接入本技能生图后端即可 · [接入方法](docs/guide.md#完整图片生成后端2200)
+
+</div>
+
 <a id="showcase"></a>
 
 <img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/portfolio/style-coverflow-light.webp?v=2.25.1" alt="SlideMuse 作品轮播：15种风格，每种两页相邻播放，每张2秒，居中放大、两侧模糊、向左滑动" width="100%">
