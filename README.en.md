@@ -17,6 +17,19 @@ For work updates, teaching, research, competition pitches and defenses, product 
 
 </div>
 
+<div align="center">
+
+<a href="https://fyai.uk"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/sponsor/fengyun-ai.jpg" alt="FengYun AI" width="72"></a>
+
+**Sponsored by [FengYun AI](https://fyai.uk)** · a cost-effective AI API relay<br>
+GPT calls from **0.12× rate** · image generation **¥0.04 per image** (1K/2K/4K same price) · Claude models available<br>
+A good fit for everyday GPT/Claude use and batch image generation on a budget.
+
+No Codex subscription or overseas network access, but want SlideMuse's full image-generation power?<br>
+FengYun AI's OpenAI-compatible API plugs into the skill's generation backend · [Setup guide](docs/guide.en.md#complete-image-generation-backend-2200)
+
+</div>
+
 <a id="showcase"></a>
 
 <img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/portfolio/style-coverflow-light.webp?v=2.25.1" alt="SlideMuse showcase: 15 styles with two consecutive slides each, 2 seconds per slide, a sharp enlarged center and blurred sides sliding left" width="100%">
