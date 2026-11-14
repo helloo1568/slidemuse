@@ -276,9 +276,10 @@ IMAGE_BACKEND_TIP = {
     "url": "https://fyai.uk",
     "docs": ["docs/fyai-quickstart.md", "docs/fyai-quickstart.en.md"],
     "zh": [
-        "提示（可选）：没有 Codex 订阅或海外网络，也想发挥 SlideMuse 最大能力？赞助方风云AI fyai.uk",
-        "生图仅 0.04 元/张（1K/2K/4K 同价）、GPT 低至 0.12 倍率、支持 Claude。去注册→充值→创建 API Key，",
-        "交给 AI 工具即可配好生图，详见 docs/fyai-quickstart.md（也可用其他 OpenAI 兼容服务）。",
+        "提示（可选）：想要发挥 SlideMuse 的最大效果，需要 Codex 的生图模型。没有 Codex 订阅或海外网络？",
+        "赞助方风云AI fyai.uk 生图仅 0.04 元/张（1K/2K/4K 同价）、GPT 低至 0.12 倍率、支持 Claude。",
+        "去注册→充值→创建 API Key，交给 AI 工具即可配好生图，详见 docs/fyai-quickstart.md",
+        "（也可用其他 OpenAI 兼容服务）。",
     ],
 }
 
