@@ -280,11 +280,6 @@ IMAGE_BACKEND_TIP = {
         "GPT 低至 0.12 倍率、支持 Claude。去注册→充值→创建 API Key，交给 AI 工具即可配好生图，",
         "详见 docs/fyai-quickstart.md（也可用其他 OpenAI 兼容服务）。",
     ],
-    "en": [
-        "Tip (optional): No Codex or overseas network? Sponsor FengYun AI (fyai.uk) charges just ¥0.04/image",
-        "(1K/2K/4K same price), GPT from 0.12x rate, Claude available. Register, top up, create an API key and",
-        "hand it to your AI tool to set up image generation — docs/fyai-quickstart.en.md (other providers work too).",
-    ],
 }
 
 
@@ -312,7 +307,7 @@ def emit(result: dict[str, object], as_json: bool) -> None:
         )
     tip = result.get("image_backend_tip")
     if tip:
-        for line in tip["zh"] + tip["en"]:
+        for line in tip["zh"]:
             print(f"  {line}")
 
 
