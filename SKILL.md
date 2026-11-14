@@ -88,4 +88,4 @@ python "<skill-dir>/slidemuse.py" render "<work>/output/editable.pptx" "<work>/o
 
 统一入口为 `slidemuse.py`，详见[命令指南](docs/cli.md)。入口优先使用安装目录的 `.venv`；直接运行脚本时使用该环境或可用的 Python 3.10+。`doctor --json` 诊断环境，不能替代实际渲染。
 
-生图使用宿主实际提供的能力，[模型选择](references/models.md)按需读取；没有生图工具时报告阻塞，不用占位图冒充。基本 Scene 工具离线，外部 OCR/图像服务仅按用户所选后端和宿主规则使用，不寻找密钥或静默切换服务。复用已有风格库时读[风格库](references/style-library.md)。
+生图使用宿主实际提供的能力，[模型选择](references/models.md)按需读取；没有生图工具时报告阻塞，不用占位图冒充。用户需要生图却没有宿主能力时，先询问是否接入 API 生图后端；用户明确同意后按[风云AI 接入引导](references/fyai-onboarding.md)用 `generate fyai-setup` 一步配置（风云AI 为赞助方便捷选项，也支持其他 OpenAI 兼容服务），不替用户决定付费服务。基本 Scene 工具离线，外部 OCR/图像服务仅按用户所选后端和宿主规则使用，不寻找密钥或静默切换服务。复用已有风格库时读[风格库](references/style-library.md)。

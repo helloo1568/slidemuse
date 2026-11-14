@@ -172,6 +172,51 @@ def test_unknown_command_reports_available_commands():
     assert "assemble" in result.stderr
 
 
+def test_fyai_setup_offline_rejected():
+    result = invoke("--offline", "fyai-setup", "--api-key", "x")
+    assert result.returncode == 2
+    assert "offline" in result.stderr.lower()
+
+
+def test_fyai_setup_requires_api_key():
+    result = invoke("fyai-setup")
+    assert result.returncode != 0
+
+
+def test_fyai_setup_runs_three_steps_without_printing_key(monkeypatch, capsys):
+    calls = []
+
+    class Completed:
+        returncode = 0
+
+    def fake_run(cmd, env=None, check=False):
+        calls.append(cmd)
+        return Completed()
+
+    monkeypatch.setattr(generate_backend.subprocess, "run", fake_run)
+    assert generate_backend.fyai_setup(["--api-key", "SECRET-KEY-123"]) == 0
+    assert [cmd[2] for cmd in calls] == ["bootstrap", "config", "doctor"]
+    assert "SECRET-KEY-123" in calls[1]
+    assert "--base-url" in calls[1] and "https://fyai.uk/v1" in calls[1]
+    assert "SECRET-KEY-123" not in capsys.readouterr().out
+
+
+def test_fyai_setup_stops_at_first_failed_step(monkeypatch):
+    calls = []
+
+    class Completed:
+        def __init__(self, returncode):
+            self.returncode = returncode
+
+    def fake_run(cmd, env=None, check=False):
+        calls.append(cmd[2])
+        return Completed(1 if cmd[2] == "config" else 0)
+
+    monkeypatch.setattr(generate_backend.subprocess, "run", fake_run)
+    assert generate_backend.fyai_setup(["--api-key", "k"]) == 1
+    assert calls == ["bootstrap", "config"]
+
+
 @pytest.mark.parametrize("name", ["普通 deck", "带 空格 的 deck"])
 def test_deck_paths_with_spaces_and_unicode(tmp_path, name):
     deck = run_pipeline(tmp_path, name)

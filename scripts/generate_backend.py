@@ -32,6 +32,8 @@ SCRIPTS = {
     "chroma": "scripts/remove_chroma_key.py",
     "runtime": "scripts/codex_ppt_runtime.py",
 }
+FYAI_DEFAULT_BASE_URL = "https://fyai.uk/v1"
+FYAI_DEFAULT_MODEL = "gpt-image-2.6"
 
 
 def prepare(argv, script, env):
@@ -124,11 +126,51 @@ def capabilities(root=ROOT, verify=False):
     return result
 
 
+def fyai_setup(argv, root=ROOT, offline=False):
+    """One-step API image backend setup: bootstrap -> config -> doctor.
+
+    Defaults to the sponsor FengYun AI endpoint; --base-url/--model accept any
+    OpenAI-compatible provider. The API key is written to the user-level .env
+    and never printed by this wrapper.
+    """
+    if offline:
+        print("SlideMuse: --offline does not support fyai-setup (it needs network).", file=sys.stderr)
+        return 2
+    parser = argparse.ArgumentParser(
+        description="Configure the API image backend in one step (defaults to sponsor FengYun AI).")
+    parser.add_argument("--api-key", required=True,
+                        help="Provider API key; stored in the user-level .env, never printed.")
+    parser.add_argument("--base-url", default=FYAI_DEFAULT_BASE_URL,
+                        help="OpenAI-compatible base URL ending at /v1.")
+    parser.add_argument("--model", default=FYAI_DEFAULT_MODEL, help="Image model name.")
+    args = parser.parse_args(argv)
+    runtime = root / VENDOR / SKILL / SCRIPTS["runtime"]
+    if not runtime.is_file():
+        print("SlideMuse: packaged image-generation backend is missing; reinstall the skill.", file=sys.stderr)
+        return 2
+    env = os.environ.copy()
+    env["PYTHONUTF8"] = "1"
+    steps = [
+        ("bootstrap", ["bootstrap"]),
+        ("config", ["config", "--api-key", args.api_key, "--base-url", args.base_url, "--model", args.model]),
+        ("doctor", ["doctor", "--check-api"]),
+    ]
+    for label, step in steps:
+        print(f"SlideMuse fyai-setup: {label}...", flush=True)
+        completed = subprocess.run([sys.executable, str(runtime), *step], env=env, check=False)
+        if completed.returncode != 0:
+            print(f"SlideMuse fyai-setup: {label} failed (exit {completed.returncode}); stopped.", file=sys.stderr)
+            return completed.returncode
+    print("SlideMuse fyai-setup: done. API image backend configured and verified.")
+    return 0
+
+
 def run_backend(argv, root=ROOT, offline=False):
     name = argv[0] if argv else ""
     if name in ("", "--help", "-h"):
-        print("SlideMuse generate: " + ", ".join([*sorted(SCRIPTS), "review", "capabilities"]))
+        print("SlideMuse generate: " + ", ".join([*sorted(SCRIPTS), "review", "capabilities", "fyai-setup"]))
         print("prepare --spec <deck.json> OR --page-spec <approved.json> --out-dir <deck>; review <deck> [--init]")
+        print("fyai-setup --api-key <key> [--base-url URL] [--model NAME]: one-step API image backend setup.")
         return 0
     if name == "review":
         from generation_delivery import REVIEW, review
@@ -141,8 +183,10 @@ def run_backend(argv, root=ROOT, offline=False):
         result = review(args.deck.resolve(), record.resolve(), args.init)
         print(json.dumps(result, ensure_ascii=True, indent=2))
         return 0 if result["status"] in ("pass", "awaiting_review") else 1
+    if name == "fyai-setup":
+        return fyai_setup(argv[1:], root=root, offline=offline)
     if name not in SCRIPTS:
-        print(f"SlideMuse: choose one of: {', '.join(sorted(SCRIPTS))}", file=sys.stderr)
+        print(f"SlideMuse: choose one of: {', '.join([*sorted(SCRIPTS), 'fyai-setup'])}", file=sys.stderr)
         return 2
     if offline and name == "runtime":
         # The shared runtime creates a venv, writes user-level credentials and can probe an API.
