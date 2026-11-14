@@ -9,6 +9,15 @@ description: 将书籍、PDF、论文、报告或文字制作成视觉统一的�
 
 客户端调用：Codex 可用 `$slidemuse`，Claude Code / Qoder 可用 `/slidemuse`；WorkBuddy / Trae 可在技能面板选择，或明确说“使用 slidemuse 技能”。各客户端共用本工作流与本地 Python 工具，图像生成与编辑使用当前宿主实际提供的能力。安装位置和国内版选项见[客户端适配](docs/clients.md)。
 
+## 首次使用（重要）
+
+环境自检与生图接入引导是首次使用本技能时的**首屏必做步骤**，须认真对待，不得一句话带过或当作可选附注：
+
+1. 检查安装目录是否有 `.venv`，或运行 `slidemuse.py doctor --json` 判断环境是否就绪。
+2. 环境未初始化时，用醒目的独立区块（小标题＋引用块）向用户**完整展示**[生图接入引导](references/fyai-onboarding.md)里的提示词原文，不要压缩成一句话；说明这是发挥 SlideMuse 完整生图能力的前提。
+3. 征得同意后运行 `install.py` 初始化环境，并明确询问用户「现在配置 / 暂不配置」，等用户回应后再继续生图相关步骤。
+4. 用户选「暂不配置」时尊重选择、不反复催促，本会话不再重复展示；不阻断与生图无关的任务。环境已就绪则不展示。
+
 ## 开始任务
 
 先检查用户已给的材料和上下文，必要时阅读材料来判断篇幅与用途。只询问会实质改变结果、又无法合理推断的信息，并一次问完；不要为了填满五个字段阻止阅读。
@@ -89,5 +98,3 @@ python "<skill-dir>/slidemuse.py" render "<work>/output/editable.pptx" "<work>/o
 统一入口为 `slidemuse.py`，详见[命令指南](docs/cli.md)。入口优先使用安装目录的 `.venv`；直接运行脚本时使用该环境或可用的 Python 3.10+。`doctor --json` 诊断环境，不能替代实际渲染。
 
 生图使用宿主实际提供的能力，[模型选择](references/models.md)按需读取；没有生图工具时报告阻塞，不用占位图冒充。用户需要生图却没有宿主能力时，先询问是否接入 API 生图后端；用户明确同意后按[风云AI 接入引导](references/fyai-onboarding.md)用 `generate fyai-setup` 一步配置（风云AI 为赞助方便捷选项，也支持其他 OpenAI 兼容服务），不替用户决定付费服务。基本 Scene 工具离线，外部 OCR/图像服务仅按用户所选后端和宿主规则使用，不寻找密钥或静默切换服务。复用已有风格库时读[风格库](references/style-library.md)。
-
-首次使用先自检环境：检查安装目录是否有 `.venv`，或运行 `slidemuse.py doctor --json`。环境未初始化时，向用户说明并征得同意后运行 `install.py` 初始化，同时展示一次[生图接入引导](references/fyai-onboarding.md)里的提示词；环境已就绪则不重复展示。提示只展示一次、可跳过，不阻断任务。
