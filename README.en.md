@@ -13,7 +13,7 @@ For work updates, teaching, research, competition pitches and defenses, product 
 
 [简体中文](README.md) · **English**
 
-[Showcase](#showcase) · [Editable slides](#editable) · [Competition specialty](#competition) · [Quick start](#quick-start) · [Guide](docs/guide.en.md)
+[Showcase](#showcase) · [Editable slides](#editable) · [Competition presentations](#competition) · [Quick start](#quick-start) · [Guide](docs/guide.en.md)
 
 </div>
 
@@ -25,7 +25,7 @@ For work updates, teaching, research, competition pitches and defenses, product 
 GPT calls from **0.12× rate** · image generation **¥0.04 per image** (1K/2K/4K same price) · Claude models available<br>
 A good fit for everyday GPT/Claude use and batch image generation on a budget.
 
-No Codex subscription or overseas network access, but want SlideMuse's full image-generation power?<br>
+No Codex subscription or overseas network access, but want to get the most out of SlideMuse?<br>
 FengYun AI's OpenAI-compatible API plugs into the skill's generation backend — one paste to set up · [Setup guide](docs/fyai-quickstart.en.md)
 
 </div>
@@ -54,18 +54,81 @@ Generate complete slide images first, then reconstruct them. Text, shapes, and t
 
 <a id="competition"></a>
 
-## Competition presentations are a specialty
+## Competition presentations that explain innovation, technology, and results
 
-Turn proposals, papers, research reports, and competition briefs into presentations built around the problem, solution, innovation, validation, and value. Make the technical work and results easier to explain.
+Bring your proposal, paper, research report, and competition brief to SlideMuse to build a presentation around the problem, solution, innovation, and validation.
 
-| Scenario | Representative competitions and presentation focus |
+<table>
+<tr>
+<td width="50%" align="center">
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/weld/04.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/weld/04.webp" alt="Technical architecture: Weld Inspection's input, image-quality checks, recognition, and human review flow" width="100%"></a><br>
+<strong>Technical architecture</strong><br><sub>Make the system and workflow clear</sub>
+</td>
+<td width="50%" align="center">
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/weld/05.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/weld/05.webp" alt="Innovation comparison: three design differences, each paired with a validation method and evaluation metrics" width="100%"></a><br>
+<strong>Innovation comparison</strong><br><sub>Connect design differences to validation</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/junction/06.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/junction/06.webp" alt="Data validation: Junction Foresight's fixed-replay comparison, with sample counts, calculation methods, recall, and false alarms" width="100%"></a><br>
+<strong>Data validation</strong><br><sub>Show comparisons and measurement methods</sub>
+</td>
+<td width="50%" align="center">
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/neighbor/07.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/neighbor/07.webp" alt="Implementation: Neighborhood Watch's service operations, staffing, handoffs, and cost structure" width="100%"></a><br>
+<strong>Implementation</strong><br><sub>Explain delivery and resource needs</sub>
+</td>
+</tr>
+</table>
+
+<sub>Selected slides from three original concept decks, 24 slides in total. These are image-based examples with fictional business and technical data. Click any slide to view it at full size. Slide content is in Chinese.</sub>
+
+- **Content structure**: organize the problem, solution, innovation, and validation around the competition brief and supplied material.
+- **Visual explanation**: support the main conclusions with technical workflows, system architecture, comparisons, and data.
+- **Live presentation**: plan slide content for the allotted time, with speaking outlines, scripts, and speaker notes when requested.
+
+[Browse all 24 competition slides](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md) · [Explore competition scenarios](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-scenarios.en.md)
+
+### Competition and defense scenarios
+
+| Competition / scenario | Presentation focus |
 | :--- | :--- |
-| **Innovation and entrepreneurship** | Challenge Cup, China International College Students' Innovation Competition, and 3-Chuang: user needs, innovation, validation, and development plans. |
-| **Technology and engineering** | Computer design, Software Cup, IC design, and transportation competitions: technical approach, implementation, test results, and live demos. |
-| **Research and case analysis** | CP Cup, MPA / MPAcc, IMA, and CFA: methods, data analysis, key findings, and recommendations. |
-| **Teaching and academic presentations** | Teaching-innovation competitions, lesson presentations, and school or provincial modeling defenses: objectives, methods, evidence, and results. |
-
-[Explore all competition scenarios](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-scenarios.en.md) · [Browse 24 slides of complete competition decks](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md)
+| [中国国际大学生创新大赛](https://hudong.moe.gov.cn/srcsite/A08/s5672/202607/t20260731_1445670.html) | Problem, innovation, validation, team, and development plan. |
+| [“挑战杯”中国大学生创业计划竞赛](https://www.tiaozhanbei.net/focus) | Customer needs, product, market, business model, and execution. |
+| [全国大学生电子商务“创新、创意及创业”挑战赛](https://www.3chuang.net/) | E-commerce context, ideas, operations, project results, and value. |
+| [iGEM](https://igem.org/) | Project background, biological design (Parts), evidence, safety and ethics, human practices, and team collaboration. |
+| [Hult Prize](https://www.hultprize.org/) | Social problem, solution and business model, quantified impact, team, and pitch delivery. |
+| [Microsoft Imagine Cup](https://imaginecup.microsoft.com/) | Technical implementation, product usability, market and team, and demo readiness. |
+| [“挑战杯”全国大学生课外学术科技作品竞赛](https://www.tiaozhanbei.net/focus) | Research question, methods, novelty, results, and applications. |
+| [中国大学生计算机设计大赛](https://jsjds.blcu.edu.cn/) | Positioning, feature demo, implementation, difficulty and workload, and on-site Q&A. |
+| [中国软件杯大学生软件设计大赛](https://www.cnsoftbei.com/) | Six-minute brief interpretation, architecture, feature demo, and code and docs, with four minutes left for questions. |
+| 中国大学生服务外包创新创业大赛 | Fit with the company brief, product completeness, business model and traction, demo, and team roles. |
+| [全国大学生信息安全竞赛（作品赛）](http://www.ciscn.cn/) | Technical novelty, implementation and live demo, practical or applied value, and defense. |
+| [全国大学生集成电路创新创业大赛](https://univ.ciciec.com/) | Task metrics achieved, engineering implementation and measurements, industrial fit, and judge Q&A. |
+| [全国大学生嵌入式芯片与系统设计竞赛](https://www.socchina.net/) | Chip platform use, system integration and demo, documentation, and defense. |
+| 全国大学生机械创新设计大赛 | Novel and practical topic, mechanism design and methods, manufacturing and function, live demo and defense. |
+| [全国大学生交通运输科技大赛（交科赛）](http://www.nactrans.net/) | Transportation problem, solution design, technical route, validation, and innovation value. |
+| 全国大学生化工设计竞赛 | Process design and decarbonization, energy and mass integration, economics, and oral report with two defense rounds. |
+| 世界职业院校技能大赛 | Explain project design, workflow, core skills, and results alongside practical operations, physical evidence, and measured data; prepare supporting slides according to the current track's requirements. |
+| [全国大学生结构设计竞赛](http://www.structurecontest.com/) | Theoretical scheme and calculations, model build and loading performance, on-site statement, and teamwork. |
+| [全国大学生节能减排社会实践与科技竞赛](https://jienengjianpai.cn/) | Energy and emission problem, technical or social solution, measured data, reduction benefit, and scalability. |
+| [全国三维数字化创新设计大赛（3D 大赛）](https://3dds.3ddl.net/) | Digital modeling and innovation, engineering usefulness, business or social value, and pitch with judge Q&A. |
+| [全国大学生广告艺术大赛（大广赛·策划案类）](https://www.sun-ada.net/) | Brand and audience insight, creative fit with the brief, executable planning, and live proposal delivery. |
+| [睿抗机器人开发者大赛（RAICOM）](https://www.raicom.com.cn/) | Task completion, design creativity, and slide-based defense. |
+| [中国研究生创新实践系列大赛](https://cpipc.acge.org.cn/) | Technical novelty, implementation and results, and application value; determine anonymity requirements and presentation and Q&A durations for the specific contest, edition, and stage. |
+| [“正大杯”全国大学生市场调查与分析大赛](https://www.china-cssc.org/show-568-1912-1.html) | Research questions, survey design, data analysis, findings, and recommendations. |
+| [全国大学生生命科学竞赛](https://www.culsc.cn/) | Scientific question, experimental design, data and statistics, conclusion reliability, and Q&A. |
+| [中国大学生工程实践与创新能力大赛](http://www.gcxl.edu.cn/) | Task breakdown, design comparison, structure and control, measured results, and iteration. |
+| [中国研究生公共管理案例大赛](https://cpipc.acge.org.cn/cw/hp/8) | Case representativeness, theoretical framework, problem diagnosis, feasible measures, and Q&A. |
+| [中国 MPAcc 学生案例大赛](http://alds.mpaccesc.ruc.edu.cn/) | Financial analysis, problem diagnosis, implementation, data support, and defense. |
+| [IMA 校园管理会计案例大赛](https://casecompetition.imachina.org.cn/) | Application of management accounting tools, data modeling, feasibility, and presentation and Q&A. |
+| [CFA Institute Research Challenge](https://researchchallenge.cfainstitute.org/) | Valuation model, recommendation and target price, industry and moat, English delivery, and disclosures. |
+| [全国高校教师教学创新大赛](https://nticct.cahe.edu.cn/) | Teaching pain points, innovation and course redesign, assessment reform, evidence (data and student feedback), and scalability. |
+| [田家炳杯全国师范院校师范生教学技能竞赛](https://qgjxjn.zjnu.edu.cn/) | Objectives aligned to standards, learner analysis, lesson design, board work and slides, and classroom adaptability. |
+| 全国中小学实验教学说课活动 | Experiment improvement, objective attainment, safety and standards, and lesson presentation. |
+| **大创 (undergraduate innovation and entrepreneurship training projects)** | Proposal defenses, progress reports, and final presentations: project objectives, methods, execution, progress, outcomes, and next steps. |
+| **Thesis defenses and research group updates** | Research question, related work, methods, experiments, contributions, and future work. |
+| **School or provincial mathematical-modeling defenses and paper presentations** | Problem analysis, assumptions and models, solution methods, validation, sensitivity analysis, and model evaluation. |
 
 <a id="quick-start"></a>
 
@@ -81,8 +144,19 @@ If multiple clients are detected, pass --client for the one I am using.
 
 Then attach your material and ask (Codex also accepts `$slidemuse`):
 
+**Example 1: General presentations**
+
 ```text
 Use the slidemuse skill to turn this report into a 10-slide project update for my team.
+Show a slide-by-slide content plan, then four style overviews for me to choose from.
+After I choose a style, create the image deck and reconstruct an editable PPTX.
+```
+
+**Example 2: Competition presentations**
+
+```text
+Use the slidemuse skill to create an 8-minute competition presentation from this proposal and competition brief.
+Focus on the problem, technical solution, innovation, and validation results, with a speaking outline for each slide.
 Show a slide-by-slide content plan, then four style overviews for me to choose from.
 After I choose a style, create the image deck and reconstruct an editable PPTX.
 ```

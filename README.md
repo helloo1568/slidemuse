@@ -13,7 +13,7 @@
 
 **简体中文** · [English](README.en.md)
 
-[作品预览](#showcase) · [可编辑还原](#editable) · [竞赛特色](#competition) · [快速开始](#quick-start) · [使用指南](docs/guide.md)
+[作品预览](#showcase) · [可编辑还原](#editable) · [竞赛答辩](#competition) · [快速开始](#quick-start) · [使用指南](docs/guide.md)
 
 </div>
 
@@ -25,7 +25,7 @@
 GPT 调用低至 **0.12 倍率** · 生图 **0.04 元/张**（1K/2K/4K 同价）· 支持 Claude 模型<br>
 日常用 GPT、Claude 或批量出图都合适，想低成本用 AI 的可以看看。
 
-没有 Codex 订阅或海外网络环境，也想发挥 SlideMuse 的完整生图能力？<br>
+没有 Codex 订阅或海外网络环境，也想发挥 SlideMuse 的最大能力？<br>
 风云AI 提供 OpenAI 兼容 API，复制一段话即可接入生图后端 · [接入方法](docs/fyai-quickstart.md)
 
 </div>
@@ -54,18 +54,81 @@ GPT 调用低至 **0.12 倍率** · 生图 **0.04 元/张**（1K/2K/4K 同价）
 
 <a id="competition"></a>
 
-## 竞赛答辩，也是我们的特色
+## 竞赛答辩，讲清创新、技术与成果
 
-把项目书、论文、调研报告与赛事要求转成答辩页面，围绕问题、方案、创新、验证与价值组织内容，让技术与成果更容易讲清楚。
+把项目书、论文、调研报告与赛事要求交给 SlideMuse，围绕问题、方案、创新与验证组织答辩页面。
 
-| 场景 | 代表赛事与展示重点 |
+<table>
+<tr>
+<td width="50%" align="center">
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/weld/04.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/weld/04.webp" alt="技术架构：焊隙智检的算法与数据处理架构，展示输入、质量检查、识别与人工复核流程" width="100%"></a><br>
+<strong>技术架构</strong><br><sub>看清系统与流程</sub>
+</td>
+<td width="50%" align="center">
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/weld/05.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/weld/05.webp" alt="创新对比：焊隙智检的三项设计差异，对应设计内容、验证方式与关注指标" width="100%"></a><br>
+<strong>创新对比</strong><br><sub>亮点对应验证方式</sub>
+</td>
+</tr>
+<tr>
+<td width="50%" align="center">
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/junction/06.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/junction/06.webp" alt="数据验证：路口先知的固定回放演示对照，呈现样本、计算口径、召回率与误报率" width="100%"></a><br>
+<strong>数据验证</strong><br><sub>结果附上对照与口径</sub>
+</td>
+<td width="50%" align="center">
+<a href="https://github.com/helloo1568/slidemuse/blob/main/showcase/competition-portfolio/assets/neighbor/07.webp"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/showcase/competition-portfolio/assets/neighbor/07.webp" alt="应用落地：邻里守望的服务运营与成本结构，展示值班交接、人员安排和持续服务所需资源" width="100%"></a><br>
+<strong>应用落地</strong><br><sub>交代实施与资源安排</sub>
+</td>
+</tr>
+</table>
+
+<sub>节选自三套原创概念作品，共 24 页；以上为图片版展示，业务与技术数据为虚构演示输入。点击任一页面查看大图。</sub>
+
+- **内容组织**：结合赛事要求与现有材料，安排问题、方案、创新与验证的叙事顺序。
+- **图解表达**：用技术路线、系统架构、方案对比和数据结果，支撑项目的核心结论。
+- **现场讲述**：按汇报时长安排逐页内容，按需提供讲解提纲、讲稿与演讲备注。
+
+[浏览 24 页完整竞赛作品](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md) · [查看完整赛事与答辩场景](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-scenarios.md)
+
+### 适用赛事与答辩场景
+
+| 赛事 / 场景 | 可组织的汇报内容 |
 | :--- | :--- |
-| **创新创业路演** | 挑战杯、中国国际大学生创新大赛、三创赛：需求洞察、创新方案、应用验证与发展计划。 |
-| **科技与工程答辩** | 计算机设计大赛、软件杯、集创赛、交科赛：技术路线、系统实现、测试结果与现场演示。 |
-| **调研与案例分析** | 正大杯、MPA / MPAcc、IMA、CFA：研究方法、数据分析、核心发现与建议。 |
-| **教学与学术展示** | 教创赛、师范生说课、校内或省级数模答辩：目标、方法、证据与成果表达。 |
-
-[查看完整赛事与答辩场景](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-scenarios.md) · [浏览 24 页完整竞赛作品](https://github.com/helloo1568/slidemuse/blob/main/docs/competition-portfolio.md)
+| [中国国际大学生创新大赛](https://hudong.moe.gov.cn/srcsite/A08/s5672/202607/t20260731_1445670.html) | 项目痛点、创新方案、应用验证、团队与发展规划。 |
+| [“挑战杯”中国大学生创业计划竞赛](https://www.tiaozhanbei.net/focus) | 用户需求、产品方案、市场分析、商业模式与实施计划。 |
+| [全国大学生电子商务“创新、创意及创业”挑战赛](https://www.3chuang.net/) | 电商场景、创意方案、运营实践、项目成果与商业价值。 |
+| [iGEM 国际基因工程机器大赛](https://igem.org/) | 项目背景、生物设计（Parts）、实验与建模证据、安全伦理、Human Practices 与团队协作。 |
+| [霍特奖 Hult Prize](https://www.hultprize.org/) | 社会问题定义、方案与商业模式、impact 量化、团队执行力与 pitch 表达。 |
+| [微软 Imagine Cup](https://imaginecup.microsoft.com/) | 技术实现与 AI 应用、产品可用性、市场与团队、Demo 完成度。 |
+| [“挑战杯”全国大学生课外学术科技作品竞赛](https://www.tiaozhanbei.net/focus) | 研究问题、技术方法、创新点、实验结果与应用价值。 |
+| [中国大学生计算机设计大赛](https://jsjds.blcu.edu.cn/) | 作品定位、功能演示、技术实现、难度与工作量、现场问答。 |
+| [中国软件杯大学生软件设计大赛](https://www.cnsoftbei.com/) | 6 分钟讲清赛题理解、架构设计、功能演示、代码与文档质量；预留 4 分钟问答。 |
+| 中国大学生服务外包创新创业大赛 | 企业命题契合度、产品完成度、商业模式与落地数据、Demo、团队分工。 |
+| [全国大学生信息安全竞赛（作品赛）](http://www.ciscn.cn/) | 技术创新性、系统实现与现场演示、实战或应用价值、答辩。 |
+| [全国大学生集成电路创新创业大赛（集创赛）](https://univ.ciciec.com/) | 赛题指标达成、工程实现与测试数据、产业适配性、现场评审问答。 |
+| [全国大学生嵌入式芯片与系统设计竞赛](https://www.socchina.net/) | 芯片平台应用、系统集成与演示、方案文档、答辩。 |
+| 全国大学生机械创新设计大赛 | 选题新颖实用、结构设计与理论方法、制作工艺与功能、实物演示与现场答辩。 |
+| [全国大学生交通运输科技大赛（交科赛）](http://www.nactrans.net/) | 交通问题、方案设计、技术路线、实验或应用验证与创新价值。 |
+| 全国大学生化工设计竞赛 | 工艺流程与绿色低碳、能量与物料集成、经济性分析、口头报告与两轮答辩。 |
+| 世界职业院校技能大赛 | 围绕项目设计、工作流程、核心技能与主要成果组织现场讲解，结合技能操作展示实物与测试数据；辅助 PPT 按当届赛道要求制作。 |
+| [全国大学生结构设计竞赛](http://www.structurecontest.com/) | 理论方案与计算书、模型制作与加载表现、现场陈述答辩、团队协作。 |
+| [全国大学生节能减排社会实践与科技竞赛](https://jienengjianpai.cn/) | 能耗与排放问题、技术或社会实践方案、实测数据、减排效益核算、可推广性。 |
+| [全国三维数字化创新设计大赛（3D 大赛）](https://3dds.3ddl.net/) | 数字建模与创新、工程实用性、商业或社会价值、路演与评委问辩。 |
+| [全国大学生广告艺术大赛（大广赛·策划案类）](https://www.sun-ada.net/) | 品牌与人群洞察、创意与命题契合、策划案逻辑与可执行、现场提案表达。 |
+| [睿抗机器人开发者大赛（RAICOM）](https://www.raicom.com.cn/) | 赛项任务完成、设计创意、PPT 答辩表达。 |
+| [中国研究生创新实践系列大赛](https://cpipc.acge.org.cn/) | 技术创新、工程实现与效果、应用价值；按具体子赛、届次与阶段确定匿名要求及汇报、问答时长。 |
+| [“正大杯”全国大学生市场调查与分析大赛](https://www.china-cssc.org/show-568-1912-1.html) | 调研问题、调查设计、数据分析、主要发现与建议。 |
+| [全国大学生生命科学竞赛](https://www.culsc.cn/) | 科学问题、实验设计与技术路线、数据与统计学、结论可靠性、答辩问答。 |
+| [中国大学生工程实践与创新能力大赛](http://www.gcxl.edu.cn/) | 任务拆解、方案对比、结构与控制设计、实测成绩、迭代改进。 |
+| [中国研究生公共管理案例大赛](https://cpipc.acge.org.cn/cw/hp/8) | 案例典型性、理论框架、问题诊断、对策可行性、问答。 |
+| [中国 MPAcc 学生案例大赛](http://alds.mpaccesc.ruc.edu.cn/) | 财务分析、问题诊断、方案落地、数据支撑、答辩。 |
+| [IMA 校园管理会计案例大赛](https://casecompetition.imachina.org.cn/) | 管理会计工具应用、数据测算、方案可执行性、展示与问答。 |
+| [CFA Institute Research Challenge](https://researchchallenge.cfainstitute.org/) | 估值模型、投资建议与目标价、行业与护城河、英文表达与问答、合规披露。 |
+| [全国高校教师教学创新大赛](https://nticct.cahe.edu.cn/) | 教学痛点、创新点与课程重构、评价改革、证据链（数据与学生反馈）、推广性。 |
+| [田家炳杯全国师范院校师范生教学技能竞赛](https://qgjxjn.zjnu.edu.cn/) | 教学目标与课标对应、学情分析、教学环节设计、板书与课件、课堂应变。 |
+| 全国中小学实验教学说课活动 | 实验改进点、教学目标达成、安全与规范、说课表达。 |
+| **大学生创新创业训练计划（大创）** | 立项答辩、中期汇报与结题答辩：项目目标、研究与实施方案、阶段进展、成果与后续计划。 |
+| **论文答辩与组会汇报** | 研究问题、相关工作、方法设计、实验结果、主要贡献与后续研究。 |
+| **校内或省级数模答辩、优秀论文交流** | 问题分析、假设与模型、求解方法、结果检验、灵敏度分析与模型评价。 |
 
 <a id="quick-start"></a>
 
@@ -81,8 +144,19 @@ GPT 调用低至 **0.12 倍率** · 生图 **0.04 元/张**（1K/2K/4K 同价）
 
 安装后附上材料，直接说（Codex 也可使用 `$slidemuse`）：
 
+**示例一：通用汇报**
+
 ```text
 使用 slidemuse 技能，把这份报告做成 10 页项目汇报 PPT，受众是团队同事。
+先给我逐页内容方案，再提供四套风格总览供我选择。
+选定后制作图片版，并继续还原为可编辑 PPTX。
+```
+
+**示例二：竞赛答辩**
+
+```text
+使用 slidemuse 技能，根据这份项目书和赛事要求制作 8 分钟竞赛答辩 PPT。
+重点讲清项目痛点、技术方案、创新点与验证结果，并给出逐页讲解提纲。
 先给我逐页内容方案，再提供四套风格总览供我选择。
 选定后制作图片版，并继续还原为可编辑 PPTX。
 ```
