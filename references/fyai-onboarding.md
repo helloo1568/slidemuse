@@ -18,7 +18,6 @@
 
 1. **现在配置风云AI生图**（赞助方，便捷）：引导用户拿 Key 后运行 `generate fyai-setup --api-key <key>`。
 2. **使用当前生图工具继续**（效果可能不如推荐模型）：用宿主现有生图能力继续；宿主无生图能力时生图步骤阻塞，不阻断其他步骤。
-3. **先看接入教程**：给出 https://github.com/helloo1568/slidemuse/blob/main/docs/fyai-quickstart.md 。
 
 ## 引导用户拿 Key
 
