@@ -24,4 +24,4 @@ The skill configures and verifies everything automatically (one `generate fyai-s
 python slidemuse.py generate fyai-setup --api-key <your-key>
 ```
 
-It defaults to FengYun AI (model gpt-image-2.6); for another OpenAI-compatible provider add `--base-url` and `--model`. The config is written to a user-level `.env`; your key never enters the repository. Generation still follows SlideMuse's normal flow: confirm content, pick a style, then generate and review page by page.
+It defaults to FengYun AI (model gpt-image-2.6). The config is written to a user-level `.env`; your key never enters the repository. Generation still follows SlideMuse's normal flow: confirm content, pick a style, then generate and review page by page.

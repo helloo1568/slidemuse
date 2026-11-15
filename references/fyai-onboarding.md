@@ -1,6 +1,6 @@
 # 风云AI 生图接入引导
 
-宿主没有生图能力、用户需要生图时，先询问是否接入 API 生图后端。用户明确同意后再引导；不替用户决定付费服务，不静默切换。风云AI 是赞助方提供的便捷选项，也支持任何 OpenAI 兼容服务。
+宿主没有生图能力、用户需要生图时，先询问是否接入 API 生图后端。用户明确同意后再引导；不替用户决定付费服务，不静默切换。风云AI 是赞助方提供的便捷选项。
 
 ## 首次使用提示词（向用户展示一次）
 
@@ -17,9 +17,8 @@
 ## 首次使用选项（展示提示后停下来等用户选）
 
 1. **现在配置风云AI生图**（赞助方，便捷）：引导用户拿 Key 后运行 `generate fyai-setup --api-key <key>`。
-2. **配置其他 OpenAI 兼容生图服务**：询问 base-url 与模型，用 `generate fyai-setup --api-key <key> --base-url <url> --model <name>`。
-3. **暂不配置，先继续任务**：跳过；无宿主生图能力时生图步骤会阻塞，不阻断其他步骤。
-4. **先看接入教程**：给出 https://github.com/helloo1568/slidemuse/blob/main/docs/fyai-quickstart.md 。
+2. **暂不配置，先继续任务**：跳过；无宿主生图能力时生图步骤会阻塞，不阻断其他步骤。
+3. **先看接入教程**：给出 https://github.com/helloo1568/slidemuse/blob/main/docs/fyai-quickstart.md 。
 
 ## 引导用户拿 Key
 
@@ -37,7 +36,7 @@
 python "<skill-dir>/slidemuse.py" generate fyai-setup --api-key "<用户的Key>"
 ```
 
-默认接入风云AI（base-url https://fyai.uk/v1，模型 gpt-image-2.6）。其他 OpenAI 兼容服务用 `--base-url` 与 `--model` 覆盖。命令依次完成 bootstrap、config、doctor 验证；Key 写入用户级 `.env`，不进仓库、不打印。失败时把 HTTP 状态码和报错原样告诉用户，不自行换服务。
+默认接入风云AI（base-url https://fyai.uk/v1，模型 gpt-image-2.6）。命令依次完成 bootstrap、config、doctor 验证；Key 写入用户级 `.env`，不进仓库、不打印。失败时把 HTTP 状态码和报错原样告诉用户，不自行换服务。
 
 ## 规则
 
