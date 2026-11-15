@@ -14,6 +14,13 @@
 
 展示过一次后（标记文件已存在）不再重复展示，与环境是否就绪无关。
 
+## 首次使用选项（展示提示后停下来等用户选）
+
+1. **现在配置风云AI生图**（赞助方，便捷）：引导用户拿 Key 后运行 `generate fyai-setup --api-key <key>`。
+2. **配置其他 OpenAI 兼容生图服务**：询问 base-url 与模型，用 `generate fyai-setup --api-key <key> --base-url <url> --model <name>`。
+3. **暂不配置，先继续任务**：跳过；无宿主生图能力时生图步骤会阻塞，不阻断其他步骤。
+4. **先看接入教程**：给出 https://github.com/helloo1568/slidemuse/blob/main/docs/fyai-quickstart.md 。
+
 ## 引导用户拿 Key
 
 1. 打开 https://fyai.uk 注册登录。
