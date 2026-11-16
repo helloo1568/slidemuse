@@ -7,7 +7,7 @@
 Create visually consistent image decks from PDFs, papers, reports, and notes, with editable PPTX reconstruction when needed.<br>
 For work updates, teaching, research, competition pitches and defenses, product pitches, and creative presentations.
 
-[![Version](https://img.shields.io/badge/version-2.25.3-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.25.4-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
