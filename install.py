@@ -277,7 +277,7 @@ IMAGE_BACKEND_TIP = {
     "docs": ["docs/fyai-quickstart.md", "docs/fyai-quickstart.en.md"],
     "zh": [
         "提示（可选）：想要发挥 SlideMuse 的最大效果，需要 Codex 的生图模型。没有 Codex 订阅或海外网络？",
-        "赞助方风云AI https://fyai.uk 生图仅 0.04 元/张（1K/2K/4K 同价）、GPT 低至 0.12 倍率、支持 Claude。",
+        "赞助方风云AI https://fyai.uk 生图仅 0.04 元/张（1K/2K/4K 同价）、GPT 低至 0.08 倍率，支持 Claude、GPT、Grok、Gemini 以及国产模型。全网最低价，0 掺水，高速满血不降智。",
         "去注册→充值→创建 API Key，交给 AI 工具即可配好生图，详见 https://github.com/helloo1568/slidemuse/blob/main/docs/fyai-quickstart.md。",
     ],
 }

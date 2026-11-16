@@ -22,8 +22,8 @@ For work updates, teaching, research, competition pitches and defenses, product 
 <a href="https://fyai.uk"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/sponsor/fengyun-ai.jpg" alt="FengYun AI" width="72"></a>
 
 **Sponsored by [FengYun AI](https://fyai.uk)** · a cost-effective AI API relay<br>
-GPT calls from **0.12× rate** · image generation **¥0.04 per image** (1K/2K/4K same price) · Claude models available<br>
-A good fit for everyday GPT/Claude use and batch image generation on a budget.
+GPT calls from **0.08× rate** · image generation **¥0.04 per image** (1K/2K/4K same price)<br>
+Supports Claude, GPT, Grok, Gemini, and Chinese models · **The lowest prices online, zero adulteration, and high-speed, full-capability models with no intelligence downgrades.**
 
 No Codex subscription or overseas network access, but want to get the most out of SlideMuse?<br>
 FengYun AI's OpenAI-compatible API plugs into the skill's generation backend — one paste to set up · [Setup guide](docs/fyai-quickstart.en.md)
