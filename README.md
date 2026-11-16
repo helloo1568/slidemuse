@@ -7,7 +7,7 @@
 将 PDF、论文、报告与笔记制作成风格统一的图片 PPT，按需还原为可编辑 PPTX。<br>
 用于工作汇报、教学培训、学术分享、竞赛答辩、产品路演与创意展示。
 
-[![Version](https://img.shields.io/badge/version-2.25.4-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.25.5-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
@@ -22,7 +22,7 @@
 <a href="https://fyai.uk"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/sponsor/fengyun-ai.jpg" alt="风云AI" width="72"></a>
 
 **本项目由 [风云AI](https://fyai.uk) 赞助** · 性价比很高的 AI 中转站<br>
-GPT 调用低至 **0.08 倍率** · 生图 **0.04 元/张**（1K/2K/4K 同价）<br>
+GPT 调用低至 **0.08 倍率** · 生图 **0.02 元/张**（1K/2K/4K 同价）<br>
 支持 Claude、GPT、Grok、Gemini 以及国产模型 · **全网最低价，0 掺水，高速满血不降智。**
 
 没有 Codex 订阅或海外网络环境，也想发挥 SlideMuse 的最大能力？<br>
