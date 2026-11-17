@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [2.25.6] - 2026-11-17
+
+### Changed
+
+- 风云AI 赞助链接加入 UTM 参数（`utm_source=github`、`utm_medium=readme|docs`），用于区分 GitHub 来源的访问。
+
 ## [2.25.5] - 2026-11-16
 
 ### Changed
