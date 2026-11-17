@@ -19,9 +19,9 @@ For work updates, teaching, research, competition pitches and defenses, product 
 
 <div align="center">
 
-<a href="https://fyai.uk"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/sponsor/fengyun-ai.jpg" alt="FengYun AI" width="72"></a>
+<a href="https://fyai.uk/?utm_source=github&utm_medium=readme&utm_campaign=slidemuse"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/sponsor/fengyun-ai.jpg" alt="FengYun AI" width="72"></a>
 
-**Sponsored by [FengYun AI](https://fyai.uk)** · a cost-effective AI API relay<br>
+**Sponsored by [FengYun AI](https://fyai.uk/?utm_source=github&utm_medium=readme&utm_campaign=slidemuse)** · a cost-effective AI API relay<br>
 GPT calls from **0.08× rate** · image generation **¥0.02 per image** (1K/2K/4K same price)<br>
 Supports Claude, GPT, Grok, Gemini, and Chinese models · **The lowest prices online, zero adulteration, and high-speed, full-capability models with no intelligence downgrades.**
 

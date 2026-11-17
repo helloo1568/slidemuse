@@ -6,7 +6,7 @@ Note: this guide only covers calling FengYun AI's image model **when generating 
 
 ## Step 1: Get a key (about a minute)
 
-1. Sign up and log in at [fyai.uk](https://fyai.uk).
+1. Sign up and log in at [fyai.uk](https://fyai.uk/?utm_source=github&utm_medium=docs&utm_campaign=slidemuse).
 2. Top up your balance in the console. Billing is pay-as-you-go at ¥0.02 per image; calls fail if the balance runs out.
 3. Create an API key and pick the "GPT（福利）" or "GPT不降智" group. Do not pick "不降智claude" — that group does not support image generation.
 

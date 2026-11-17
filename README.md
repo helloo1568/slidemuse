@@ -19,9 +19,9 @@
 
 <div align="center">
 
-<a href="https://fyai.uk"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/sponsor/fengyun-ai.jpg" alt="风云AI" width="72"></a>
+<a href="https://fyai.uk/?utm_source=github&utm_medium=readme&utm_campaign=slidemuse"><img src="https://raw.githubusercontent.com/helloo1568/slidemuse/main/docs/assets/sponsor/fengyun-ai.jpg" alt="风云AI" width="72"></a>
 
-**本项目由 [风云AI](https://fyai.uk) 赞助** · 性价比很高的 AI 中转站<br>
+**本项目由 [风云AI](https://fyai.uk/?utm_source=github&utm_medium=readme&utm_campaign=slidemuse) 赞助** · 性价比很高的 AI 中转站<br>
 GPT 调用低至 **0.08 倍率** · 生图 **0.02 元/张**（1K/2K/4K 同价）<br>
 支持 Claude、GPT、Grok、Gemini 以及国产模型 · **全网最低价，0 掺水，高速满血不降智。**
 
