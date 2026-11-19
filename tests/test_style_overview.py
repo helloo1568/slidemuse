@@ -70,6 +70,29 @@ def test_layout_count_and_bounds(overview_spec, count):
         assert w / h == pytest.approx(4 / 3, abs=0.01)
 
 
+@pytest.mark.parametrize("count,columns,rows", [
+    (1, 1, 1), (2, 2, 1), (3, 2, 2), (4, 2, 2), (5, 3, 2), (6, 3, 2), (7, 3, 3), (8, 3, 3),
+])
+def test_sixteen_by_nine_pages_keep_sixteen_by_nine_cells(tmp_path, count, columns, rows):
+    slides = []
+    for index in range(count):
+        name = f"p{index}.png"
+        Image.new("RGB", (320, 180), "white").save(tmp_path / name)
+        slides.append({"file": name, "slide_id": f"s{index + 1:02d}"})
+    spec = tmp_path / "overview.json"
+    spec.write_text(json.dumps({"title": "Option", "slides": slides, "slide_aspect_ratio": [16, 9],
+                                "require_native_aspect": True}), encoding="utf-8")
+    result = build_overview(spec, tmp_path / "out.png")
+    boxes = [tile["box"] for tile in result["tiles"]]
+    assert len({y for _, y, _, _ in boxes}) == rows
+    assert len({x for x, _, _, _ in boxes}) == min(columns, count)
+    for _, _, w, h in boxes:
+        assert w / h == pytest.approx(16 / 9, abs=0.01)
+    top, bottom = min(y for _, y, _, _ in boxes), max(y + h for _, y, _, h in boxes)
+    if rows > 1:
+        assert bottom - top > 900 * .6, "grid must use the canvas height instead of a blank band"
+
+
 def test_tall_content_is_disclosed_and_strict_mode_rejects_padding(overview_spec):
     spec = json.loads(overview_spec.read_text())
     spec["slides"][0]["box"] = [0, 0, 160, 140]

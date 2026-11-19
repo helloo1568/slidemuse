@@ -15,6 +15,41 @@ from overlay_text import FONT_CANDIDATES, load_font
 from PIL import Image, ImageDraw, ImageOps
 
 
+def choose_grid(count: int, width: int, height: int, ratio: float) -> dict:
+    """Pick the grid that keeps thumbnails largest and closest to the canvas ratio.
+
+    A non-square grid on a canvas whose ratio equals the slide ratio forces the
+    cells to differ from the slide ratio (4x2 cells on a 16:9 canvas are 0.889),
+    which is what makes generated overviews squeeze slides into square-ish
+    frames. Scoring by tile area keeps square grids for 16:9 slides while still
+    allowing 3x2 for six pages, where the extra area is worth the slack.
+    """
+    scale = min(width / 1600, height / 900)
+    margin, gap, header, label_h = [max(1, round(v * scale)) for v in (48, 36, 96, 30)]
+    usable_w, usable_h = width - 2 * margin, height - header - margin
+    region_ratio = usable_w / usable_h if usable_h > 0 else ratio
+    best = None
+    for columns in range(1, count + 1):
+        rows = math.ceil(count / columns)
+        cell_w = (width - 2 * margin - (columns - 1) * gap) // columns
+        cell_h = (height - header - margin - (rows - 1) * gap) // rows - label_h
+        if cell_w <= 0 or cell_h <= 0:
+            continue
+        tile_w = min(cell_w, int(cell_h * ratio))
+        tile_h = max(1, round(tile_w / ratio))
+        area = tile_w * tile_h * count
+        grid_ratio = (columns * tile_w) / (rows * tile_h)
+        slack = abs(math.log(grid_ratio / region_ratio)) if region_ratio > 0 else 0
+        candidate = (area, -slack)
+        if best is None or candidate > best[0]:
+            best = (candidate, columns, rows, tile_w, tile_h)
+    if best is None:
+        raise ValueError("Canvas is too small for this many thumbnails")
+    _, columns, rows, tile_w, tile_h = best
+    return {"columns": columns, "rows": rows, "tile_w": tile_w, "tile_h": tile_h,
+            "margin": margin, "gap": gap, "header": header, "label_h": label_h}
+
+
 def build_overview(spec_path: Path, output: Path, overwrite: bool = False) -> dict:
     spec_path, output = spec_path.resolve(), output.resolve()
     spec = read_json(spec_path)
@@ -64,14 +99,11 @@ def build_overview(spec_path: Path, output: Path, overwrite: bool = False) -> di
             raise ValueError("Thumbnail source aspect differs from slide_aspect_ratio; padding cannot repair composition")
         source_sizes.append(list(image.size))
         images.append(image)
-    columns = 1 if len(images) == 1 else 2 if len(images) <= 4 else 3 if len(images) <= 6 else 4
-    rows = math.ceil(len(images) / columns)
+    grid = choose_grid(len(images), width, height, ratio)
+    columns, rows = grid["columns"], grid["rows"]
+    margin, gap, header, label_h = grid["margin"], grid["gap"], grid["header"], grid["label_h"]
+    tile_w, tile_h = grid["tile_w"], grid["tile_h"]
     scale = min(width / 1600, height / 900)
-    margin, gap, header, label_h = [max(1, round(v * scale)) for v in (48, 36, 96, 30)]
-    cell_w = (width - 2 * margin - (columns - 1) * gap) // columns
-    cell_h = (height - header - margin - (rows - 1) * gap) // rows - label_h
-    tile_w = min(cell_w, int(cell_h * ratio))
-    tile_h = round(tile_w / ratio)
     left = (width - columns * tile_w - (columns - 1) * gap) // 2
     top = header + max(0, (height - header - margin - rows * (tile_h + label_h) - (rows - 1) * gap) // 2)
     canvas = Image.new("RGB", (width, height), "#EBEDF0")
@@ -85,8 +117,9 @@ def build_overview(spec_path: Path, output: Path, overwrite: bool = False) -> di
     draw.text((margin, round(24 * scale)), title, font=title_font, fill="#263444")
     tiles = []
     for index, (slide, image) in enumerate(zip(slides, images)):
-        x = left + (index % columns) * (tile_w + gap)
-        y = top + (index // columns) * (tile_h + label_h + gap)
+        row, column = divmod(index, columns)
+        x = left + column * (tile_w + gap)
+        y = top + row * (tile_h + label_h + gap)
         draw.rectangle((x, y, x + tile_w - 1, y + tile_h - 1), fill="white")
         fitted = ImageOps.contain(image, (tile_w, tile_h), Image.Resampling.LANCZOS)
         px, py = x + (tile_w - fitted.width) // 2, y + (tile_h - fitted.height) // 2

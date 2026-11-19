@@ -136,11 +136,15 @@ def validate_style_options(spec: dict, base: Path, require_layout: bool = False)
         if digest in hashes:
             raise ValueError(f"Option {number}: duplicate image content is not a distinct option")
         hashes.add(digest)
-        geometry = "not_checked: legacy outer-canvas validation only"
+        reference_only = option.get("preview_status") == "style_reference"
+        if reference_only and require_layout:
+            raise ValueError(f"Option {number}: style reference has not passed strict thumbnail validation")
+        geometry = ("reference_only: verify the first formal slide" if reference_only
+                    else "not_checked: legacy outer-canvas validation only")
         layout_name = option.get("layout")
         if require_layout and not layout_name:
             raise ValueError(f"Option {number}: a hash-bound thumbnail layout is required")
-        if layout_name:
+        if layout_name and not reference_only:
             layout_path = (root / layout_name).resolve()
             if Path(layout_name).is_absolute() or not layout_path.is_relative_to(root):
                 raise ValueError("Layout must stay inside options directory")
