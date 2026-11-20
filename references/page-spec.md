@@ -23,10 +23,13 @@
 ## 关键字段
 
 - `content_approved` 固定为 `true`，表示新材料任务的大纲已经确认，或直接还原任务已明确授权保留原页内容；`content_version` 与 `content_authorization` 记录对应版本和用户原话。它不代表每个模糊字符都已确认。
-- `style.decision` 记录 `selected`、`locked-reference`、`skipped` 或 `delegated`，并保留相关授权原文。
-- `slides[].role` 记录页面类型：`cover`、`agenda`、`section-divider`、`concept`、`process`、`comparison`、`timeline`、`data-evidence`、`architecture`、`case-study`、`summary`、`qa`。它描述页面作用，与 `deck-spec.md` 页序表一致；视觉系统仍由风格门禁决定。
+- 新材料用 `content_policy: "1.1"`。在 `workflow` 里记录 `content_mode`、`approved_content_version` 和 `outline_ref`。版本必须和 `content_version` 一致。定位可用消息链接、消息 ID 或可找回的版本和消息描述。
+- `workflow.content_mode` 可取 `confirmed`（确认逐页大纲）、`delegated`（明确由 Agent 决定内容并已展示）、`reused`（用户明确沿用既有版本）或 `authorized-revision`（在既有版本上直接应用用户明确指定的局部修改）。沿用或局部修改时，定位可指向历史大纲、锁定页面或已记录的变更对话。
+- `style.decision` 记录 `selected`、`locked-reference`、`skipped` 或 `delegated`，并在 `style.authorization` 写用户对风格阶段的原话。1.1 下，四套方案用户选定或授权代选时，还须写 `style.option`（1–4）、`style.choice`（名称）及 `style.tokens.reference_images`（所选预览放首位）。明确锁定模板或明确要求跳过预览时分别用 `locked-reference` 或 `skipped`。
+- `slides[].role` 记录页面类型：`cover`、`agenda`、`section-divider`、`concept`、`process`、`comparison`、`timeline`、`data-evidence`、`architecture`、`case-study`、`summary`、`qa`。它描述页面作用，与 `deck-spec.md` 页序表一致；视觉系统仍由风格选择决定。
 - `slides[].key_points` 保留该页已确认支撑，逐条与内容稿对应；普通页默认 3–5 条，声明 density 例外后按用途接受 1–8 条非空不重复文本（具体范围见 content-density.md）。要点是论证复杂度的下限，不是凑字数的理由；封面、过渡等页按各自必答内容处理，不强行填满。详见[内容大纲](content-outline.md)。
 - `slides[].elements` 使用稳定 ID。准确文字写 `text`，表格/图表原始值写 `data`，来源写 `source_ref`。
+- 1.1 的逐字清单由页标题、文字元素与 `required_visible_values` 组成。语义字段保留给生成和人工核对，`source_refs` 与元素的 `source_ref` 保留作追溯。明确需要上屏的引文或来源署名写成文字元素。
 - 图表或图片上必须直接读出的数字、日期、单位可加入该页 `required_visible_values`；不要求把未打印在图上的底层图表数据当作可见文字。
 - 页面包含总页数（如 `1/10`）、目录总量或依赖整套页数的构图时，设置 `depends_on_slide_count: true`。页数变化会使这些页面重新生成；未设置或为 `false` 时，计划按本页内容、页序和图片是否变化判断是否复用。所有实际可见的页码和总页数也应写入文字元素或 `required_visible_values`，不能只留在提示词里。
 - `confirmation_status` 区分用户确认、来源可验证和未解决内容；直接还原中的低置信度文字必须标为 `unresolved` 并记录 `confidence`，不能伪装成已确认。
@@ -36,6 +39,24 @@
 - `slides[].speaker_notes` 保存已确定的可选讲稿，允许明确空字符串，缺失表示未声明；`notes` 工作记录不会自动导出。讲稿不参与图片提示/必现文字，但写入图片版 PPTX，重建时沿用到 Scene；见[讲稿保留](speaker-notes.md)。
 
 ## 验证
+
+1.1 校验版本、授权记录和所选参考图；用本地工具加标签的预览还会校验图内记录的编号和名称。内容是否完整展示、回复是否明确授权，由 Agent 根据对话核对。旧规格（无 `content_policy` 或 1.0）沿用已有入口和逐字清单，恢复任务时保留原记录。
+
+新材料示例中的授权字段节选：
+
+```json
+{
+  "content_policy": "1.1",
+  "content_approved": true,
+  "content_version": "outline-v2",
+  "content_authorization": "这版逐页大纲可以继续",
+  "workflow": {
+    "content_mode": "confirmed",
+    "approved_content_version": "outline-v2",
+    "outline_ref": "对话中发出的 outline-v2 逐页稿"
+  }
+}
+```
 
 含科研地图、实验截图或精确数据图时，按[证据素材](evidence-assets.md)给对应元素增加 `preserve_asset`：独立源文件路径、SHA256及最终PNG中的整数像素区域。该字段不同于 `bbox_hint`；最终图片检查会核对区域内真实像素，不能用文字“已保留”替代。已有规格要求保留原图的任务须落实该契约，旧稿缺失字段不追认保真。
 
@@ -72,4 +93,4 @@ python "<skill-dir>/scripts/audit_page_content.py" "<work>/page-spec.json" "<wor
 
 脚本对照已确认文本及 `required_visible_values`，标出缺失文字、数字和单位。图片文件变化会使旧观察记录失效；`partial` 不能通过完整核对。识别结果只是检查证据，不能覆盖 Page Spec。图表/表格中未明确要求显示的底层数据和识别漏字仍需人工检查。
 
-新任务使用 `content_policy: "1.0"`（旧稿可保持未声明），将内容页的来源、解释和必要边界写入 `source_refs`、`explanation`、`boundary`。`validate --content` 可强制当前内容检查。密度字段与后端传递/看图检查详见[密度规则](content-density.md)。
+新材料使用 `content_policy: "1.1"`，将内容页的解释和必要边界写入 `explanation`、`boundary`。旧规格可沿用原策略。`validate --content` 可强制检查页面类型和内容密度。后端传递及看图检查详见[密度规则](content-density.md)。

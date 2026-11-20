@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 
 import pytest
-from content_density import validate_content
+from content_density import validate_content, visible_text
 from generation_delivery import CHECKS, CONTRACT, REVIEW, review
 from PIL import Image
 from pptx import Presentation
@@ -45,11 +45,18 @@ def content():
             "explanation": "Comparison uses the same time period."}
 
 
-@pytest.mark.parametrize("field", ["role", "core_message", "key_points", "source_refs", "explanation"])
+@pytest.mark.parametrize("field", ["role", "core_message", "key_points", "explanation"])
 def test_required_content_cannot_be_silently_omitted(content, field):
     content.pop(field)
     with pytest.raises(ValueError):
         validate_content(content, required=True)
+
+
+def test_sources_are_recorded_but_never_required_on_the_page(content):
+    validate_content(content, required=True)
+    assert "Synthetic fixture table 1" not in visible_text(content)
+    content.pop("source_refs")
+    validate_content(content, required=True)
 
 
 @pytest.mark.parametrize("mode,points", [("brief", ["One focused point"]),
@@ -183,6 +190,29 @@ def test_page_spec_to_generation_preserves_semantic_ids_and_notes(tmp_path):
     assert source["slides"][0]["speaker_notes"] in (deck / "speech.md").read_text(encoding="utf-8")
     assert source["slides"][0]["speaker_notes"] not in contract["pages"][0]["expected_text"]
     assert path.read_bytes() == before
+
+
+def test_reviewed_page_spec_sends_only_literal_copy_and_keeps_provenance_local(tmp_path):
+    path, spec = approved_page_spec(tmp_path)
+    spec["content_policy"] = "1.1"
+    spec["workflow"] = {"content_mode": "confirmed", "approved_content_version": spec["content_version"],
+                        "outline_ref": "Complete outline in message 4"}
+    spec["style"].update(decision="locked-reference", authorization="Keep supplied style")
+    slide = spec["slides"][0]
+    slide["source_refs"] = ["Internal-only slide source"]
+    slide["elements"][0]["source_ref"] = "Internal-only element source"
+    path.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    deck = tmp_path / "converted"
+    result = invoke("--offline", "prepare", "--page-spec", path, "--out-dir", deck)
+    assert result.returncode == 0, result.stderr
+    contract = json.loads((deck / CONTRACT).read_text(encoding="utf-8"))["pages"][0]
+    assert contract["expected_text"] == [slide["title"], slide["elements"][1]["text"]]
+    assert contract["content"]["source_refs"] == slide["source_refs"]
+    job = json.loads((deck / "slide_jobs.json").read_text(encoding="utf-8"))["slides"][0]["job"]
+    prompt = (deck / job).read_text(encoding="utf-8")
+    for private_text in (*slide["source_refs"], slide["elements"][0]["source_ref"], slide["speaker_notes"]):
+        assert private_text not in prompt
+    assert slide["speaker_notes"] in (deck / "speech.md").read_text(encoding="utf-8")
 
 
 def test_page_spec_to_rebuilding_prompt_keeps_approved_semantics(tmp_path):

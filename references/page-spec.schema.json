@@ -16,11 +16,21 @@
   ],
   "properties": {
     "version": {"const": "1.0"},
-    "content_policy": {"const": "1.0", "description": "Current role-aware content checks; old frozen specs remain readable."},
+    "content_policy": {"enum": ["1.0", "1.1"], "description": "1.1 checks recorded workflow decisions and explicit visible copy. Older specs remain readable."},
     "title": {"type": "string", "minLength": 1},
     "content_approved": {"const": true},
     "content_version": {"type": "string", "minLength": 1},
     "content_authorization": {"type": "string", "minLength": 1},
+    "workflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["content_mode", "approved_content_version", "outline_ref"],
+      "properties": {
+        "content_mode": {"enum": ["confirmed", "delegated", "reused", "authorized-revision"]},
+        "approved_content_version": {"type": "string", "minLength": 1},
+        "outline_ref": {"type": "string", "minLength": 1}
+      }
+    },
     "canvas": {
       "type": "object",
       "additionalProperties": false,
@@ -39,6 +49,7 @@
           "enum": ["selected", "locked-reference", "skipped", "delegated"]
         },
         "choice": {"type": "string"},
+        "option": {"type": "integer", "minimum": 1, "maximum": 4},
         "authorization": {"type": "string", "minLength": 1},
         "visual_spec": {"type": "string", "minLength": 1},
         "tokens": {
@@ -84,6 +95,12 @@
       "items": {"$ref": "#/$defs/slide"}
     }
   },
+  "allOf": [
+    {
+      "if": {"required": ["content_policy"], "properties": {"content_policy": {"const": "1.1"}}},
+      "then": {"required": ["workflow"]}
+    }
+  ],
   "$defs": {
     "slide": {
       "type": "object",

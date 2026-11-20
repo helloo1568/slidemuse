@@ -11,7 +11,7 @@ import tempfile
 from pathlib import Path
 
 from audit_page_content import text_present
-from content_density import validate_content, visible_text
+from content_density import prompt_elements, validate_content, visible_text
 from filelock import FileLock
 from json_io import read_json
 from PIL import Image, ImageOps
@@ -53,6 +53,7 @@ def prepare_spec(spec):
     spec = copy.deepcopy(spec)
     if not isinstance(spec.get("slides"), list) or not spec["slides"]:
         raise ValueError("Generation spec requires slides")
+    policy = spec.get("content_policy")
     for number, slide in enumerate(spec["slides"], 1):
         if not isinstance(slide, dict):
             raise TypeError("Generation slide must be an object")
@@ -61,15 +62,19 @@ def prepare_spec(spec):
         slide["number"] = number
         validate_content(slide, required=True)
         context = slide.get("local_context", {})
-        slide["local_context"] = {"original_context": context, "approved_content": {
+        approved_content = {
             key: slide[key] for key in ("id", "core_message", "key_points", "explanation", "boundary",
-                                       "source_refs", "density", "elements", "display", "required_visible_values", "speaker_notes")
-            if key in slide}, "required_visible_text": visible_text(slide)}
+                                       "density", "display", "required_visible_values")
+            if key in slide}
+        if "elements" in slide:
+            approved_content["elements"] = prompt_elements(slide["elements"])
+        slide["local_context"] = {"original_context": context, "approved_content": approved_content,
+                                  "required_visible_text": visible_text(slide, policy=policy)}
         slide["constraints"] = [*slide.get("constraints", []),
             ("Render every required_visible_text item exactly; keep evidence, explanation and boundaries visible. "
-             "When display.coverage is supplied, approved semantic fields describe meaning carried by mapped elements; "
-             "do not repeat them as extra bullets. Review semantic coverage separately. "
-             "Keep speaker_notes off the image. Do not replace substantive content with decoration or invent evidence.")]
+             "Use approved text and graphics to express semantic fields without adding redundant bullets. "
+             "Review semantic coverage separately. Keep recorded sources and speaker_notes off the image. "
+             "Do not replace substantive content with decoration or invent evidence.")]
     return spec
 
 
@@ -84,6 +89,8 @@ def from_page_spec(path):
             "content_version": spec["content_version"], "content_authorization": spec["content_authorization"],
             "slides": [{**s, "number": s["page_number"], "local_context": {"page_spec_sha256": sha(path)}}
                        for s in spec["slides"]]}
+    if "content_policy" in spec:
+        result["content_policy"] = spec["content_policy"]
     references = spec["style"].get("tokens", {}).get("reference_images", [])
     if references:
         result["approved_style_reference"] = {"path": str((path.parent / references[0]).resolve()),
@@ -101,12 +108,12 @@ def save_contract(deck, spec):
                 image = inside(deck, entry["out"])
                 entry["result"]["final_image_sha256"] = sha(image)
             pages.append({"id": entry["slide_id"], "number": entry["number"],
-                          "expected_text": visible_text(slide), "content": slide,
+                          "expected_text": visible_text(slide, policy=spec.get("content_policy")), "content": slide,
                           "job_sha256": sha(inside(deck, entry["job"]))})
         jobs["slidemuse_content_policy"] = "1.0"
         write(jobs_path, jobs)
         write(deck / CONTRACT, {"version": "1.0", "pages": pages,
-                               "scope": "Declared content; sources and readability require actual review."})
+                               "scope": "Declared content; evidence accuracy and readability require actual review."})
 
 
 def checked_images(deck, jobs, ratio=None):

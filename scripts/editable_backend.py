@@ -80,14 +80,17 @@ def page_prompt(argv, root=ROOT):
     if semantic.is_file():
         content = json.loads(semantic.read_text(encoding="utf-8"))
         index = int(page["page_index"]) - 1
-        prompt += ("\n\nApproved SlideMuse page content (reuse exact text, data, source labels and stable IDs; "
+        from content_density import WORKFLOW_POLICY, prompt_elements, visible_text
+        slide = content["slides"][index]
+        slide_content = {key: value for key, value in slide.items() if key != "source_refs"}
+        slide_content["elements"] = prompt_elements(slide["elements"])
+        prompt += ("\n\nApproved SlideMuse page content (reuse exact text, data and stable IDs; keep recorded sources in the Page Spec; "
                    "OCR is only a geometry hint, not authority to rewrite):\n"
-                   + json.dumps(content["slides"][index], ensure_ascii=False, indent=2))
-        if "display" in content["slides"][index]:
-            from content_density import visible_text
-            prompt += ("\nThe display.coverage mapping carries semantic claims through confirmed elements; "
-                       "do not add semantic fields as repeated visible bullets. Exact visible text:\n"
-                       + json.dumps(visible_text(content["slides"][index]), ensure_ascii=False, indent=2))
+                   + json.dumps(slide_content, ensure_ascii=False, indent=2))
+        policy = content.get("content_policy")
+        if "display" in slide_content or policy == WORKFLOW_POLICY:
+            prompt += ("\nExpress semantic claims through the approved elements. Exact visible text:\n"
+                       + json.dumps(visible_text(slide, policy=policy), ensure_ascii=False, indent=2))
     prefix = command_prefix(root)
     prompt = re.sub(r"(?<![\w/])editppt(?=\s+(?:prepare|run|page|image|formula|doctor|config|setup)\b)",
                     lambda match: prefix, prompt)

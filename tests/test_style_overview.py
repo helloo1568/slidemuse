@@ -1,8 +1,8 @@
 import json
 
 import pytest
-from build_style_overview import build_overview
-from PIL import Image
+from build_style_overview import build_overview, label_overview
+from PIL import Image, ImageChops
 
 
 @pytest.fixture
@@ -26,13 +26,13 @@ def test_three_crops_form_grid_without_changing_pixels_or_sources(overview_spec)
     assert result["image_generation_calls"] == 0
     assert len(result["tiles"]) == 3
     first, second, third = [item["box"] for item in result["tiles"]]
-    assert first[1] == second[1] and first[0] == third[0]
-    assert second[0] > first[0] and third[1] > first[1]
+    assert first[1] == second[1] == third[1]
+    assert first[0] < second[0] < third[0]
     with Image.open(result["output"]) as image:
         assert image.size == (1600, 900)
         for (x, y, w, h), color in zip([first, second, third], [(255, 0, 0), (0, 128, 0), (0, 0, 255)]):
             assert image.getpixel((x + w // 2, y + h // 2)) == color
-        assert image.getpixel((second[0] + second[2] // 2, third[1] + third[3] // 2)) == (235, 237, 240)
+        assert image.getpixel((first[0] + first[2] // 2, first[1] + first[3] + 200)) == (235, 237, 240)
     assert (overview_spec.parent / "strip.png").read_bytes() == original
 
 
@@ -55,11 +55,10 @@ def test_invalid_crop_or_overwrite_rejected(overview_spec, mutation):
         assert output.read_bytes() == b"previous"
 
 
-@pytest.mark.parametrize("count", [1, 2, 6, 8])
+@pytest.mark.parametrize("count", [1, 2, 5, 6])
 def test_layout_count_and_bounds(overview_spec, count):
     spec = json.loads(overview_spec.read_text())
     spec["slides"] = [spec["slides"][0]] * count
-    spec["slide_aspect_ratio"] = [4, 3]
     overview_spec.write_text(json.dumps(spec), encoding="utf-8")
     result = build_overview(overview_spec, overview_spec.with_suffix(".png"))
     assert len(result["tiles"]) == count
@@ -67,11 +66,11 @@ def test_layout_count_and_bounds(overview_spec, count):
         x, y, w, h = tile["box"]
         assert 0 <= x < x + w <= 1600
         assert 0 <= y < y + h < 900
-        assert w / h == pytest.approx(4 / 3, abs=0.01)
+        assert w / h == pytest.approx(16 / 9, abs=0.01)
 
 
 @pytest.mark.parametrize("count,columns,rows", [
-    (1, 1, 1), (2, 2, 1), (3, 2, 2), (4, 2, 2), (5, 3, 2), (6, 3, 2), (7, 3, 3), (8, 3, 3),
+    (1, 1, 1), (2, 2, 1), (3, 3, 1), (4, 3, 2), (5, 3, 2), (6, 3, 2),
 ])
 def test_sixteen_by_nine_pages_keep_sixteen_by_nine_cells(tmp_path, count, columns, rows):
     slides = []
@@ -106,18 +105,23 @@ def test_tall_content_is_disclosed_and_strict_mode_rejects_padding(overview_spec
         build_overview(overview_spec, overview_spec.with_name("strict.png"))
 
 
-def test_bound_geometry_checks_real_source_pixels(overview_spec):
-    from validate_style_options import validate_layout
-    spec = json.loads(overview_spec.read_text())
-    for index, slide in enumerate(spec["slides"], 1):
-        slide["slide_id"] = f"s{index:02}"
-    overview_spec.write_text(json.dumps(spec))
-    output = overview_spec.with_suffix(".png")
-    result = build_overview(overview_spec, output)
-    pages = [f"s{i:02}" for i in range(1, 4)]
-    assert validate_layout(result, output, output.parent, pages, [16, 9]).startswith("verified_native")
-    with Image.open(overview_spec.parent / "strip.png") as image:
-        image.paste("yellow", (0, 0, 160, 90))
-        image.save(overview_spec.parent / "strip.png")
-    with pytest.raises(ValueError, match="pixels differ"):
-        validate_layout(result, output, output.parent, pages, [16, 9])
+def test_labels_bind_stable_numbers_without_cropping_the_overview(tmp_path):
+    source = tmp_path / "raw.png"
+    image = Image.new("RGB", (1600, 900), "blue")
+    image.paste("orange", (0, 0, 400, 300))
+    image.save(source)
+    original = source.read_bytes()
+    second = label_overview(source, tmp_path / "02.png", 2, "Architecture")
+    first = label_overview(source, tmp_path / "01.png", 1, "Engineering")
+    assert second["label"] == "02 · Architecture"
+    assert first["label"] == "01 · Engineering"
+    x, y, width, height = second["preview_box"]
+    with Image.open(second["output"]) as labeled, Image.open(first["output"]) as other:
+        assert labeled.size == (1600, 900)
+        assert width / height == pytest.approx(16 / 9, abs=0.01)
+        assert ImageChops.difference(labeled.crop((x, y, x + width, y + height)),
+                                     image.resize((width, height), Image.Resampling.LANCZOS)).getbbox() is None
+        assert ImageChops.difference(labeled.crop((0, 0, 1600, y)), other.crop((0, 0, 1600, y))).getbbox()
+    assert source.read_bytes() == original
+    with pytest.raises(ValueError, match="not overwrite"):
+        label_overview(source, source, 2, "Architecture", overwrite=True)

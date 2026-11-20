@@ -10,7 +10,7 @@
 
 ## 记录每次交付
 
-独立审阅前，用 `review-contract page-spec.json contract.json` 导出仅含可见内容、数据、来源与讲稿的合同，再用 `verify-review-contract page-spec.json contract.json` 核验。原始 Page Spec 仍供脚本评分，但不要把其中的生成提示、修复建议或工作 notes 打印给审阅者。投影只支持明确表格/图表字段，未知数据字段计数；有遗漏时先整理完整的数据合同，不能把不完整投影当成完整评审输入。
+独立审阅前，用 `review-contract page-spec.json contract.json` 导出仅含可见内容、数据、来源记录与讲稿的合同，再用 `verify-review-contract page-spec.json contract.json` 核验。原始 Page Spec 仍供脚本评分，但不要把其中的生成提示、修复建议或工作 notes 打印给审阅者。投影只支持明确表格/图表字段，未知数据字段计数；有遗漏时先整理完整的数据合同，不能把不完整投影当成完整评审输入。
 
 调用台账也需分离：审阅者读取实际次数、时间、产物路径和修改事务，作者的页面质量 pass/fail、自评和拟议修复另存。脚本绑定原始台账，审阅上下文只读取客观事务投影；不能因命令已去掉 Page Spec 提示就声称整套输入已经隔离。记录意外暴露并保留该次判断，后续严格评测使用新的未暴露审阅者。
 

@@ -13,7 +13,7 @@ import time
 from pathlib import Path
 
 from audit_page_content import text_present
-from content_density import visible_text
+from content_density import WORKFLOW_POLICY, prompt_elements, visible_text
 from json_io import read_json
 from PIL import Image, ImageOps
 from preserved_assets import expected_patch, relative_file, validate_preserved_assets
@@ -67,24 +67,34 @@ def fingerprint(spec, slide, base):
     intent["elements"] = [{key: value for key, value in e.items() if key not in ("notes", "prompt_record")}
                           for e in slide["elements"]]
     refs = spec["style"].get("tokens", {}).get("reference_images", [])
-    return seal({"slide": intent, "canvas": spec["canvas"], "style": spec["style"],
-                 "content_version": spec["content_version"], "authorization": spec["content_authorization"],
-                 "references": {name: digest(relative_file(base, name).read_bytes()) for name in refs}})
+    contract = {"slide": intent, "canvas": spec["canvas"], "style": spec["style"],
+                "references": {name: digest(relative_file(base, name).read_bytes()) for name in refs}}
+    if spec.get("content_policy") == WORKFLOW_POLICY:
+        contract["content_policy"] = WORKFLOW_POLICY
+        contract["style"] = {key: value for key, value in spec["style"].items() if key != "authorization"}
+        if slide.get("depends_on_slide_count"):
+            contract["slide_count"] = len(spec["slides"])
+    else:
+        # Keep existing production snapshots readable under their original policy.
+        contract.update(content_version=spec["content_version"], authorization=spec["content_authorization"])
+    return seal(contract)
 
 
 def generation_input(spec, slide):
+    content = {k: v for k, v in slide.items() if k not in {"image_status", "source_refs", "speaker_notes", "notes"}}
+    content["elements"] = prompt_elements(slide["elements"])
     return {"instructions": (
         "Use the actual host image tool under its tool rules. Preserve the confirmed style and visible text. "
-        "Semantic fields describe meaning; when display.coverage exists, express them through mapped elements "
-        "without adding repeated bullets. Keep speaker notes off the slide. "
+        "Use the exact visible text list for wording. Express semantic fields through the approved text and graphics. "
+        "Keep recorded sources and speaker notes off the slide. "
         "Leave every preserve_asset.region blank for later local placement of the original evidence; "
         "do not redraw evidence, move its region or place other text there. Current canvas, visible text and "
         "preserve_asset.region override any older coordinates or wording in generation_prompt and bbox_hint. "
         "Return the independent generated original."),
-        "canvas": spec["canvas"], "style": spec["style"], "slide": {k: v for k, v in slide.items() if k != "image_status"},
+        "canvas": spec["canvas"], "style": {k: v for k, v in spec["style"].items() if k != "authorization"}, "slide": content,
         "protected_regions": [{"element_id": e["id"], "region": e["preserve_asset"]["region"]}
                               for e in slide["elements"] if "preserve_asset" in e],
-        "required_visible_text": visible_text(slide)}
+        "required_visible_text": visible_text(slide, policy=spec.get("content_policy"))}
 
 
 def workspace(spec_path):
@@ -226,7 +236,7 @@ def review_template(slide, page):
             "scope": "Actual visual observations and source comparison; hash/text matches do not prove truth or independence."}
 
 
-def accept(spec_path, slide, root, page, record):
+def accept(spec_path, slide, root, page, record, *, policy=None):
     if page["status"] == "pending":
         raise ValueError("Compose the page before review")
     value = read_json(record)
@@ -239,7 +249,7 @@ def accept(spec_path, slide, root, page, record):
     if not isinstance(pixels, list) or len(pixels) != 2 or any(type(p) is not int or p <= 0 for p in pixels):
         raise ValueError("Declare the actual review viewport dimensions")
     text = value.get("observed_text")
-    if not isinstance(text, str) or any(not text_present(t, text) for t in visible_text(slide)):
+    if not isinstance(text, str) or any(not text_present(t, text) for t in visible_text(slide, policy=policy)):
         raise ValueError("Review transcription misses required visible text")
     ids = {e["id"] for e in slide["elements"]} | {"page"}
     checks = value.get("checks", {})
@@ -305,7 +315,7 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
         elif action == "accept":
             if record is None:
                 raise ValueError("accept requires --record")
-            accept(spec_path, selected, root, state["pages"][slide_id], Path(record))
+            accept(spec_path, selected, root, state["pages"][slide_id], Path(record), policy=spec.get("content_policy"))
         elif action not in ("prepare", "status"):
             raise ValueError("Unknown production action")
         commit(spec_path, spec, root, state)

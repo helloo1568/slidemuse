@@ -36,8 +36,10 @@ def production(tmp_path):
 def fixture_review(path, slide_id, record):
     execute(path, "review-init", slide_id=slide_id, record=record)
     value = json.loads(record.read_text(encoding="utf-8"))
-    slide = next(s for s in json.loads(path.read_text(encoding="utf-8"))["slides"] if s["id"] == slide_id)
-    value.update(reviewer="Synthetic test fixture", observed_text="\n".join(visible_text(slide)), viewed_pixels=[1600, 900])
+    spec = json.loads(path.read_text(encoding="utf-8"))
+    slide = next(s for s in spec["slides"] if s["id"] == slide_id)
+    value.update(reviewer="Synthetic test fixture", observed_text="\n".join(visible_text(slide, policy=spec.get("content_policy"))),
+                 viewed_pixels=[1600, 900])
     value["checks"] = {name: {"status": "pass", "notes": "Synthetic protocol fixture", "targets": ["page"]} for name in CHECKS}
     write(record, value)
 
@@ -168,6 +170,72 @@ def test_status_does_not_create_workspace(production):
     path, _ = production
     assert execute(path, "status")["pages"]["s01"]["status"] == "pending"
     assert not workspace(path).exists()
+
+
+def test_workflow_uses_visible_copy_and_reuses_unaffected_approved_pages(production, tmp_path):
+    path, source = production
+    spec = json.loads(path.read_text(encoding="utf-8"))
+    spec["content_policy"] = "1.1"
+    spec["workflow"] = {"content_mode": "confirmed", "approved_content_version": spec["content_version"],
+                        "outline_ref": "User-facing outline v1 in conversation"}
+    spec["style"].update(decision="skipped", authorization="Skip style previews")
+    first = spec["slides"][0]
+    first.update(required_visible_values=["32%"], source_refs=["Internal page provenance"],
+                 explanation="Internal explanation", speaker_notes="Private speaker note")
+    first["elements"][0]["source_ref"] = "Internal element provenance"
+    write(path, spec)
+
+    state = execute(path, "prepare")
+    prompt = json.loads((workspace(path) / state["pages"]["s01"]["prompt_snapshot"]).read_text(encoding="utf-8"))
+    assert prompt["required_visible_text"] == [first["title"], "32%", first["elements"][1]["text"]]
+    assert prompt["slide"]["explanation"] == "Internal explanation"
+    prompt_text = json.dumps(prompt)
+    assert all(text not in prompt_text for text in
+               ("Internal page provenance", "Internal element provenance", "Private speaker note"))
+
+    for slide_id in ("s01", "s02"):
+        execute(path, "compose", slide_id=slide_id, source=source)
+        record = tmp_path / f"{slide_id}.json"
+        fixture_review(path, slide_id, record)
+        if slide_id == "s01":
+            correct = json.loads(record.read_text(encoding="utf-8"))
+            write(record, {**correct, "observed_text": correct["observed_text"].replace("32%", "23%")})
+            with pytest.raises(ValueError, match="required visible text"):
+                execute(path, "accept", slide_id=slide_id, record=record)
+            write(record, correct)
+        execute(path, "accept", slide_id=slide_id, record=record)
+
+    revised = json.loads(path.read_text(encoding="utf-8"))
+    revised.update(content_version="outline-v2", content_authorization="Only change the cover")
+    revised["slides"][0]["visual_brief"] += " with updated cover typography"
+    write(path, revised)
+    with pytest.raises(ValueError, match="current content_version"):
+        execute(path, "prepare")
+    revised["workflow"].update(content_mode="authorized-revision", approved_content_version="outline-v2")
+    write(path, revised)
+    state = execute(path, "prepare")
+    assert state["pages"]["s01"]["status"] == "pending"
+    assert state["pages"]["s02"]["status"] == "approved"
+
+
+def test_legacy_source_coverage_remains_readable_without_requiring_source_text():
+    slide = {
+        "title": "Overview",
+        "role": "cover",
+        "core_message": "Explain the comparison",
+        "source_refs": ["Local report page 3"],
+        "elements": [{"id": "title", "kind": "text", "text": "Overview", "confirmation_status": "confirmed"}],
+        "display": {"coverage": [
+            {"claim": "core_message", "element_ids": ["title"]},
+            {"claim": "source_refs/0", "element_ids": ["title"]},
+        ]},
+    }
+    validate_content(slide, required=True)
+    assert visible_text(slide) == ["Overview"]
+    assert visible_text(slide, policy="1.1") == ["Overview"]
+    slide["display"]["coverage"][1]["claim"] = "source_refs/1"
+    with pytest.raises(ValueError, match="Unknown or duplicate"):
+        validate_content(slide, required=True)
 
 
 def test_semantics_can_be_encoded_by_a_chart_without_forcing_repeated_bullets():

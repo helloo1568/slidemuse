@@ -80,6 +80,6 @@ python slidemuse.py render "<实际最终PPTX路径>" "<work>/office-review"
 
 ## 2.21.0 内容与交付适配
 
-`prepare` 在写任务前执行当前内容检查：普通内容页默认 3–5 条，例外带理由；内容页同时保留结论、来源和解释。`prepare --write-template <path>` 生成当前完整示例；不覆盖已有模板。也可直接使用 `prepare --page-spec <approved.json> --out-dir <deck>`，内容与稳定 ID 完整进入提示和 `slidemuse-content.json`。这是一份内容的适配投影，不把两种任务文件混为同一格式。
+`prepare` 在写任务前执行当前内容检查：普通内容页默认 3–5 条，例外带理由；内容页同时保留结论、解释和来源记录。`prepare --write-template <path>` 生成当前完整示例；不覆盖已有模板。也可直接使用 `prepare --page-spec <approved.json> --out-dir <deck>`，可见内容与稳定 ID 完整进入提示和 `slidemuse-content.json`。这是一份内容的适配投影，不把两种任务文件混为同一格式。
 
 新任务在 `result` 登记后先运行 `generate review <deck> --init`，实际看图填写 `content-review.json` 并运行同一命令核对。组装检查当前合同、提示、观察和图片哈希、页面集合/顺序、完成状态及画幅，保留原图字节，不再自动压缩。失败不会替换已有 PPTX。旧任务无内容合同会报告 `legacy_not_checked`，不意味着已通过新内容验收。详细命令及例外见[内容密度与画面验收](content-density.md)。

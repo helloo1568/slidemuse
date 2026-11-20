@@ -7,7 +7,7 @@ import argparse
 import math
 from pathlib import Path
 
-from content_density import validate_content
+from content_density import CONTENT_POLICIES, WORKFLOW_POLICY, validate_content
 from json_io import read_json
 from jsonschema import Draft202012Validator
 from PIL import Image, ImageOps
@@ -36,6 +36,24 @@ def _relative_path(base: Path, value: str) -> Path:
     return resolved
 
 
+def _validate_workflow(spec: dict) -> None:
+    workflow = spec["workflow"]
+    if (not workflow["approved_content_version"].strip()
+            or workflow["approved_content_version"] != spec["content_version"]):
+        raise ValueError("Workflow approval must match the current content_version")
+    if not workflow["outline_ref"].strip() or not spec["content_authorization"].strip():
+        raise ValueError("Workflow requires an outline reference and recorded user content authorization")
+
+    style = spec["style"]
+    if not style["authorization"].strip():
+        raise ValueError("Workflow requires recorded user style authorization")
+    if style["decision"] in {"selected", "delegated"}:
+        if "option" not in style or not style.get("choice", "").strip():
+            raise ValueError("Selected or delegated style requires its numbered option and name")
+        if not style.get("tokens", {}).get("reference_images"):
+            raise ValueError("Selected or delegated style requires its labeled preview in reference_images")
+
+
 def validate_page_spec(
     spec: dict, base: Path, require_images: bool = False, strict: bool = False,
     content: bool = False,
@@ -48,18 +66,28 @@ def validate_page_spec(
         location = "/".join(str(p) for p in error.absolute_path) or "root"
         raise ValueError(f"Page Spec schema at {location}: {error.message}")
 
-    for reference in spec["style"].get("tokens", {}).get("reference_images", []):
+    policy = spec.get("content_policy")
+    if policy == WORKFLOW_POLICY:
+        _validate_workflow(spec)
+
+    style = spec["style"]
+    for index, reference in enumerate(style.get("tokens", {}).get("reference_images", [])):
         path = _relative_path(base, reference)
         if not path.is_file():
             raise ValueError(f"Missing style reference image: {reference}")
         with Image.open(path) as image:
+            if policy == WORKFLOW_POLICY and index == 0 and style["decision"] in {"selected", "delegated"}:
+                label = image.info.get("slidemuse_style_option")
+                if label is not None and (label != str(style["option"])
+                                          or image.info.get("slidemuse_style_name") != style["choice"].strip()):
+                    raise ValueError("Selected style number or name differs from the labeled preview")
             image.verify()
 
     width, height = spec["canvas"]["width"], spec["canvas"]["height"]
     slide_ids, page_numbers, element_count, unresolved = set(), set(), 0, 0
     image_paths = set()
     for expected_page, slide in enumerate(spec["slides"], start=1):
-        validate_content(slide, required=content or spec.get("content_policy") == "1.0")
+        validate_content(slide, required=content or policy in CONTENT_POLICIES)
         if slide["id"] in slide_ids:
             raise ValueError(f"Duplicate slide id: {slide['id']}")
         slide_ids.add(slide["id"])

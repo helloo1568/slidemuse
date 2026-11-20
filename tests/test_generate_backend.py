@@ -29,7 +29,7 @@ def deck_spec(name="示例课件"):
             {"number": 1, "title": "封面", "role": "cover", "intent": "开始汇报",
              "key_points": ["主题", "场合", "署名"]},
             {"number": 2, "title": "证据", "role": "data-evidence", "intent": "展示来源数据",
-             "key_points": ["来源与口径", "图形表达的关系", "结论边界"],
+             "key_points": ["口径与比较", "图形表达的关系", "结论边界"],
              "core_message": "合成数据用于结构测试", "source_refs": ["合成测试 fixture"],
              "explanation": "检查数据文字是否完整传递"},
         ],

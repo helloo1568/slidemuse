@@ -4,24 +4,24 @@ S1 确定内容密度、S5 校准代表页或 S6 核对内容保留时读取。�
 
 ## 页面内容
 
-普通内容页默认 3–5 条有区别的支撑要点，每页声明 `role`、`core_message`、`key_points`、`source_refs`、`explanation`；必要限制写 `boundary`。来源能定位到材料页码、表号或原始记录。设计提案和合成示例明确标为提案/合成，不伪装成实验结果。
+普通内容页默认 3–5 条有区别的支撑要点，每页声明 `role`、`core_message`、`key_points`、`explanation`；必要限制写 `boundary`。来源只作为 `source_refs` 记录供追溯，不要求出现在页面上。设计提案和合成示例仍需在内容中明确标注，不伪装成实验结果。
 
 `density` 可显式覆盖默认，所有例外需要 `reason`：
 
 | mode | 支撑要点数量 | 使用条件 |
 |---|---|---|
 | `standard`（默认） | 3–5 | 普通概念、方案、结果、对比内容页 |
-| `evidence-led` | 1–5 | 图表/表格/真实截图承担比较；写清图中关系和来源 |
+| `evidence-led` | 1–5 | 图表/表格/真实截图承担比较；写清图中关系和数据口径 |
 | `brief` | 1–2 | 一个完整而聚焦的结论；必要证据和边界仍可见 |
 | `detailed` | 3–8 | 明确需要的密集对照/查阅页；写清用途并验证小字可读 |
 
 封面、目录、过渡、小结、问答按作用处理，不强制要点配额。例外理由不能授权添加新事实或绕过看图。脚本可发现完全重复及标点/大小写不同的条目；同义重复、口号和无依据因果仍需语义自检。
 
-按页型检查：数据页包含来源、比较和结论边界；路线页包含输入输出、步骤关系和必要约束；对比页包含相同口径、比较维度和选择理由；概念页包含定义和具体例子。不是所有流程都有分支，不为检查发明失败路径。
+按页型检查：数据页包含数据口径、比较和结论边界；路线页包含输入输出、步骤关系和必要约束；对比页包含相同口径、比较维度和选择理由；概念页包含定义和具体例子。不是所有流程都有分支，不为检查发明失败路径。
 
 ## 在两个后端传递同一份内容
 
-新 Page Spec 声明顶层 `content_policy: "1.0"`，自动执行当前内容检查；也可执行：
+新材料的 Page Spec 声明顶层 `content_policy: "1.1"`，自动执行内容和流程记录校验；也可执行：
 
 ```sh
 python slidemuse.py validate work/page-spec.json --strict --content
@@ -29,7 +29,7 @@ python slidemuse.py generate prepare --page-spec work/page-spec.json --out-dir w
 python slidemuse.py rebuild --offline prepare --page-spec work/page-spec.json --job-dir work/rebuilt
 ```
 
-生成适配器把已确认文本、来源、解释、边界和语义元素放入每页提示及 `slidemuse-content.json`。源图片尚未生成时只准备生成任务；重建适配需要批准图片，保存 `slidemuse-page-content.json`，`rebuild page-prompt` 将对应页原文、数据和稳定 ID 带入提示。后端 Manifest 的坐标、曲线和素材格式保持原样。直接图片重建仍可用既有入口。
+生成适配器把已确认文本、解释、边界和语义元素放入每页提示及 `slidemuse-content.json`；来源记录保留在 Page Spec，不进入可见文案。源图片尚未生成时只准备生成任务；重建适配需要批准图片，保存 `slidemuse-page-content.json`，`rebuild page-prompt` 将对应页原文、数据和稳定 ID 带入提示。后端 Manifest 的坐标、曲线和素材格式保持原样。直接图片重建仍可用既有入口。
 
 含 `preserve_asset` 的精确证据继续走 Page Spec 生产和像素核验路线；生成适配器拒绝把它交给生图重绘。旧稿缺字段仍可读取，不追溯认证；新任务不能借旧兼容入口跳过检查。
 
@@ -37,7 +37,7 @@ python slidemuse.py rebuild --offline prepare --page-spec work/page-spec.json --
 
 多页制作先选信息量有代表性的内容页（复用实际成品页），不只看封面：
 
-- 内容：结论、关键数字、来源、解释和必要边界出现在图片中，图表支撑文字。
+- 内容：结论、关键数字、解释和必要边界出现在图片中，图表支撑文字；来源不上页面。
 - 阅读：按预期投影/屏幕尺寸检查正文和标签；不靠缩字、满版挤排解决过载。
 - 布局：证据页把空间留给真实结果和比较；效果图/插画有清楚的解释作用，不挤走证据。
 - 密度：不足时补有依据的比较或解释、合并页面；过密时分层或在授权页数内重新分配，不能添加无依据条目。
@@ -48,14 +48,13 @@ python slidemuse.py rebuild --offline prepare --page-spec work/page-spec.json --
 
 ## 语义与页面文字分开
 
-默认仍按旧合同要求语义字段逐字可见。需要图表承担论点或精简重复句时，可在 Page Spec 中声明 `display.coverage`：每项用 `claim`（如 `core_message`、`key_points/0`、`explanation`、`boundary`、`source_refs/0`）映射到一个或多个已确认 `element_ids`。所有存在的语义字段都须覆盖；允许多个论点由同一图表承载，但不因此证明语义已经表达正确。
+1.1 按标题、已确认的文字元素与 `required_visible_values` 逐字核对。结论、解释和边界可用批准的文字和图形表达。需要记录承载关系时，可声明 `display.coverage`，把 `core_message`、`key_points/0`、`explanation`、`boundary` 等语义映射到已确认的 `element_ids`。声明映射时覆盖该页全部语义；多个论点可由同一张图表达。旧规格中有效的 `source_refs/N` 映射仍可读取，来源保留作内部记录。1.0 与旧规格在无显式映射时继续沿用原逐字规则。
 
 ```json
 "display": {"coverage": [
   {"claim": "core_message", "element_ids": ["comparison-chart", "takeaway"]},
   {"claim": "key_points/0", "element_ids": ["comparison-chart"]},
-  {"claim": "explanation", "element_ids": ["denominator-caption"]},
-  {"claim": "source_refs/0", "element_ids": ["source-footer"]}
+  {"claim": "explanation", "element_ids": ["denominator-caption"]}
 ]}
 ```
 
@@ -72,7 +71,7 @@ python slidemuse.py generate review work/generated
 
 新生成任务须通过该检查才能组装；组装还核对页序、完成状态、精确图片集合、哈希和画幅，逐字节保留嵌入图片及讲稿，失败保留旧 PPTX。旧任务没有内容合同会报告 `legacy_not_checked`，只能说明结构检查，不补造历史通过。
 
-Page Spec 路线沿用 `audit_page_content.py`；声明 `content_policy: "1.0"` 时也检查标题、结论、要点、解释、来源和边界。两条路线最终都须真实渲染；图片观察通过不等于 Office 渲染通过。
+Page Spec 路线沿用 `audit_page_content.py`，按当前规格声明的逐字清单验收。两条路线最终都须真实渲染，分别完成图片观察和 Office 渲染检查。
 
 ## 效果验证
 

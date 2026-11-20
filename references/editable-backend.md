@@ -85,4 +85,4 @@ python slidemuse.py render <实际最终PPTX路径> work/office-review
 
 ## 同一批准内容的传递
 
-可用 `rebuild --offline prepare --page-spec <approved.json> --job-dir <run>` 直接从批准图片准备重建，同时保存 `slidemuse-page-content.json`；后续 `page-prompt` 会携带对应页原文、来源、数据和稳定 ID，OCR 只辅助几何。Page Spec 需先通过 `validate --content --require-images --strict`。直接图片输入仍沿用原入口。
+可用 `rebuild --offline prepare --page-spec <approved.json> --job-dir <run>` 直接从批准图片准备重建，同时保存 `slidemuse-page-content.json`；后续 `page-prompt` 会携带对应页原文、数据、来源记录和稳定 ID，OCR 只辅助几何。Page Spec 需先通过 `validate --content --require-images --strict`。直接图片输入仍沿用原入口。

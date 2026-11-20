@@ -9,6 +9,7 @@ import re
 import unicodedata
 from pathlib import Path
 
+from content_density import CONTENT_POLICIES, WORKFLOW_POLICY, visible_text
 from json_io import read_json
 from validate_page_spec import load_page_spec
 
@@ -71,6 +72,7 @@ def template(spec_path: Path, slides: list[dict]) -> dict:
 def audit(spec_path: Path, slides: list[dict], observations: dict) -> dict:
     if observations.get("version") != "1.0" or not isinstance(observations.get("slides"), list):
         raise ValueError("Observations must contain version 1.0 and a slides array")
+    policy = read_json(spec_path).get("content_policy") if spec_path.is_file() else None
     by_id = {slide["id"]: slide for slide in slides}
     seen = set()
     results = []
@@ -95,11 +97,10 @@ def audit(spec_path: Path, slides: list[dict], observations: dict) -> dict:
             if element["kind"] == "text" and element["confirmation_status"] != "unresolved"
         ]
         expected += [("required_visible_values", value) for value in slide.get("required_visible_values", [])]
-        if spec_path.is_file():
-            spec = read_json(spec_path)
-            if spec.get("content_policy") == "1.0":
-                from content_density import visible_text
-                expected += [("content_contract", value) for value in visible_text(slide)]
+        if policy in CONTENT_POLICIES:
+            declared = {value for _, value in expected} if policy == WORKFLOW_POLICY else set()
+            expected += [("content_contract", value) for value in visible_text(slide, policy=policy)
+                         if value not in declared]
         for element_id, value in expected:
             if compact(value) and not text_present(value, text):
                 missing_numbers = [number for number in numbers(value) if compact_number(number) not in observed_numbers]

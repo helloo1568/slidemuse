@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from build_style_overview import label_overview
 from PIL import Image
 from validate_page_spec import load_page_spec, validate_page_spec
 
@@ -56,6 +57,61 @@ def test_example_is_valid():
     path = Path(__file__).resolve().parents[1] / "examples/page-spec.example.json"
     _, result = load_page_spec(path)
     assert result == {"slides": 1, "elements": 3, "unresolved": 0}
+
+
+@pytest.mark.parametrize(("problem", "error"), [
+    ("missing", "workflow"),
+    ("stale", "current content_version"),
+    ("blank-outline", "outline reference"),
+    ("blank-authorization", "user content authorization"),
+    ("blank-style-authorization", "user style authorization"),
+])
+def test_new_workflow_requires_recorded_current_approval(page_spec, problem, error):
+    spec, _ = load_page_spec(page_spec)
+    spec["content_policy"] = "1.1"
+    spec["slides"][0]["role"] = "cover"
+    spec["style"]["decision"] = "locked-reference"
+    spec["workflow"] = {"content_mode": "confirmed", "approved_content_version": spec["content_version"],
+                        "outline_ref": "Message 4, complete outline v1"}
+    validate_page_spec(spec, page_spec.parent, strict=True)
+    if problem == "missing":
+        del spec["workflow"]
+    elif problem == "stale":
+        spec["content_version"] = "outline-v2"
+    elif problem == "blank-outline":
+        spec["workflow"]["outline_ref"] = " "
+    elif problem == "blank-authorization":
+        spec["content_authorization"] = " "
+    else:
+        spec["style"]["authorization"] = " "
+    with pytest.raises(ValueError, match=error):
+        validate_page_spec(spec, page_spec.parent, strict=True)
+
+
+def test_workflow_style_selection_binds_number_name_and_preview(page_spec):
+    spec, _ = load_page_spec(page_spec)
+    spec["content_policy"] = "1.1"
+    spec["slides"][0]["role"] = "cover"
+    spec["workflow"] = {"content_mode": "reused", "approved_content_version": "outline-v1",
+                        "outline_ref": "Existing deck v1 reused at the user's request"}
+    style = spec["style"]
+    with pytest.raises(ValueError, match="numbered option and name"):
+        validate_page_spec(spec, page_spec.parent)
+    style.update(option=2, choice="Architectural journal")
+    with pytest.raises(ValueError, match="labeled preview"):
+        validate_page_spec(spec, page_spec.parent)
+    example = Path(__file__).resolve().parents[1] / "examples/page-spec.example.json"
+    style["tokens"] = json.loads(example.read_text(encoding="utf-8"))["style"]["tokens"]
+    style["tokens"]["reference_images"] = ["02-architectural-journal.png"]
+    with pytest.raises(ValueError, match="Missing style reference"):
+        validate_page_spec(spec, page_spec.parent)
+    raw = page_spec.parent / "preview.png"
+    Image.new("RGB", (320, 180), "ivory").save(raw)
+    label_overview(raw, page_spec.parent / "02-architectural-journal.png", 2, "Architectural journal")
+    assert validate_page_spec(spec, page_spec.parent)["slides"] == 1
+    style["option"] = 3
+    with pytest.raises(ValueError, match="differs from the labeled preview"):
+        validate_page_spec(spec, page_spec.parent)
 
 
 def test_requires_approval_and_existing_images(page_spec):

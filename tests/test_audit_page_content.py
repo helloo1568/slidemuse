@@ -36,6 +36,25 @@ def test_detects_missing_numeric_and_stale_transcription(tmp_path):
         audit_page_content.audit(path, [slide], observation)
 
 
+def test_new_policy_reports_each_missing_literal_once_and_keeps_reasoning_off_page(tmp_path):
+    path, spec = make_spec(tmp_path)
+    spec["content_policy"] = "1.1"
+    spec["workflow"] = {"content_mode": "confirmed", "approved_content_version": spec["content_version"],
+                        "outline_ref": "Complete outline in message 4"}
+    spec["style"].update(decision="locked-reference", authorization="Keep supplied style")
+    slide = spec["slides"][0]
+    slide["explanation"] = "Internal explanatory sentence"
+    slide["source_refs"] = ["Internal source scope"]
+    path.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    observation = audit_page_content.template(path, [slide])
+    entry = observation["slides"][0]
+    entry.update(status="complete", observed_text="让数字服务真正走进田间\n以可信、易用的数字服务连接农户与产业资源")
+    findings = audit_page_content.audit(path, [slide], observation)["slides"][0]["findings"]
+    assert [finding["expected"] for finding in findings] == ["增长 32%"]
+    entry["observed_text"] += "\n增长 32%"
+    assert audit_page_content.audit(path, [slide], observation)["pass"]
+
+
 def test_partial_observation_cannot_pass_strict_gate(tmp_path):
     path, spec = make_spec(tmp_path)
     observation = audit_page_content.template(path, spec["slides"])
