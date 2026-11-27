@@ -12,6 +12,7 @@ from measured_layout import findings
 from PIL import Image
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
+from pptx.dml.color import RGBColor
 from pptx.enum.chart import XL_CHART_TYPE
 from pptx.util import Inches, Pt
 from render_deck import build_review, render_selected, sha256
@@ -64,6 +65,35 @@ def build_controls(path):
     prs.save(path)
 
 
+def verify_hidden_slides(output, backend, width):
+    """Check original slide identity with a hidden first slide and distinct colors."""
+    output.mkdir()
+    deck = output / "hidden-controls.pptx"
+    prs = Presentation()
+    prs.slide_width, prs.slide_height = Inches(12), Inches(6.75)
+    for color, hidden in (("FF0000", True), ("0000FF", False)):
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        slide.background.fill.solid()
+        slide.background.fill.fore_color.rgb = RGBColor.from_string(color)
+        if hidden:
+            slide._element.set("show", "0")
+    prs.save(deck)
+    full = output / "full"
+    selected = output / "selected"
+    render_selected(deck, full, width, backend, [1, 2])
+    render_selected(deck, selected, width, backend, [1])
+
+    def center(path):
+        with Image.open(path) as image:
+            return image.convert("RGB").getpixel((image.width // 2, image.height // 2))
+
+    paths = [full / "001.png", full / "002.png", selected / "001.png"]
+    return {"deck_sha256": sha256(deck),
+            "images": [{"path": str(path), "sha256": sha256(path), "center_rgb": center(path)} for path in paths],
+            "checks": {"hidden_full_page_identity": [center(path) for path in paths[:2]] == [(255, 0, 0), (0, 0, 255)],
+                       "hidden_selected_page_identity": center(paths[2]) == (255, 0, 0)}}
+
+
 def verify(output, backend="powerpoint", width=1200, timeout=120):
     output = output.resolve()
     if output.exists():
@@ -74,6 +104,7 @@ def verify(output, backend="powerpoint", width=1200, timeout=120):
     renders = output / "rendered"
     with rendering_options(timeout=timeout, retries=1, measure_text=backend == "powerpoint"):
         actual = render_selected(deck, renders, width, backend, list(range(1, 7)))
+        hidden_slides = verify_hidden_slides(output / "hidden-slides", actual, width)
     diagnostics = []
     pages = []
     for index in range(1, 7):
@@ -84,14 +115,14 @@ def verify(output, backend="powerpoint", width=1200, timeout=120):
         measure = renders / f"{index:03d}.layout.json"
         if measure.exists():
             diagnostics.extend(findings(read_json(measure), f"s{index:02d}"))
-    checks = {"six_actual_pages": len(pages) == 6}
+    checks = {"six_actual_pages": len(pages) == 6, **hidden_slides["checks"]}
     if actual == "powerpoint":
         checks.update(spacious_control=any(f["element_id"] == "spacious" and f["status"] == "no_obvious_risk" for f in diagnostics),
                       overflow_control=any(f["element_id"] == "overflow" and f["status"] == "risk" for f in diagnostics),
                       overlap_control=any(f.get("kind") == "text_overlap" and f["element_id"] in ("overlap-a", "overlap-b") for f in diagnostics))
     build_review([Path(p["path"]) for p in pages], output, None)
     report = {"version": "1.0", "backend": actual, "environment": fingerprint(), "deck_sha256": sha256(deck),
-              "pages": pages, "checks": checks, "measured_layout": diagnostics,
+              "pages": pages, "checks": checks, "hidden_slides": hidden_slides, "measured_layout": diagnostics,
               "mechanical_status": "pass" if all(checks.values()) else "fail", "visual_review_status": "pending",
               "scope": "Synthetic positive/negative regression controls; actual images require inspection. Chart labels are visual-only."}
     (output / "regression-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

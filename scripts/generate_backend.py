@@ -7,6 +7,8 @@ import hashlib
 import importlib.util
 import json
 import os
+import re
+import runpy
 import shlex
 import subprocess
 import sys
@@ -38,7 +40,11 @@ FYAI_DEFAULT_MODEL = "gpt-image-2.6"
 
 
 def prepare(argv, script, env):
-    from generation_delivery import from_page_spec, prepare_spec, save_contract
+    from generation_delivery import (
+        from_page_spec,
+        prepare_spec,
+        prepared_contract_files,
+    )
     from json_io import read_json
     if "--help" in argv or "-h" in argv:
         print("SlideMuse additions: --page-spec <approved Page Spec> instead of --spec; current content rules are checked before writing jobs.")
@@ -64,7 +70,7 @@ def prepare(argv, script, env):
     def resolve_images(value):
         if isinstance(value, dict):
             for key, item in value.items():
-                if key == "path" and isinstance(item, str):
+                if key == "path" and isinstance(item, str) and not re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", item.strip()):
                     value[key] = str((source_path.parent / item).resolve())
                 else:
                     resolve_images(item)
@@ -80,16 +86,19 @@ def prepare(argv, script, env):
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
             json.dump(spec, stream, ensure_ascii=False)
-        result = subprocess.run([sys.executable, str(script), "--spec", temporary,
-                                 "--out-dir", str(args.out_dir), *extra], env=env, check=False).returncode
+        # The helper builds every output in memory, then commits its prompts,
+        # jobs, run state and our content/notes companions under the same lock.
+        # Loading this deterministic helper never loads provider credentials.
+        previous_path = sys.path[:]
+        try:
+            sys.path.insert(0, str(script.parent))
+            helper = runpy.run_path(str(script))
+            result = helper["main"](["--spec", temporary, "--out-dir", str(args.out_dir), *extra],
+                                    companion=prepared_contract_files)
+        finally:
+            sys.path[:] = previous_path
     finally:
         Path(temporary).unlink(missing_ok=True)
-    if result == 0:
-        save_contract(args.out_dir.resolve(), spec)
-        if any("speaker_notes" in s for s in spec["slides"]):
-            notes = "\n\n".join(f"## Slide {s['number']}: {s['title']}\n{s.get('speaker_notes', '')}"
-                                 for s in spec["slides"])
-            (args.out_dir / "speech.md").write_text(notes + "\n", encoding="utf-8")
     return result
 
 

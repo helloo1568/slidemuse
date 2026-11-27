@@ -261,6 +261,43 @@ def copy_production_state(source_spec, draft_spec, published_spec, visible_slide
     if (draft_root / "state.json").exists():
         raise ValueError("Production state path collides with draft assets or documents")
     copied = set()
+    copied_intents = set()
+    copied_assets = {}
+
+    def recovery_asset(name, expected=None):
+        """Keep declared historical inputs without replacing current draft files."""
+        asset = _relative_path(source_spec.parent, name)
+        if asset in copied_assets:
+            if expected is not None and copied_assets[asset] != expected:
+                raise ValueError(f"Historical preserved asset hash changed: {name}; retain its original file")
+            return
+        if not asset.is_file():
+            raise ValueError(f"Missing production recovery asset: {name}; retain its original file")
+        data = asset.read_bytes()
+        checksum = digest(data)
+        if expected is not None and checksum != expected:
+            raise ValueError(f"Historical preserved asset hash changed: {name}; retain its original file")
+        destination = _relative_path(draft_spec.parent, name)
+        if destination.exists() and (not destination.is_file() or destination.read_bytes() != data):
+            raise ValueError(f"Historical production asset collides with a current draft file: {name}")
+        if not destination.exists():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
+        copied_assets[asset] = checksum
+
+    def recovery_intent(relative):
+        if relative in copied_intents:
+            return
+        intent = read_json(draft_root / relative)
+        if not isinstance(intent, dict) or not isinstance(intent.get("slide"), dict) or not isinstance(intent.get("style"), dict):
+            raise TypeError("Production intent must retain its slide and style declarations")
+        for element in intent["slide"].get("elements", []):
+            if "preserve_asset" in element:
+                declaration = element["preserve_asset"]
+                recovery_asset(declaration["file"], declaration["sha256"])
+        for name in intent["style"].get("tokens", {}).get("reference_images", []):
+            recovery_asset(name)
+        copied_intents.add(relative)
 
     def snapshot(name, expected=None):
         stored = _relative_path(source_root, name)
@@ -291,8 +328,12 @@ def copy_production_state(source_spec, draft_spec, published_spec, visible_slide
             for key, item in value.items():
                 if key.endswith("_snapshot") and item is not None:
                     expected = value.get({"source_snapshot": "source_sha256", "image_snapshot": "image_sha256",
-                                          "request_snapshot": "request_sha256"}.get(key))
-                    value[key] = str(snapshot(item, expected))
+                                          "request_snapshot": "request_sha256", "derived_input_snapshot": "derived_input_sha256",
+                                          "correction_snapshot": "correction_sha256"}.get(key))
+                    relative = snapshot(item, expected)
+                    value[key] = str(relative)
+                    if key == "intent_snapshot":
+                        recovery_intent(relative)
                 elif key == "request_reference":
                     reference = Path(item)
                     if reference.is_absolute():
@@ -304,7 +345,7 @@ def copy_production_state(source_spec, draft_spec, published_spec, visible_slide
                 else:
                     relocate(item)
 
-    # Includes archived originals, reviews, request packets and failed-call requests.
+    # Includes removed pages, local corrections, historical reviews and failed-call requests.
     relocate(state)
     state["state_sha256"] = seal({k: v for k, v in state.items() if k != "state_sha256"})
     save(draft_root / "state.json", state)

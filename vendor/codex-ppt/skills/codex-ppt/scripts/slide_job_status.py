@@ -12,8 +12,7 @@ from slide_run_state import (
     deck_dir_from_target,
     dispatch_slots_available,
     dispatchable_slides,
-    load_jobs,
-    load_run_state,
+    load_job_snapshot,
     max_concurrent_slides,
     slide_ids,
 )
@@ -26,8 +25,7 @@ def main() -> int:
     args = parser.parse_args()
 
     deck_dir = deck_dir_from_target(args.deck)
-    jobs = load_jobs(deck_dir)
-    state = load_run_state(deck_dir)
+    jobs, state = load_job_snapshot(deck_dir)
     by_status = defaultdict(list)
     for slide in jobs.get("slides", []):
         by_status[slide.get("status", "unknown")].append(slide.get("slide_id"))

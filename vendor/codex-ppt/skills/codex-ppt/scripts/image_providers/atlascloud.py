@@ -70,23 +70,49 @@ class AtlasCloudImageProvider(ImageProvider):
         attempts: int,
         job_label: str,
     ) -> List[str]:
-        last_exc: Optional[Exception] = None
-        for attempt in range(1, attempts + 1):
-            try:
-                return await asyncio.to_thread(self.generate, payload)
-            except Exception as exc:
-                last_exc = exc
-                if attempt == attempts:
-                    raise
-                sleep_s = min(60.0, 2.0**attempt)
-                print(
-                    f"{job_label} attempt {attempt}/{attempts} failed ({exc.__class__.__name__}); retrying in {sleep_s:.1f}s",
-                    file=sys.stderr,
-                )
-                await asyncio.sleep(sleep_s)
-        raise last_exc or RuntimeError("unknown error")
+        if attempts < 1:
+            raise ValueError("attempts must be at least 1")
+
+        async def retry(operation, stage):
+            for attempt in range(1, attempts + 1):
+                try:
+                    return await asyncio.to_thread(operation)
+                except Exception as exc:
+                    if attempt == attempts:
+                        raise
+                    sleep_s = min(60.0, 2.0**attempt)
+                    print(
+                        f"{job_label} {stage} attempt {attempt}/{attempts} failed "
+                        f"({exc.__class__.__name__}); retrying in {sleep_s:.1f}s",
+                        file=sys.stderr,
+                    )
+                    await asyncio.sleep(sleep_s)
+
+        outputs: List[str] = []
+        for index in range(int(payload.get("n", 1))):
+            # Once accepted, this prediction remains the source for all later
+            # retries. A polling/download failure must never create a new job.
+            result_url = await retry(lambda: self._submit_prediction(payload, operation="text-to-image"),
+                                     f"image {index + 1} submit")
+            result = await retry(lambda: self._poll_prediction(result_url), f"image {index + 1} poll")
+            values = self._prediction_outputs(result)
+            for value in values:
+                outputs.append(await retry(lambda: self._output_to_b64(str(value)), f"image {index + 1} download"))
+        return outputs
 
     def _submit_and_collect(self, payload: Dict[str, Any], *, operation: str) -> List[str]:
+        result_url = self._submit_prediction(payload, operation=operation)
+        result = self._poll_prediction(result_url)
+        return [self._output_to_b64(str(output)) for output in self._prediction_outputs(result)]
+
+    @staticmethod
+    def _prediction_outputs(result: Dict[str, Any]) -> List[str]:
+        outputs = result.get("outputs")
+        if not isinstance(outputs, list) or not outputs:
+            raise RuntimeError("AtlasCloud prediction completed without outputs.")
+        return outputs
+
+    def _submit_prediction(self, payload: Dict[str, Any], *, operation: str) -> str:
         request_payload = self._atlas_payload(payload, operation=operation)
         submitted = self._request_json(
             "POST",
@@ -97,12 +123,7 @@ class AtlasCloudImageProvider(ImageProvider):
         if not prediction_id:
             raise RuntimeError("AtlasCloud response did not include a prediction id.")
 
-        result_url = _prediction_result_url(submitted) or f"{self.model_base_url}/result/{prediction_id}"
-        result = self._poll_prediction(result_url)
-        outputs = result.get("outputs")
-        if not isinstance(outputs, list) or not outputs:
-            raise RuntimeError("AtlasCloud prediction completed without outputs.")
-        return [self._output_to_b64(str(output)) for output in outputs]
+        return _prediction_result_url(submitted) or f"{self.model_base_url}/result/{prediction_id}"
 
     def _poll_prediction(self, url: str) -> Dict[str, Any]:
         last: Dict[str, Any] = {}

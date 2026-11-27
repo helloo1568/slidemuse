@@ -86,7 +86,7 @@ def diagnose(root: Path = ROOT, *, backend="auto", require_renderer=False):
     checks.append({"id": "renderer", "status": "pass" if renderer["ready"] else "fail" if require_renderer else "warning",
                    "message": "Discovery only: program paths and Windows registration; actual rendering is not tested.",
                    "requested": backend, "available": renderer["available"],
-                   **({"remedy": "Install PowerPoint on Windows, or put LibreOffice and Poppler (soffice, pdftoppm) on PATH."}
+                   **({"remedy": "Install PowerPoint on Windows, or put LibreOffice and Poppler (soffice, pdftoppm, pdfinfo) on PATH."}
                       if not renderer["ready"] else {})})
     try:
         version_match = re.search(r"^version:\s*(\d+\.\d+\.\d+)\s*$",

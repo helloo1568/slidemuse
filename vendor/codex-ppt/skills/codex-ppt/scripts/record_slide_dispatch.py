@@ -65,8 +65,8 @@ def main() -> int:
         slide["status"] = "dispatched"
         update_jobs_run_status(jobs)
         run_status = jobs.get("run_status")
-    if run_status == "slides_dispatched":
-        set_run_status(deck_dir, "slides_dispatched", "all slide jobs dispatched")
+        if run_status == "slides_dispatched":
+            set_run_status(deck_dir, "slides_dispatched", "all slide jobs dispatched")
     print(f"{slide['slide_id']} -> dispatched")
     return 0
 

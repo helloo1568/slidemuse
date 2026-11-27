@@ -37,7 +37,7 @@ def main() -> int:
         update_jobs_run_status(jobs)
         jobs["run_status"] = "blocked"
         slide_id = slide["slide_id"]
-    set_run_status(deck_dir, "blocked", f"{slide_id}: {args.reason}")
+        set_run_status(deck_dir, "blocked", f"{slide_id}: {args.reason}")
     print(f"{slide_id} -> blocked")
     return 0
 

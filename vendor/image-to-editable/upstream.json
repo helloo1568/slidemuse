@@ -65,8 +65,8 @@
       "reason": "Use a Windows scalable font in the same upstream preview assertions and accept the standard fonts-liberation path installed on Linux CI runners."
     },
     "skills/image-to-editable-ppt/cli/editppt/runtime/_input_normalization.py": {
-      "sha256": "722f3fb8bda4fbb097e79dcbac77ec147bb31079cdb407bb7a9c6d81d2da1c87",
-      "reason": "Preserve EXIF orientation, apply supported PPTX image crops and aspect ratio, reject unsupported picture transforms or overlays, retain exact speaker-note text, and verify approved Page Spec note contracts. Retain the legacy PPT dpi fix and direct pymupdf import."
+      "sha256": "25fd1bba9324e36180d71a7caa3d140fe8fdf047881a6e96845c5cb75be8975e",
+      "reason": "Preserve EXIF orientation, apply supported PPTX image crops and aspect ratio, reject unsupported picture transforms or overlays, retain exact speaker-note text, and verify approved Page Spec note contracts. Retain the legacy PPT dpi fix and direct pymupdf import. v2.29.0: Prepare new runs transactionally without overwriting existing tasks, and reject hidden pictures during lightweight extraction."
     },
     "skills/image-to-editable-ppt/cli/editppt/runtime/formula_renderer.py": {
       "sha256": "3651679ffe317efb947d762af85f9352fdef734f56c279d7cf2745cfae0f9446",
@@ -93,8 +93,8 @@
       "reason": "Use gpt-image-2.6 as the reconstruction default while preserving explicit user model configuration."
     },
     "skills/image-to-editable-ppt/cli/editppt/runtime/validate_pptx.py": {
-      "sha256": "f4bb03b6cbf1b1337207a87044a9f908e9afef097033ac29daab8572d3032c4b",
-      "reason": "Validate exact note-body text and the independent approved Page Spec note contract; missing, altered, or unreadable evidence must not pass final deck validation."
+      "sha256": "3f3f84b1feb6aa4df9925d9dda72e0fb6044e57a4574e63911f1bd03e0e9780a",
+      "reason": "Validate exact note-body text and the independent approved Page Spec note contract; missing, altered, or unreadable evidence must not pass final deck validation. v2.29.0: Verify actual slide order/content, object visibility, image bytes and speaker notes through their real relationships."
     },
     "skills/image-to-editable-ppt/references/cli-helper.md": {
       "sha256": "5871a1c400320919c907af097549681b072f0706b244da8994fe902dce58df7c",
@@ -103,6 +103,14 @@
     "tests/test_image_models.py": {
       "sha256": "7d5d7f7d9c7e412b5d40aa9d39912445e6173ef03c00159840623c58fe925032",
       "reason": "Verify the recommended gpt-image-2.6 default, provider-prefixed and dated size validation, while retaining legacy-model compatibility regressions."
+    },
+    "skills/image-to-editable-ppt/cli/editppt/runtime/finalize_deck_run.py": {
+      "sha256": "94148ddc3c8bb73a82416a271df542adb7b8b86563b0fe32eba25534f768fa9a",
+      "reason": "v2.29.0: Compile and validate recorded manifests, verify page identities and unchanged inputs, and publish staged outputs with the assembly snapshot."
+    },
+    "tests/test_multi_agent_backend.py": {
+      "sha256": "f32db893b3aff913e98be2da42ed8c53e65c097bffc3f68fe85da67aad8c6cba",
+      "reason": "v2.29.0: Use semantic recorded-output keys and validated bindings in finalization fixtures."
     }
   }
 }

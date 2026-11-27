@@ -16,7 +16,7 @@ from pathlib import Path
 from audit_page_content import text_present
 from content_density import WORKFLOW_POLICY, prompt_elements, visible_text
 from json_io import read_json
-from PIL import Image, ImageOps
+from PIL import Image, ImageChops, ImageOps
 from preserved_assets import expected_patch, relative_file, validate_preserved_assets
 from record_work import locked_log
 from validate_page_spec import load_page_spec
@@ -111,44 +111,71 @@ def workspace(spec_path):
     return spec_path.parent / ("." + spec_path.stem + "-production")
 
 
-def provided_image(spec_path, slide, page):
+def provided_image(spec_path, slide, page, root=None):
     if any(previous.get("source_snapshot") or previous.get("generation_snapshot")
            for previous in (page, *page.get("history", []))):
         raise ValueError("A generated page cannot bypass production review by changing its origin to provided")
-    data = relative_file(spec_path.parent, slide["image_file"]).read_bytes()
+    target = relative_file(spec_path.parent, slide["image_file"])
+    if not target.exists() and root is not None:
+        # A removed provided page may return after a self-contained draft move.
+        # Only restore missing projections; changed user files must still fail.
+        for previous in (page, *reversed(page.get("history", []))):
+            if (previous.get("source_kind") == "provided" and previous.get("image_snapshot")
+                    and previous.get("image_sha256") == slide["image_origin"]["sha256"]):
+                target = relative_file(root, previous["image_snapshot"])
+                break
+    data = target.read_bytes()
     if digest(data) != slide["image_origin"]["sha256"]:
         raise ValueError(f"Provided image changed since its recorded approval: {slide['id']}")
     return data
 
 
+def verify_snapshots(root, value):
+    """Validate retained files before reusing an active or restored page."""
+    if isinstance(value, list):
+        for item in value:
+            verify_snapshots(root, item)
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            if key.endswith("_snapshot") and item is not None:
+                stored = relative_file(root, item)
+                hash_key = {"image_snapshot": "image_sha256", "source_snapshot": "source_sha256",
+                            "derived_input_snapshot": "derived_input_sha256", "correction_snapshot": "correction_sha256"}.get(key)
+                expected = value.get(hash_key) if hash_key else stored.name[:64]
+                if not stored.is_file() or digest(stored.read_bytes()) != expected:
+                    raise ValueError("Committed production snapshot changed")
+            else:
+                verify_snapshots(root, item)
+
+
 def current(spec_path, spec, root, *, persist=True):
     state_path = root / "state.json"
     state = read_json(state_path) if state_path.exists() else {"version": "1.0", "pages": {}}
-    if state.get("version") != "1.0" or not isinstance(state.get("pages"), dict):
+    if (state.get("version") != "1.0" or not isinstance(state.get("pages"), dict)
+            or not isinstance(state.get("archived_pages", {}), dict)):
         raise ValueError("Unsupported production state")
     if state_path.exists() and state.get("state_sha256") != seal({k: v for k, v in state.items() if k != "state_sha256"}):
         raise ValueError("Production state changed; retain it for recovery")
+    archived = state.get("archived_pages", {}).copy()
+    if set(archived) & set(state["pages"]):
+        raise ValueError("Production page cannot be both active and archived")
+    active_ids = {slide["id"] for slide in spec["slides"]}
+    archived.update({key: page for key, page in state["pages"].items() if key not in active_ids})
     pages = {}
     for slide in spec["slides"]:
         contract = fingerprint(spec, slide, spec_path.parent)
-        old = state["pages"].get(slide["id"], {})
+        restored = archived.pop(slide["id"], {})
+        old = state["pages"].get(slide["id"], restored)
+        if old:
+            verify_snapshots(root, old)
         if old.get("contract_sha256") == contract:
-            for name, hash_name in (("image_snapshot", "image_sha256"), ("source_snapshot", "source_sha256"),
-                                    ("review_snapshot", None), ("intent_snapshot", None), ("prompt_snapshot", None),
-                                    ("request_snapshot", None), ("generation_snapshot", None),
-                                    ("generation_request_snapshot", None)):
-                if name in old:
-                    stored = relative_file(root, old[name])
-                    expected = old[hash_name] if hash_name else stored.name[:64]
-                    if not stored.is_file() or digest(stored.read_bytes()) != expected:
-                        raise ValueError("Committed production snapshot changed")
             pages[slide["id"]] = old
         else:
             snapshot = store(root, encoded({"canvas": spec["canvas"], "style": spec["style"], "slide": slide}), ".json") if persist else None
             pages[slide["id"]] = {"contract_sha256": contract, "intent_snapshot": snapshot,
                                   "status": "pending", "history": [*old.get("history", []), *([{k: v for k, v in old.items() if k != "history"}] if old else [])]}
         if slide.get("image_origin"):
-            data = provided_image(spec_path, slide, pages[slide["id"]])
+            data = provided_image(spec_path, slide, pages[slide["id"]], root)
             pages[slide["id"]].update(source_kind="provided", status=slide["image_status"], image_sha256=digest(data))
             if persist:
                 suffix = Path(slide["image_file"]).suffix.lower()
@@ -156,6 +183,7 @@ def current(spec_path, spec, root, *, persist=True):
         if persist:
             pages[slide["id"]]["prompt_snapshot"] = store(root, encoded(generation_input(spec, slide)), ".prompt.json")
     state["pages"] = pages
+    state["archived_pages"] = archived
     return state
 
 
@@ -232,7 +260,10 @@ def project(spec_path, spec, root, state):
     for slide in spec["slides"]:
         page = state["pages"][slide["id"]]
         if slide.get("image_origin"):
-            provided_image(spec_path, slide, page)
+            data = provided_image(spec_path, slide, page, root)
+            target = relative_file(spec_path.parent, slide["image_file"])
+            if not target.exists():
+                atomic(target, data)
             continue
         if page["status"] != "pending":
             data = relative_file(root, page["image_snapshot"]).read_bytes()
@@ -292,6 +323,24 @@ def verified_generation(root, page, slide_id):
     validate_generation_record(read_json(evidence_path), read_json(request_path), digest(request_path.read_bytes()),
                                page.get("source_sha256"), slide_id,
                                legacy_route=page.get("generation_request_route"))
+    if page.get("derivation_snapshot"):
+        derivation_path = relative_file(root, page["derivation_snapshot"])
+        if not derivation_path.is_file() or digest(derivation_path.read_bytes()) != derivation_path.name[:64]:
+            raise ValueError("Local correction record changed")
+        derivation = read_json(derivation_path)
+        expected = {"version": "1.0", "slide_id": slide_id, "contract_sha256": page["contract_sha256"],
+                    "source_sha256": page.get("source_sha256"), "input_snapshot": page.get("derived_input_snapshot"),
+                    "input_sha256": page.get("derived_input_sha256"), "correction_snapshot": page.get("correction_snapshot"),
+                    "correction_sha256": page.get("correction_sha256"), "output_sha256": page.get("image_sha256")}
+        if "derived_input_pixels" in page:
+            expected.update(input_pixels=page["derived_input_pixels"], upscaled=page.get("upscaled"))
+        if (not isinstance(derivation, dict) or any(derivation.get(key) != value for key, value in expected.items())
+                or not isinstance(derivation.get("operation"), str) or not derivation["operation"].strip()):
+            raise ValueError("Local correction differs from its retained input, original or output")
+        for field in ("derived_input", "correction"):
+            reference = page.get(field + "_snapshot")
+            if not reference or digest(relative_file(root, reference).read_bytes()) != page.get(field + "_sha256"):
+                raise ValueError("Local correction input changed")
 
 
 def missing_historical_request():
@@ -443,11 +492,89 @@ def compose(spec_path, spec, root, state, slide, source, allow_upscale, generati
     image.save(buffer, format="PNG")
     data = buffer.getvalue()
     old = {key: value for key, value in page.items() if key != "history"}
+    for key in ("derivation_snapshot", "derived_input_snapshot", "derived_input_sha256", "derived_input_pixels",
+                "correction_snapshot", "correction_sha256"):
+        page.pop(key, None)
     page.update({"status": "generated", "source_snapshot": store(root, raw, ".source"),
                  "source_sha256": digest(raw), "source_pixels": original_size,
                  "final_pixels": list(size), "upscaled": upscaled, "protected_regions": regions,
                  "image_snapshot": store(root, data, ".png"), "image_sha256": digest(data),
                  "compose_seconds": time.monotonic() - started, **provenance})
+    page.pop("review_snapshot", None)
+    page["history"] = [*page.get("history", []), old]
+
+
+def refine(spec_path, spec, root, state, slide, source, base_image, operation, allow_upscale=False):
+    """Register a declared local correction without relabeling it as a model result."""
+    if slide.get("image_origin"):
+        raise ValueError("Local production corrections require a retained generated original")
+    if not isinstance(operation, str) or not operation.strip():
+        raise ValueError("Describe the authorized local correction with --operation")
+    target = relative_file(spec_path.parent, slide["image_file"])
+    if source.resolve() == target or source.resolve().is_relative_to(root):
+        raise ValueError("Keep the corrected image independent of the final image and managed snapshots")
+    page = state["pages"][slide["id"]]
+    input_hash = digest(base_image.read_bytes())
+    retained = None
+    for previous in (page, *reversed(page.get("history", []))):
+        for kind in ("image", "source"):
+            if previous.get(kind + "_sha256") == input_hash and previous.get(kind + "_snapshot"):
+                verify_snapshots(root, previous)
+                verified_generation(root, previous, slide["id"])
+                retained = (previous, previous[kind + "_snapshot"], kind)
+                break
+        if retained:
+            break
+    if retained is None:
+        raise ValueError("--base-image must match a retained, unchanged original or composed image of this page")
+    previous, input_snapshot, input_kind = retained
+    raw = source.read_bytes()
+    with Image.open(io.BytesIO(raw)) as opened:
+        if opened.format != "PNG":
+            raise ValueError("Local corrections must be saved as lossless PNG")
+        image = ImageOps.exif_transpose(opened).convert("RGBA")
+    size = (int(spec["canvas"]["width"]), int(spec["canvas"]["height"]))
+    if image.size != size or image.getchannel("A").getextrema() != (255, 255):
+        raise ValueError("Local correction must be opaque and match the current canvas pixel dimensions")
+    with Image.open(relative_file(root, input_snapshot)) as opened:
+        input_pixels = ImageOps.exif_transpose(opened).size
+    with Image.open(relative_file(root, previous["source_snapshot"])) as opened:
+        original_pixels = ImageOps.exif_transpose(opened).size
+    enlarges = any(before < after for pixels in (input_pixels, original_pixels) for before, after in zip(pixels, size))
+    prior_size = previous.get("final_pixels", [])
+    already_allowed = (previous.get("upscaled") is True and len(prior_size) == 2
+                       and all(before >= after for before, after in zip(prior_size, size)))
+    if enlarges and not (allow_upscale or already_allowed):
+        raise ValueError("Local correction enlarges retained pixels; explicitly use --allow-upscale and do not claim native resolution")
+    upscaled = enlarges or (input_kind == "image" and previous.get("upscaled") is True)
+    image = image.convert("RGB")
+    regions = []
+    for element in slide["elements"]:
+        if "preserve_asset" in element:
+            declaration = element["preserve_asset"]
+            x, y, width, height = declaration["region"]
+            patch = expected_patch(spec_path.parent, declaration)
+            if ImageChops.difference(image.crop((x, y, x + width, y + height)), patch).getbbox() is not None:
+                raise ValueError("Local correction changed protected evidence pixels")
+            regions.append({"element_id": element["id"], "region": declaration["region"]})
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    data = buffer.getvalue()
+    correction_snapshot = store(root, raw, ".correction")
+    derivation = {"version": "1.0", "slide_id": slide["id"], "contract_sha256": page["contract_sha256"],
+                  "operation": operation.strip(), "source_sha256": previous["source_sha256"],
+                  "input_snapshot": input_snapshot, "input_sha256": input_hash,
+                  "input_pixels": list(input_pixels), "upscaled": upscaled,
+                  "correction_snapshot": correction_snapshot, "correction_sha256": digest(raw),
+                  "output_sha256": digest(data)}
+    old = {key: value for key, value in page.items() if key != "history"}
+    provenance = {key: previous[key] for key in ("source_snapshot", "source_sha256", "source_pixels", "generation_snapshot",
+                                                "generation_request_snapshot", "generation_request_route") if key in previous}
+    page.update({**provenance, "status": "generated", "image_snapshot": store(root, data, ".png"),
+                 "image_sha256": digest(data), "source_pixels": list(original_pixels), "final_pixels": list(size), "upscaled": upscaled,
+                 "protected_regions": regions, "derivation_snapshot": store(root, encoded(derivation), ".derivation.json"),
+                 "derived_input_snapshot": input_snapshot, "derived_input_sha256": input_hash, "derived_input_pixels": list(input_pixels),
+                 "correction_snapshot": correction_snapshot, "correction_sha256": digest(raw)})
     page.pop("review_snapshot", None)
     page["history"] = [*page.get("history", []), old]
 
@@ -496,13 +623,13 @@ def accept(spec_path, slide, root, page, record, *, policy=None):
 
 
 def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=False, record=None, element_id=None, region=None,
-            route=None, failure_kind=None, evidence=None, generation_record=None):
+            route=None, failure_kind=None, evidence=None, generation_record=None, base_image=None, operation=None):
     spec_path = Path(spec_path).resolve()
     root = workspace(spec_path)
     if action == "status":
         spec, _ = load_page_spec(spec_path, strict=True, content=True)
         state = current(spec_path, spec, root, persist=False)
-        return {"state": str(root / "state.json"), "pages": state["pages"]}
+        return {"state": str(root / "state.json"), "pages": state["pages"], "archived_pages": state["archived_pages"]}
     root.mkdir(parents=True, exist_ok=True)
     with locked_log(root / "transaction"):
         spec, _ = load_page_spec(spec_path, strict=True, content=True)
@@ -538,12 +665,21 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
             if source is None:
                 raise ValueError("compose requires --source")
             compose(spec_path, spec, root, state, selected, Path(source), allow_upscale, generation_record)
+        elif action == "refine":
+            if source is None or base_image is None:
+                raise ValueError("refine requires --source and --base-image")
+            refine(spec_path, spec, root, state, selected, Path(source), Path(base_image), operation, allow_upscale)
         elif action == "review-init":
             if record is None or Path(record).exists():
                 raise ValueError("Provide a new --record path; retain previous reviews")
             if Path(record).resolve() in {spec_path, *[relative_file(spec_path.parent, s["image_file"]) for s in spec["slides"]]} or Path(record).resolve().is_relative_to(root):
                 raise ValueError("Review record must be independent of managed outputs")
-            save(Path(record), review_template(selected, state["pages"][slide_id]))
+            page = state["pages"][slide_id]
+            template = review_template(selected, page)
+            target = relative_file(spec_path.parent, selected["image_file"])
+            if not target.is_file() or digest(target.read_bytes()) != page["image_sha256"]:
+                raise ValueError("Final image changed since composition; register an independent correction with refine, or run prepare to restore the committed image")
+            save(Path(record), template)
         elif action == "accept":
             if record is None:
                 raise ValueError("accept requires --record")
@@ -552,18 +688,21 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
             raise ValueError("Unknown production action")
         commit(spec_path, spec, root, state)
         return {"state": str(root / "state.json"), "summary": str(root / "status.md"),
-                "pages": {key: {k: v for k, v in page.items() if k != "history"} for key, page in state["pages"].items()}}
+                "pages": {key: {k: v for k, v in page.items() if k != "history"} for key, page in state["pages"].items()},
+                "archived_page_ids": sorted(state["archived_pages"])}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "status", "request", "failure", "compose", "review-init", "accept", "region"))
+    parser.add_argument("action", choices=("prepare", "status", "request", "failure", "compose", "refine", "review-init", "accept", "region"))
     parser.add_argument("page_spec", type=Path)
     parser.add_argument("--slide")
     parser.add_argument("--route", choices=ROUTES)
     parser.add_argument("--failure-kind", choices=FAILURE_KINDS)
     parser.add_argument("--evidence", help="Actual failed tool call or result evidence; never fabricate")
     parser.add_argument("--source", type=Path)
+    parser.add_argument("--base-image", type=Path, help="Retained original or composed image used as the local correction input")
+    parser.add_argument("--operation", help="Actual authorized local correction; not a model invocation")
     parser.add_argument("--generation-record", type=Path, help="Actual tool/model/result evidence bound to this request and original image")
     parser.add_argument("--allow-upscale", action="store_true")
     parser.add_argument("--record", type=Path)
@@ -573,7 +712,8 @@ def main():
     try:
         result = execute(args.page_spec, args.action, slide_id=args.slide, source=args.source,
                          allow_upscale=args.allow_upscale, record=args.record, element_id=args.element, region=args.region,
-                         route=args.route, failure_kind=args.failure_kind, evidence=args.evidence, generation_record=args.generation_record)
+                         route=args.route, failure_kind=args.failure_kind, evidence=args.evidence, generation_record=args.generation_record,
+                         base_image=args.base_image, operation=args.operation)
     except (ValueError, TypeError, OSError) as error:
         parser.exit(2, f"produce: {error}\n")
     print(json.dumps(result, ensure_ascii=True, indent=2))

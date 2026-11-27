@@ -7,7 +7,7 @@ from pathlib import Path
 
 import build_image_ppt
 import pytest
-from PIL import Image
+from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.dml import MSO_FILL
@@ -265,17 +265,61 @@ def test_jpeg_flattens_transparency_onto_background(tmp_path):
     assert all(abs(channel - expected) <= 4 for channel, expected in zip(pixel, (51, 102, 204)))
 
 
-def test_exif_orientation_is_applied(tmp_path):
+@pytest.mark.parametrize("orientation", range(2, 9))
+def test_exif_orientation_is_applied_to_actual_embedded_pixels(tmp_path, orientation):
     slides = tmp_path / "slides"
     slides.mkdir()
     exif = Image.Exif()
-    exif[0x0112] = 6  # rotate 90 degrees
-    Image.new("RGB", (400, 200), "#3A6EA5").save(slides / "01.jpg", exif=exif)
+    exif[0x0112] = orientation
+    image = Image.new("RGB", (400, 200), "white")
+    image.paste("red", (0, 0, 200, 100))
+    image.paste("blue", (200, 0, 400, 100))
+    image.paste("green", (0, 100, 200, 200))
+    original = slides / "01.jpg"
+    image.save(original, exif=exif, quality=95)
+    before = original.read_bytes()
+    with Image.open(original) as opened:
+        expected = ImageOps.exif_transpose(opened).convert("RGB")
     output = tmp_path / "deck.pptx"
     run_build(slides, output, "--fit", "contain")
     prs = Presentation(output)
     picture = pictures(prs.slides[0])[0]
-    assert picture.width / picture.height == pytest.approx(0.5, abs=0.01)
+    embedded = Image.open(BytesIO(picture.image.blob)).convert("RGB")
+    assert picture.image.ext == "png"
+    assert embedded.size == expected.size
+    assert embedded.tobytes() == expected.tobytes()
+    assert picture.width / picture.height == pytest.approx(expected.width / expected.height, abs=0.01)
+    assert original.read_bytes() == before
+
+
+def test_provided_exif_jpeg_keeps_approval_hash_and_embeds_oriented_pixels(approved_spec):
+    from page_production import digest
+    spec = json.loads(approved_spec.read_bytes())
+    spec["content_policy"] = "1.1"
+    spec["workflow"] = {"content_mode": "confirmed", "approved_content_version": spec["content_version"],
+                        "outline_ref": "Synthetic offline input fixture"}
+    spec["style"].pop("tokens", None)
+    spec["style"].update(decision="skipped", authorization="Synthetic fixture")
+    spec["slides"] = spec["slides"][:1]
+    spec["canvas"] = {"width": 400, "height": 300}
+    path = approved_spec.parent / "provided.jpg"
+    exif = Image.Exif()
+    exif[0x0112] = 6
+    image = Image.new("RGB", (300, 400), "white")
+    image.paste("red", (0, 0, 150, 200))
+    image.paste("blue", (150, 0, 300, 200))
+    image.save(path, exif=exif)
+    original_hash = digest(path.read_bytes())
+    spec["slides"][0].update(image_file=path.name,
+                             image_origin={"kind": "provided", "source_ref": "Synthetic offline JPEG", "sha256": original_hash})
+    approved_spec.write_text(json.dumps(spec), encoding="utf-8")
+    output = approved_spec.with_suffix(".pptx")
+    run_build(approved_spec, output)
+    embedded = Image.open(BytesIO(pictures(Presentation(output).slides[0])[0].image.blob)).convert("RGB")
+    with Image.open(path) as opened:
+        expected = ImageOps.exif_transpose(opened).convert("RGB")
+    assert embedded.size == (400, 300) and embedded.tobytes() == expected.tobytes()
+    assert digest(path.read_bytes()) == original_hash
 
 
 def test_rejects_bad_jpeg_quality(tmp_path):
