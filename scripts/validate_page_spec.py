@@ -12,6 +12,7 @@ from json_io import read_json
 from jsonschema import Draft202012Validator
 from PIL import Image, ImageOps
 from preserved_assets import validate_preserved_assets
+from style_reference import resolve_reference
 
 SCHEMA = Path(__file__).resolve().parents[1] / "references" / "page-spec.schema.json"
 
@@ -82,6 +83,9 @@ def validate_page_spec(
                                           or image.info.get("slidemuse_style_name") != style["choice"].strip()):
                     raise ValueError("Selected style number or name differs from the labeled preview")
             image.verify()
+
+    # Old specifications remain readable, but any explicit derived reference is binding.
+    resolve_reference(spec, base)
 
     width, height = spec["canvas"]["width"], spec["canvas"]["height"]
     slide_ids, page_numbers, element_count, unresolved = set(), set(), 0, 0

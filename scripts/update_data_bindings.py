@@ -18,6 +18,7 @@ from pathlib import Path
 from json_io import read_json
 from render_deck import sha256
 from scene import load_scene, walk
+from style_reference import resolve_reference
 from validate_page_spec import _relative_path, load_page_spec
 
 OPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul, ast.Div: operator.truediv}
@@ -297,6 +298,11 @@ def copy_production_state(source_spec, draft_spec, published_spec, visible_slide
                 recovery_asset(declaration["file"], declaration["sha256"])
         for name in intent["style"].get("tokens", {}).get("reference_images", []):
             recovery_asset(name)
+        reference = resolve_reference(intent, source_spec.parent)
+        if reference:
+            for path_key, hash_key in (("path", "sha256"), ("source_path", "source_sha256")):
+                name = str(Path(reference[path_key]).relative_to(source_spec.parent))
+                recovery_asset(name, reference[hash_key])
         copied_intents.add(relative)
 
     def snapshot(name, expected=None):
@@ -329,7 +335,7 @@ def copy_production_state(source_spec, draft_spec, published_spec, visible_slide
                 if key.endswith("_snapshot") and item is not None:
                     expected = value.get({"source_snapshot": "source_sha256", "image_snapshot": "image_sha256",
                                           "request_snapshot": "request_sha256", "derived_input_snapshot": "derived_input_sha256",
-                                          "correction_snapshot": "correction_sha256"}.get(key))
+                                          "correction_snapshot": "correction_sha256", "reference_snapshot": "sha256"}.get(key))
                     relative = snapshot(item, expected)
                     value[key] = str(relative)
                     if key == "intent_snapshot":
@@ -377,6 +383,7 @@ def export_draft(path, output, plan, paths):
     try:
         # Preserve relative asset paths, without copying work logs or old QA evidence.
         assets = set()
+        style_assets = {}
         for kind, document in plan["documents"].items():
             base = paths[kind].parent
             if kind == "page_spec":
@@ -384,6 +391,14 @@ def export_draft(path, output, plan, paths):
                 names += document["style"].get("tokens", {}).get("reference_images", [])
                 names += [e["preserve_asset"]["file"] for s in document["slides"]
                           for e in s["elements"] if "preserve_asset" in e]
+                reference = resolve_reference(document, base)
+                if reference:
+                    for path_key, hash_key in (("path", "sha256"), ("source_path", "source_sha256")):
+                        asset = Path(reference[path_key])
+                        if asset in style_assets and style_assets[asset] != reference[hash_key]:
+                            raise ValueError("Style reference files disagree on their retained hashes")
+                        style_assets[asset] = reference[hash_key]
+                        names.append(str(asset.relative_to(base)))
             else:
                 names = [s["source_image"] for s in document["slides"] if s.get("source_image")]
                 names += [e["path"] for s in document["slides"] for e in walk(s["elements"]) if e["type"] == "image"]
@@ -401,6 +416,8 @@ def export_draft(path, output, plan, paths):
             target_path = stage / relative
             target_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(asset, target_path)
+            if asset in style_assets and sha256(target_path) != style_assets[asset]:
+                raise ValueError("Style reference changed while copying the data draft")
         for kind, document in plan["documents"].items():
             document = copy.deepcopy(document)
             if kind == "page_spec" and plan["visible_slides"]:

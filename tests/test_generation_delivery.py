@@ -47,6 +47,9 @@ def fill_review(deck):
     for page, item in zip(contract["pages"], data["slides"]):
         item.update(observed_text="\n".join(page["expected_text"]), notes="Synthetic protocol observation",
                     checks=dict.fromkeys(CHECKS, "pass"))
+        item["checks"]["style_consistency"] = {
+            "status": "pass", "notes": "Synthetic fixture checks color, typography, graphic language and layout; not actual visual approval",
+            "targets": ["page"]}
     (deck / REVIEW).write_text(json.dumps(data), encoding="utf-8")
 
 

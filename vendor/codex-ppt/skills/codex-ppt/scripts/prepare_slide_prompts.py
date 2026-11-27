@@ -23,6 +23,7 @@ from slide_run_state import (
     preparation_lock,
     read_json,
     sha256_file,
+    validate_style_reference,
 )
 
 
@@ -260,9 +261,13 @@ def _build_prompt(
     if global_style_reference:
         prompt_parts.append(
             "## Style Reference Rule\n"
-            "Use Image 1 as the approved sample-slide style reference. Match its palette, "
-            "typography mood, density, texture, and overall visual identity. Do not copy "
-            "its exact layout unless this slide's layout explicitly asks for it.\n"
+            "Use Image 1 as the selected visual style baseline. Preserve its palette, "
+            "typographic hierarchy, background texture, graphic language, whitespace, "
+            "and layout family while composing the current page's approved content. "
+            "Do not copy the reference's old wording, data, or any multi-page grid. "
+            "Additional calibrated samples must not replace this selected baseline. "
+            "Attach only input_images in their declared order; source_path is audit provenance, "
+            "not an additional image to attach.\n"
         )
 
     if images:
@@ -434,6 +439,8 @@ def _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion):
     if global_style_reference and isinstance(global_style_reference.get("path"), str):
         global_style_reference = dict(global_style_reference)
         global_style_reference["path"] = _resolve_image_path(global_style_reference["path"], base_dir=spec_dir)
+    style_reference = spec.get("style_reference")
+    validate_style_reference(style_reference)
 
     sample_generation_method = _sample_generation_method(spec, base_dir=spec_dir)
     max_concurrent_slides = args.max_concurrent_slides
@@ -451,6 +458,8 @@ def _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion):
 
     for fallback, slide, number in numbered_slides:
         use_style_reference = bool(slide.get("use_approved_style_reference", True))
+        if style_reference is not None and not use_style_reference:
+            _die("Every slide must retain the selected style baseline; it cannot be disabled per page.")
         slide_style_reference = global_style_reference if use_style_reference else None
         prompt = _build_prompt(
             deck=spec,
@@ -460,6 +469,7 @@ def _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion):
             base_dir=spec_dir,
         )
         images = _job_images(slide, number=number, global_style_reference=slide_style_reference, base_dir=spec_dir)
+        validate_style_reference(style_reference, images)
         job = {
             "slide": number,
             "title": slide.get("title", f"Slide {number}"),
@@ -469,6 +479,7 @@ def _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion):
             "requires_context_images": bool(images),
             "expected_backend": selected_backend,
             "sample_generation_method": sample_generation_method,
+            **({"style_reference": style_reference} if style_reference is not None else {}),
             **({"canvas": spec["canvas"]} if "canvas" in spec else {}),
             "generation_contract": {
                 "must_use_selected_image_backend": True,
@@ -523,6 +534,7 @@ def _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion):
         "deck_name": spec.get("deck_name"),
         "selected_backend": selected_backend,
         "sample_generation_method": sample_generation_method,
+        **({"style_reference": style_reference} if style_reference is not None else {}),
         **({"canvas": spec["canvas"]} if "canvas" in spec else {}),
         "max_concurrent_slides": max_concurrent_slides,
         "generation_evidence_policy": "1.0",

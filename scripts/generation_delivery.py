@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import io
 import json
@@ -21,7 +22,8 @@ from speaker_notes import canonical_notes, read_notes
 
 CONTRACT = "slidemuse-content.json"
 REVIEW = "content-review.json"
-CHECKS = ("evidence_accuracy", "readability", "density", "visual_relationships")
+CONTENT_CHECKS = ("evidence_accuracy", "readability", "density", "visual_relationships")
+CHECKS = (*CONTENT_CHECKS, "style_consistency")
 
 
 def sha(path):
@@ -50,7 +52,6 @@ def inside(root, value):
 
 def prepare_spec(spec):
     """Preserve exact approved content inside every upstream prompt."""
-    import copy
     spec = copy.deepcopy(spec)
     if not isinstance(spec.get("slides"), list) or not spec["slides"]:
         raise ValueError("Generation spec requires slides")
@@ -78,7 +79,9 @@ def prepare_spec(spec):
                                   "required_visible_text": visible_text(slide, policy=policy)}
         slide["constraints"] = [*slide.get("constraints", []),
             ("Render ONE independent full-canvas slide, not thumbnails, preview grids or a contact sheet. "
-             "Use only the current page and the accepted single-page style anchor, not other previews or old prompts. "
+             "Use the current page and the selected single-page style baseline. Preserve its palette, typography hierarchy, "
+             "background texture, graphic language, whitespace and layout family. Additional calibrated samples cannot "
+             "replace that baseline. Do not copy old wording, data, other style options or multi-page grids. "
              "Render every required_visible_text item exactly; keep evidence, explanation and boundaries visible. "
              "Use approved text and graphics to express semantic fields without adding redundant bullets. "
              "Review semantic coverage separately. Keep recorded sources and speaker_notes off the image. "
@@ -87,6 +90,7 @@ def prepare_spec(spec):
 
 
 def from_page_spec(path):
+    from style_reference import resolve_reference
     from validate_page_spec import load_page_spec
     spec, _ = load_page_spec(path, strict=True, content=True)
     for slide in spec["slides"]:
@@ -100,17 +104,25 @@ def from_page_spec(path):
                        for s in spec["slides"]]}
     if "content_policy" in spec:
         result["content_policy"] = spec["content_policy"]
-    references = spec["style"].get("tokens", {}).get("reference_images", [])
+    style = spec["style"]
+    references = style.get("tokens", {}).get("reference_images", [])
+    required = (style["decision"] in {"selected", "delegated"}
+                and (spec.get("content_policy") == "1.1" or bool(references) or "generation_reference" in style))
+    reference = resolve_reference(spec, path.parent, required=required)
+    result["style"] = copy.deepcopy(style)
+    # Keep the selection source in the audit contract. Only its declared
+    # single-page crop (or explicit single-page reference) is an image input.
+    result["style"].get("tokens", {}).pop("reference_images", None)
+    result["style"].pop("generation_reference", None)
     if spec.get("content_policy") == "1.1":
-        # The selection overview is not a usable full-page visual anchor.
-        import copy
-        result["style"] = copy.deepcopy(spec["style"])
-        result["style"].get("tokens", {}).pop("reference_images", None)
         for page in result["slides"]:
             page.pop("generation_prompt", None)
-    elif references:
-        result["approved_style_reference"] = {"path": str((path.parent / references[0]).resolve()),
-                                               "role": "style-only; preserve approved content"}
+    if reference is not None:
+        result["style_reference"] = reference
+        result["approved_style_reference"] = {
+            "path": reference["path"], "sha256": reference["sha256"],
+            "role": "selected single-page visual baseline; style only; preserve current approved content",
+            "fidelity": "preserve palette, typography hierarchy, texture, graphic language, whitespace and layout family"}
     return result
 
 
@@ -123,15 +135,25 @@ def prepared_contract_files(deck, spec, jobs, prepared_files):
     """Build companion bytes before the helper commits any prepared output."""
     if len(jobs["slides"]) != len(spec["slides"]):
         raise ValueError("Prepared jobs do not match the approved content")
+    reference = spec.get("style_reference")
+    if reference != jobs.get("style_reference"):
+        raise ValueError("Selected style reference differs between the specification and prepared jobs")
+    validate_reference = generation_helpers()["validate_style_reference"]
     pages = []
     for entry, slide in zip(jobs["slides"], sorted(spec["slides"], key=lambda s: s.get("number", 0))):
         if entry["status"] == "accepted" and sha(inside(deck, entry["out"])) != entry["result"]["final_image_sha256"]:
             raise ValueError("Provided sample changed during preparation")
+        job = json.loads(prepared_files[entry["job"]])
+        if job.get("style_reference") != reference:
+            raise ValueError("Every job must retain the selected style baseline")
+        validate_reference(reference, job["input_images"])
         pages.append({"id": entry["slide_id"], "number": entry["number"],
                       "expected_text": visible_text(slide, policy=spec.get("content_policy")), "content": slide,
+                      "input_images": job["input_images"],
                       "job_sha256": hashlib.sha256(prepared_files[entry["job"]]).hexdigest()})
     jobs["slidemuse_content_policy"] = "1.0"
     contract = {"version": "1.0", "pages": pages,
+                "style_consistency_policy": "1.0", "style_reference": reference,
                 **({"canvas": dict(spec["canvas"])} if "canvas" in spec else {}),
                 "speaker_notes_policy": "explicit-only", "generation_evidence_policy": "1.0",
                 "scope": "Declared content; evidence accuracy and readability require actual review."}
@@ -224,12 +246,28 @@ def check_contract(deck, jobs):
     pages = contract.get("pages", [])
     if contract.get("canvas") != jobs.get("canvas"):
         raise ValueError("Generation canvas differs from the approved content contract")
+    if contract.get("style_consistency_policy") == "1.0":
+        if contract.get("style_reference") != jobs.get("style_reference"):
+            raise ValueError("Selected style baseline differs from the approved contract")
+        validate_reference = generation_helpers()["validate_style_reference"]
+        validate_reference(contract.get("style_reference"))
     if [p["id"] for p in pages] != [s["slide_id"] for s in jobs["slides"]]:
         raise ValueError("Content contract page order differs from jobs")
     for page, slide in zip(pages, jobs["slides"]):
         if page["job_sha256"] != sha(inside(deck, slide["job"])):
             raise ValueError(f"{page['id']}: prompt changed; refresh approved content and review")
+        if contract.get("style_consistency_policy") == "1.0":
+            job = read_json(inside(deck, slide["job"]))
+            if (job.get("style_reference") != contract.get("style_reference")
+                    or job.get("input_images") != page.get("input_images")
+                    or slide.get("input_images") != page.get("input_images")):
+                raise ValueError(f"{page['id']}: selected style or actual image inputs changed")
+            validate_reference(job.get("style_reference"), job.get("input_images", []))
     return contract
+
+
+def style_identity(reference):
+    return {key: reference[key] for key in ("sha256", "source_sha256")} if reference is not None else None
 
 
 def review(deck, record, initialize=False, *, _locked=False):
@@ -239,12 +277,17 @@ def review(deck, record, initialize=False, *, _locked=False):
     jobs = read_json(deck / "slide_jobs.json")
     images = checked_images(deck, jobs)
     contract = check_contract(deck, jobs)
+    style_required = contract.get("style_consistency_policy") == "1.0"
+    reference = style_identity(contract.get("style_reference"))
     if initialize:
         if record.exists():
             raise ValueError("Review record already exists; retain it and choose a new path")
         write(record, {"version": "1.0", "contract_sha256": sha(deck / CONTRACT), "slides": [
             {"id": p["id"], "image_sha256": sha(image), "observed_text": "", "notes": "",
-             "checks": dict.fromkeys(CHECKS, "pending")} for p, image in zip(contract["pages"], images)]})
+             **({"style_reference": reference} if style_required else {}),
+             "checks": {**dict.fromkeys(CONTENT_CHECKS, "pending"),
+                        **({"style_consistency": {"status": "pending", "notes": "", "targets": []}}
+                           if style_required else {})}} for p, image in zip(contract["pages"], images)]})
         return {"status": "awaiting_review", "record": str(record)}
     data = read_json(record)
     if data.get("version") != "1.0" or data.get("contract_sha256") != sha(deck / CONTRACT):
@@ -260,11 +303,19 @@ def review(deck, record, initialize=False, *, _locked=False):
             raise TypeError("observed_text must be a transcription string")
         missing = [s for s in page["expected_text"] if not text_present(s, text)]
         checks = item.get("checks", {})
-        passed = all(checks.get(c) == "pass" for c in CHECKS)
+        passed = all(checks.get(c) == "pass" for c in CONTENT_CHECKS)
+        if style_required:
+            if "style_reference" not in item or item["style_reference"] != reference:
+                raise ValueError(f"{page['id']}: style review must bind the selected source and reference image hashes")
+            style_check = checks.get("style_consistency")
+            passed = passed and (isinstance(style_check, dict) and style_check.get("status") == "pass"
+                                 and isinstance(style_check.get("notes"), str) and bool(style_check["notes"].strip())
+                                 and style_check.get("targets") == ["page"])
         if missing or not passed or not str(item.get("notes", "")).strip():
             findings.append({"id": page["id"], "missing_text": missing, "checks": checks})
     return {"status": "pass" if not findings else "incomplete_or_failed", "findings": findings,
-            "scope": "Matches declared content against recorded observations; does not OCR or authenticate evidence."}
+            "style_review": "checked" if style_required else "legacy_not_checked",
+            "scope": "Checks recorded content observations and any required style observations; does not OCR, authenticate evidence or automatically judge visual similarity."}
 
 
 def assemble(argv, vendor_script):

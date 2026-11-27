@@ -21,6 +21,7 @@ The launcher prefers `.venv/Scripts/python.exe` on Windows or `.venv/bin/python`
 | `run task/job.json task-output` | `scripts/run_deck.py` | Build, render, evaluate or resume |
 | `render deck.pptx previews` | `scripts/render_deck.py` | Render an actual PPTX |
 | `validate page-spec.json --strict` | `scripts/validate_page_spec.py` | Validate specifications |
+| `style-reference page-spec.json --box x y w h --output styles/reference.png` | `scripts/style_reference.py` | Register a single-page visual reference bound to the selected source |
 | `produce prepare page-spec.json` | `scripts/page_production.py` | [Resume image production](../references/page-production.md): original snapshots, protected evidence composition, bound reviews and region updates |
 | `audit deck.pptx --scene scene.json` | `scripts/audit_editability.py` | Check native objects |
 | `review task/job.json task-output` | `scripts/review_panel.py` | Export a review panel or import records |
@@ -60,7 +61,7 @@ Diagnosis does not test the host agent's document reading, vision or image gener
 
 ### Independent generation and result records (2.28.0)
 
-`produce request <page-spec> --slide <id> --route host` creates an independent page packet and selects an approved full-page style anchor when available. After a real call, use `produce compose <page-spec> --slide <id> --source <original> --generation-record <actual-call.json>` to bind its request and original image hashes to the actual tool, model and result locator. `generate result` requires the same record through `--generation-record`; its slide ID and request hash refer to the backend prompt job. An unexposed model is `null`. See [page production](../references/page-production.md).
+`produce request <page-spec> --slide <id> --route host` creates an independent page packet with the same registered visual baseline for selected styles. Historical tasks without visual references retain the approved-page fallback. After a real call, use `produce compose <page-spec> --slide <id> --source <original> --generation-record <actual-call.json>` to bind its request and original image hashes to the actual tool, model and result locator. `generate result` requires the same record through `--generation-record`; its slide ID and request hash refer to the backend prompt job. An unexposed model is `null`. See [page production](../references/page-production.md).
 
 Declare existing user images with Page Spec `image_origin`, using `kind: "provided"`, the actual source locator and the image SHA-256. Imported images can coexist with generated pages. Generation records do not replace visual review; current material and managed production exports recheck the approved image bytes and bound records.
 
@@ -75,3 +76,9 @@ After an authorized local correction to a retained original or final image, regi
 Removed pages retain their production archive. Restoring a stable page ID restores the unchanged state or carries its history into the revised page. Reconstruction `prepare --job-dir` requires a new or empty directory; continue existing runs through their status, result and recovery commands. Invalid `generate prepare --force` inputs leave the previous prompts, jobs and content contract intact.
 
 The LibreOffice backend requires `soffice`, `pdftoppm` and `pdfinfo`. Full and selected rendering include hidden slides and reject a PDF page-count mismatch. Final reconstruction validation checks the actual PPTX body, images and speaker-note relationships; inspect the real rendered pages as well.
+
+### Preserve the chosen visual style (2.30.0)
+
+After selecting an overview, register a measured complete single-page region with `style-reference <page-spec> --box <x> <y> <width> <height> --output <reference-PNG>`. Relative output paths resolve from the Page Spec directory; use `--single-page` for an explicitly locked independent page. This image is only a visual reference, never a final slide. See [style selection](../references/style-options.md).
+
+The `request_reference` returned by `produce request` and the per-page inputs produced by `generate prepare --page-spec` bind to the same selected visual baseline. Attach the actual image to the image model; a path in prompt text is not an attachment. Structured requests requiring images cannot use text-only `generate image generate`; compatible APIs use `generate image edit --image <actual-reference>`. Review `style_consistency` against the correct reference. Changed, missing or mismatched references block new approval and delivery.

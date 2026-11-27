@@ -15,6 +15,7 @@ import argparse
 import asyncio
 import base64
 import binascii
+import hashlib
 from io import BytesIO
 import json
 import os
@@ -188,11 +189,81 @@ def _read_prompt(prompt: Optional[str], prompt_file: Optional[str]) -> str:
         path = Path(prompt_file)
         if not path.exists():
             _die(f"Prompt file not found: {path}")
-        return path.read_text(encoding="utf-8").strip()
+        return path.read_text(encoding="utf-8-sig").strip()
     if prompt:
         return prompt.strip()
     _die("Missing prompt. Use --prompt or --prompt-file.")
     return ""  # unreachable
+
+
+def _request_prompt(args: argparse.Namespace, image_paths: list[Path] | None = None) -> str:
+    """Require actual attachments when a saved job declares image inputs."""
+    text = _read_prompt(args.prompt, args.prompt_file)
+    try:
+        job = json.loads(text.lstrip("\ufeff"))
+    except json.JSONDecodeError:
+        return text
+    if not isinstance(job, dict) or not any(key in job for key in ("input_images", "requires_context_images", "style_reference", "style_anchor")):
+        return text
+    inputs = job.get("input_images", [])
+    if not isinstance(inputs, list) or any(not isinstance(item, dict) for item in inputs):
+        _die("Structured job input_images must be an ordered list of image objects")
+    reference = job.get("style_reference")
+    if reference is not None:
+        if not isinstance(reference, dict) or re.fullmatch(r"[0-9a-f]{64}", str(reference.get("sha256", ""))) is None:
+            _die("Structured job style_reference must declare the selected image SHA-256")
+        if "source_path" in reference:
+            from slide_run_state import validate_style_reference
+            validate_style_reference(reference, inputs)
+        # Produce packets store snapshots relative to the production root,
+        # while the packet itself lives in artifacts/. Match their bytes,
+        # never guess a second artifacts/ prefix or attach source_snapshot.
+        if not inputs:
+            inputs = [{"sha256": reference["sha256"]}]
+        elif inputs[0].get("sha256") != reference["sha256"]:
+            _die("Image 1 must be the selected style baseline, not the full overview or a replacement sample")
+    elif job.get("style_anchor") is not None:
+        anchor = job["style_anchor"]
+        if not isinstance(anchor, dict) or re.fullmatch(r"[0-9a-f]{64}", str(anchor.get("image_sha256", ""))) is None:
+            _die("Structured job style_anchor must declare its image SHA-256")
+        if not inputs:
+            inputs = [{"sha256": anchor["image_sha256"]}]
+        elif inputs[0].get("sha256") != anchor["image_sha256"]:
+            _die("Image 1 must match the declared style anchor")
+    if job.get("requires_context_images") and not inputs:
+        _die("Structured job requires context images but does not declare them")
+    if inputs and image_paths is None:
+        _die("This structured job requires image inputs. Use image edit --prompt-file JOB --image REFERENCE "
+             "for every declared image in order; generate cannot attach images from JSON paths.")
+    if image_paths is not None and (inputs or "input_images" in job):
+        if len(image_paths) != len(inputs):
+            _die("Attach exactly the structured job's declared images, in order, using edit --image; "
+                 "do not attach the overview or additional style options.")
+        actual_hashes = [hashlib.sha256(path.read_bytes()).hexdigest() for path in image_paths]
+        base = Path(args.prompt_file).resolve().parent if args.prompt_file and args.prompt_file != "-" else Path.cwd()
+        for index, (required, actual) in enumerate(zip(inputs, actual_hashes), 1):
+            expected = required.get("sha256")
+            if expected is not None and re.fullmatch(r"[0-9a-f]{64}", str(expected)) is None:
+                _die(f"Structured job Image {index} has an invalid SHA-256")
+            if expected is None:
+                raw = required.get("path")
+                if not isinstance(raw, str) or not raw.strip() or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", raw):
+                    # Windows drive paths are local too, even though they contain a colon.
+                    if not isinstance(raw, str) or not Path(raw).is_absolute():
+                        _die(f"Structured job Image {index} needs a local path or a verified SHA-256 for its downloaded copy")
+                path = Path(raw).expanduser()
+                if not path.is_absolute():
+                    path = base / path
+                if not path.is_file():
+                    _die(f"Structured job Image {index} is missing: {path}")
+                expected = hashlib.sha256(path.read_bytes()).hexdigest()
+            if expected != actual:
+                _die(f"Attached Image {index} differs from the structured job's required image; "
+                     "use the selected reference and preserve declared image order")
+    prompt = job.get("prompt", text)
+    if not isinstance(prompt, str) or not prompt.strip():
+        _die("Structured job prompt must be nonempty text")
+    return prompt.strip()
 
 
 def _check_image_paths(paths: Iterable[str]) -> List[Path]:
@@ -666,6 +737,8 @@ async def _run_generate_batch(args: argparse.Namespace) -> int:
 
     prepared = []
     for i, job in enumerate(jobs, start=1):
+        if job.get("input_images") or job.get("requires_context_images") or job.get("style_reference"):
+            _die("generate-batch cannot attach structured image inputs; use image edit --prompt-file JOB --image REFERENCE")
         prompt = str(job["prompt"]).strip()
         fields = _merge_non_null(base_fields, job.get("fields", {}))
         fields = _merge_non_null(fields, {k: job.get(k) for k in base_fields.keys()})
@@ -750,7 +823,7 @@ def _generate_batch(args: argparse.Namespace) -> None:
 
 
 def _generate(args: argparse.Namespace) -> None:
-    prompt = _read_prompt(args.prompt, args.prompt_file)
+    prompt = _request_prompt(args)
     prompt = _augment_prompt(args, prompt)
 
     payload = {
@@ -812,10 +885,10 @@ def _generate(args: argparse.Namespace) -> None:
 
 
 def _edit(args: argparse.Namespace) -> None:
-    prompt = _read_prompt(args.prompt, args.prompt_file)
+    image_paths = _check_image_paths(args.image)
+    prompt = _request_prompt(args, image_paths)
     prompt = _augment_prompt(args, prompt)
 
-    image_paths = _check_image_paths(args.image)
     mask_path = Path(args.mask) if args.mask else None
     if mask_path:
         if not mask_path.exists():

@@ -7,6 +7,7 @@ import hashlib
 import base64
 import json
 import os
+import re
 import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -162,6 +163,39 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def validate_style_reference(reference: Any, input_images: Any = None) -> None:
+    """Recheck the selected visual baseline and its source before reuse."""
+    if reference is None:
+        return
+    if not isinstance(reference, dict) or reference.get("kind") not in {"preview-crop", "single-page"}:
+        raise ValueError("Invalid selected style reference")
+    paths = {}
+    for path_key, hash_key in (("path", "sha256"), ("source_path", "source_sha256")):
+        value, expected = reference.get(path_key), reference.get(hash_key)
+        if (not isinstance(value, str) or not value.strip()
+                or not isinstance(expected, str) or re.fullmatch(r"[0-9a-f]{64}", expected) is None):
+            raise ValueError("Selected style reference requires its source and image paths/hashes")
+        path = Path(value).expanduser()
+        if not path.is_absolute() or not path.is_file() or sha256_file(path) != expected:
+            raise ValueError(f"Selected style reference changed or missing: {path_key}; prepare and review again")
+        paths[path_key] = path.resolve()
+    if reference["kind"] == "preview-crop" and paths["path"] == paths["source_path"]:
+        raise ValueError("The selected overview needs a separate single-page style crop")
+    if input_images is None:
+        return
+    first = input_images[0] if isinstance(input_images, list) and input_images else None
+    if (not isinstance(first, dict) or first.get("sha256") != reference["sha256"]
+            or not isinstance(first.get("path"), str)
+            or Path(first["path"]).expanduser().resolve() != paths["path"]):
+        raise ValueError("Every slide must attach the selected single-page style reference as Image 1")
+    if reference["kind"] == "preview-crop" and any(
+        isinstance(image, dict) and isinstance(image.get("path"), str)
+        and Path(image["path"]).expanduser().resolve() == paths["source_path"]
+        for image in input_images
+    ):
+        raise ValueError("Do not attach the selected overview; attach only its declared single-page style crop")
+
+
 def normalized_model(value: str) -> str:
     """Normalize only the documented OpenAI provider/operation wrappers."""
     value = value.strip()
@@ -217,6 +251,8 @@ def validate_dispatch_inputs(deck_dir: Path, slide: Dict[str, Any]) -> str:
             raise ValueError(f"Dispatched {label} must remain a file inside the deck")
         if dispatch.get(hash_key) != sha256_file(path):
             raise ValueError(f"Dispatched {label} changed; prepare and dispatch the approved inputs again")
+    job = read_json(resolve_deck_path(deck_dir, slide["job"]))
+    validate_style_reference(job.get("style_reference"), job.get("input_images", []))
     return dispatch["job_sha256"]
 
 

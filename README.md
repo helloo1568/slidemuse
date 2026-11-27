@@ -7,7 +7,7 @@
 将 PDF、论文、报告与笔记制作成风格统一的图片 PPT，按需还原为可编辑 PPTX。<br>
 用于工作汇报、教学培训、学术分享、竞赛答辩、产品路演与创意展示。
 
-[![Version](https://img.shields.io/badge/version-2.29.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.30.0-79e9d1?labelColor=14243c)](CHANGELOG.md)
 [![CI](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml/badge.svg)](https://github.com/helloo1568/slidemuse/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-f2c98a?labelColor=14243c)](LICENSE)
 
