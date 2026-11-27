@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import runpy
@@ -20,7 +21,7 @@ VENDOR = Path("vendor/image-to-editable")
 SKILL = Path("skills/image-to-editable-ppt")
 MODULES = {"PyMuPDF": "fitz", "Pillow": "PIL", "openai": "openai",
            "PyYAML": "yaml", "numpy": "numpy", "requests": "requests"}
-FEATURES = ["image-pdf-pptx-normalization", "speaker-notes", "offline-text-geometry",
+FEATURES = ["image-pdf-pptx-normalization", "speaker-notes", "offline-text-geometry", "targeted-offline-text-measurements",
             "optional-paddle-ocr", "native-table-cell-styles-and-merges",
             "native-custom-paths-dashes-arrows", "background-strategy-and-clean-base-provenance",
             "transparent-and-chroma-asset-sheets", "whole-object-region-splitting",
@@ -130,6 +131,53 @@ def save_content_contract(job_dir: Path, semantic: dict) -> None:
     deck["slidemuse_content_sha256"] = hashlib.sha256(snapshot.read_bytes()).hexdigest()
     deck_path.write_text(json.dumps(deck, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
+def measure_text(argv):
+    """Use the pinned upstream ink metrics on human-identified text regions."""
+    parser = argparse.ArgumentParser(description="Measure known text regions offline; no text recognition or editing.")
+    parser.add_argument("image", type=Path)
+    parser.add_argument("--region", action="append", nargs=5, required=True, metavar=("ID", "X", "Y", "W", "H"))
+    parser.add_argument("--slide-width-inches", type=float, default=13.333333)
+    args = parser.parse_args(argv)
+    if not math.isfinite(args.slide_width_inches) or args.slide_width_inches <= 0:
+        parser.error("--slide-width-inches must be finite and positive")
+    if importlib.util.find_spec("numpy") is None:
+        parser.error("Install the optional reconstruction dependencies with --with-editable.")
+    metrics = runpy.run_path(str(ROOT / VENDOR / SKILL / "cli/editppt/runtime/page_text_metrics.py"))
+    try:
+        gray = metrics["load_gray"](args.image)
+    except OSError as error:
+        parser.error(f"Cannot read source image: {error}")
+    height, width = gray.shape
+    results = []
+    seen = set()
+    pt_per_px = 72 * args.slide_width_inches / width
+    for name, *bounds in args.region:
+        if not name.strip() or name in seen:
+            parser.error("Region IDs must be nonempty and unique.")
+        seen.add(name)
+        try:
+            x, y, w, h = map(int, bounds)
+        except ValueError:
+            parser.error(f"{name}: region bounds must be integers.")
+        if x < 0 or y < 0 or w < 1 or h < 1 or x + w > width or y + h > height:
+            parser.error(f"{name}: region must lie within the source image.")
+        m = metrics["measure_crop"](gray[y:y+h, x:x+w])
+        row = {"id": name, "region_px": [x, y, w, h], "status": "needs_review"}
+        if not m["ok"]:
+            row["reason"] = m["reason"]
+        else:
+            rx, ry, rw, rh = m["bbox"]
+            glyph = m["glyph_height_px"]
+            row.update(ink_box_px=[x+rx, y+ry, rw, rh], glyph_height_px=glyph,
+                       line_count=m["line_count"], polarity=m["polarity"],
+                       font_pt_if_cjk=round(glyph * pt_per_px / metrics["glyph_em_ratio"]("中"), 1),
+                       font_pt_if_latin=round(glyph * pt_per_px / metrics["glyph_em_ratio"]("ABC"), 1))
+        results.append(row)
+    print(json.dumps({"source_pixels": [width, height], "slide_width_inches": args.slide_width_inches,
+                      "scope": "Advisory geometry. Compare with the source; not OCR, exact font size, or visual approval.",
+                      "regions": results}, ensure_ascii=False, indent=2))
+    return 0
+
 
 def main(argv=None):
     for stream in (sys.stdout, sys.stderr):
@@ -139,6 +187,8 @@ def main(argv=None):
     offline = bool(argv and argv[0] == "--offline")
     if offline:
         argv.pop(0)
+    if argv[:1] == ["measure-text"]:
+        return measure_text(argv[1:])
     if argv[:1] == ["capabilities"]:
         parser = argparse.ArgumentParser(description="Inspect backend capabilities without reading credentials.")
         parser.add_argument("--verify-source", action="store_true")

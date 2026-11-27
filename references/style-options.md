@@ -49,6 +49,8 @@ python slidemuse.py style-reference work/page-spec.json --box 100 150 480 270 --
 python "<skill-dir>/scripts/build_style_overview.py" "<work>/styles/02-original.png" "<work>/styles/02-建筑图册.png" --option 2 --name 建筑图册
 ```
 
+原图较大或交付要求 4K 预览时，可在加标签的命令中指定 `--width 3840`。输出报告中的 `pixels` 是成品画布尺寸，`source_pixels` 是原图尺寸。较小的原图保持原始像素并居中留白；更大的画布不代表生图模型生成了原生 4K。
+
 只有总览排列、裁切或尺寸明显错误时，才用 `build_style_overview.py` 重排已有图片，不重新生图。工具固定 3×2、16:9，最多 6 页；可输入单页图或明确裁切框。
 
 如果只有长图或旧总览，先查看图片，手动记录每张完整页面的像素裁切框 `[x, y, width, height]`（EXIF 校正后的坐标），不要按等分高度猜测带间距的长图。框内必须保留全部文字、图表和页脚。

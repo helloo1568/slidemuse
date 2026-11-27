@@ -226,6 +226,8 @@ def add_element(shapes, e, base, sx, sy):
         if chart.has_legend:
             chart.legend.position = XL_LEGEND_POSITION.BOTTOM
             chart.legend.include_in_layout = False
+            east_asian_font(chart.legend.font, e.get("font", "Arial"))
+            chart.legend.font.size = Pt(e.get("font_size", 14))
         plot = chart.plots[0]
         plot.has_data_labels = e.get("data_labels", False)
         if plot.has_data_labels:

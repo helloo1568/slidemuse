@@ -184,6 +184,9 @@ def generation_input(spec, slide):
         "Preserve its palette, typography hierarchy, background and materials, graphic language, whitespace and layout family. "
         "Adapt the design to this page's confirmed content; never copy old reference text or data, or an overview grid. "
         "Preserve the confirmed style and visible text. "
+        "Keep the reference's visual language without treating its exact composition as a fixed template. "
+        "Respect explicitly approved layouts and compose for the role of the current page. "
+        "Give the main message or evidence priority; use imagery only when it reinforces that message. "
         "Use the exact visible text list for wording. Express semantic fields through the approved text and graphics. "
         "Keep recorded sources and speaker notes off the slide. "
         "Leave every preserve_asset.region blank for later local placement of the original evidence; "
@@ -692,6 +695,10 @@ def review_template(slide, page):
     value = {"version": "1.0", "id": slide["id"], "contract_sha256": page["contract_sha256"],
              "image_sha256": page["image_sha256"], "reviewer": "", "observed_text": "",
              "viewed_pixels": None, "checks": {name: {"status": "pending", "notes": "", "targets": []} for name in CHECKS},
+             "design_review_guidance": {
+                 "density": "At presentation scale, identify what the audience should notice first and which areas feel cramped or empty without purpose.",
+                 "visual_relationships": "Check that imagery supports the message and the composition fits the page role rather than copying the visual reference layout by default.",
+             },
              "protected_regions": page.get("protected_regions", []),
              "scope": "Actual visual observations and source comparison; hash/text matches do not prove truth or independence."}
     if page.get("style_reference"):
