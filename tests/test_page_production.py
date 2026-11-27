@@ -539,6 +539,7 @@ def test_single_page_requests_isolate_preview_and_anchor_after_review(production
     page = state["pages"]["s01"]
     packet = json.loads((workspace(path) / page["request_snapshot"]).read_text(encoding="utf-8"))
     assert "reference_images" not in packet["style"]["tokens"]
+    assert "without treating its exact composition as a fixed template" in packet["instructions"]
     baseline = packet["style_reference"]
     assert baseline == page["style_reference"]
     assert baseline["sha256"] == reference["sha256"]
@@ -550,6 +551,11 @@ def test_single_page_requests_isolate_preview_and_anchor_after_review(production
     compose_fixture(path, slide_id="s01", source=source)
     record = tmp_path / "anchor-review.json"
     fixture_review(path, "s01", record)
+    review = json.loads(record.read_text(encoding="utf-8"))
+    assert review["style_reference"] == baseline
+    assert "density" in review["design_review_guidance"]
+    assert "visual_relationships" in review["design_review_guidance"]
+    assert review["checks"]["style_consistency"]["status"] == "pass"
     execute(path, "accept", slide_id="s01", record=record)
     state = execute(path, "request", slide_id="s02", route="isolated-worker")
     page = state["pages"]["s02"]

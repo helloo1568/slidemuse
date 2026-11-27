@@ -48,6 +48,7 @@ def test_offline_unicode_prepare_measures_text_without_using_configured_tokens(t
     job = tmp_path / "中文任务"
     result = invoke("--offline", "prepare", source, "--job-dir", job)
     assert result.returncode == 0, result.stdout + result.stderr
+    assert "risk-free" not in result.stderr and "ASK THE USER" not in result.stderr
     deck = json.loads((job / "deck_manifest.json").read_text(encoding="utf-8"))
     assert deck["page_count"] == 1
     assert deck["image_backend"]["backend_id"] == "builtin-imagegen"
@@ -62,6 +63,33 @@ def test_offline_unicode_prepare_measures_text_without_using_configured_tokens(t
     assert "SlideMuse integration" in text and "slidemuse.py" in text
     assert invoke("page-prompt", job, "--page", "1", "--out", tmp_path / "escape.md").returncode != 0
     assert not (tmp_path / "escape.md").exists()
+
+
+@pytest.mark.parametrize("invert, polarity", [(False, "dark"), (True, "light")])
+def test_targeted_text_measurement_preserves_page_coordinates(tmp_path, invert, polarity):
+    from PIL import ImageOps
+
+    source = tmp_path / "测量.png"
+    synthetic_image(source)
+    if invert:
+        with Image.open(source) as image:
+            negative = ImageOps.invert(image)
+        negative.save(source)
+    original = source.read_bytes()
+    result = invoke("--offline", "measure-text", source, "--region", "title", 40, 65, 205, 66,
+                    "--region", "empty", 300, 65, 205, 66)
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    title, empty = report["regions"]
+    assert report["source_pixels"] == [640, 360]
+    assert title["status"] == "needs_review" and title["polarity"] == polarity
+    x, y, w, h = title["ink_box_px"]
+    assert 48 <= x <= 55 and 79 <= y <= 90 and w > 70 and h > 12
+    assert title["line_count"] == 1 and title["font_pt_if_cjk"] > 0
+    assert empty["reason"] == "low-contrast" and "ink_box_px" not in empty
+    assert source.read_bytes() == original
+    invalid = invoke("--offline", "measure-text", source, "--region", "edge", 605, 65, 205, 66)
+    assert invalid.returncode != 0 and "within the source image" in invalid.stderr
 
 
 @pytest.mark.parametrize("kind", ["pdf", "pptx"])

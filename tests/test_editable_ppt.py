@@ -493,6 +493,35 @@ def test_negative_point_colors_and_plot_layout_survive_export_and_are_audited(sc
     assert any("point 1 negative fill" in error for error in audit(output, scene_file)["errors"])
 
 
+
+@pytest.mark.parametrize("legend_color, expected", [(None, "F5F8FA"), ("#D4EDFD", "D4EDFD")])
+def test_native_dark_chart_legend_and_axis_step_are_exported_and_audited(scene_file, legend_color, expected):
+    from pptx.dml.color import RGBColor
+    from pptx.enum.chart import XL_LEGEND_POSITION
+
+    scene, _ = load_scene(scene_file)
+    chart = scene["slides"][0]["elements"][-1]
+    chart.update(legend=True, legend_position="top", tick_label_color="#F5F8FA", value_axis_major_unit=40)
+    if legend_color is not None:
+        chart["legend_color"] = legend_color
+    scene_file.write_text(json.dumps(scene), encoding="utf-8")
+    output = scene_file.with_suffix(".pptx")
+    build_deck(scene_file, output)
+    assert audit(output, scene_file)["errors"] == []
+    prs = Presentation(output)
+    native = prs.slides[0].shapes[-1].chart
+    assert native.legend.position == XL_LEGEND_POSITION.TOP
+    assert str(native.legend.font.color.rgb) == expected
+    assert native.value_axis.major_unit == 40
+    native.legend.font.color.rgb = RGBColor(0, 0, 0)
+    native.legend.position = XL_LEGEND_POSITION.BOTTOM
+    native.value_axis.major_unit = 20
+    prs.save(output)
+    errors = audit(output, scene_file)["errors"]
+    for message in ("legend color", "legend position", "value axis major unit"):
+        assert any(message in error for error in errors)
+
+
 def test_doughnut_hole_angle_and_colors_are_scene_settings(scene_file):
     from chart_style import NS
     scene, _ = load_scene(scene_file)

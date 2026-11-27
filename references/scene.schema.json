@@ -706,6 +706,16 @@
             "value_axis_max": {
               "type": "number"
             },
+            "value_axis_major_unit": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "legend_color": {
+              "$ref": "#/$defs/color"
+            },
+            "legend_position": {
+              "enum": ["top", "bottom", "left", "right"]
+            },
             "major_gridlines": {
               "type": "boolean"
             },

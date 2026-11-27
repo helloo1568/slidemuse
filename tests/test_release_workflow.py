@@ -145,5 +145,5 @@ def test_release_version_references_are_consistent():
     for name in ("README.md", "README.en.md"):
         assert f"/badge/version-{version}-" in (ROOT / name).read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    latest = next(line for line in changelog.splitlines() if line.startswith("## ["))
+    latest = next(line for line in changelog.splitlines() if line.startswith("## [") and line != "## [Unreleased]")
     assert latest.startswith(f"## [{version}]")
