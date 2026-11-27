@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -45,17 +46,30 @@ def render_libreoffice(deck: Path, output: Path, width: int, height: int, count:
                       slides: list[int] | None = None) -> None:
     office = shutil.which("soffice") or shutil.which("libreoffice")
     raster = shutil.which("pdftoppm")
-    if not office or not raster:
-        raise RuntimeError("LibreOffice renderer requires soffice and pdftoppm on PATH")
+    inspector = shutil.which("pdfinfo")
+    if not office or not raster or not inspector:
+        raise RuntimeError("LibreOffice renderer requires soffice, pdftoppm and pdfinfo on PATH")
     with tempfile.TemporaryDirectory() as temp:
         temp_dir = Path(temp)
+        # PDF page indices must remain identical to the original PPTX indices,
+        # including slides excluded from the presentation's slide show.
+        export_filter = "pdf:impress_pdf_Export:" + json.dumps({
+            "ExportHiddenSlides": {"type": "boolean", "value": "true"},
+            "ExportNotesPages": {"type": "boolean", "value": "false"},
+        }, separators=(",", ":"))
         execute(
-            [office, "-env:UserInstallation=file:///" + temp_dir.as_posix(), "--headless", "--convert-to", "pdf", "--outdir", str(temp_dir), str(deck)],
+            [office, "-env:UserInstallation=" + temp_dir.as_uri(), "--headless", "--convert-to", export_filter,
+             "--outdir", str(temp_dir), str(deck)],
             label="LibreOffice",
         )
         pdf = temp_dir / (deck.stem + ".pdf")
         if not pdf.is_file():
             raise RuntimeError("LibreOffice did not produce a PDF")
+        metadata = execute([inspector, str(pdf)], label="Poppler PDF inspection")
+        page_count = re.search(r"^Pages:\s*(\d+)\s*$", metadata, re.MULTILINE)
+        if page_count is None or int(page_count[1]) != count:
+            actual = page_count[1] if page_count else "unknown"
+            raise RuntimeError(f"LibreOffice PDF has {actual} pages for {count} PPTX slides; page identity cannot be verified")
         wanted = slides if slides is not None else list(range(1, count + 1))
         for first, last in ([(1, count)] if slides is None else [(n, n) for n in wanted]):
             execute(

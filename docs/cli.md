@@ -57,3 +57,11 @@ python slidemuse.py doctor --require-renderer --backend powerpoint
 调用失败用 `produce failure <page-spec> --slide <id> --route host --failure-kind multi-page --evidence <真实结果定位>` 登记。同一方式连续两次同类失败会阻止继续分派，应切换实际可用方式或报告阻塞。`generate image generate/edit` 使用用户已授权且配置的 API，`--offline` 拒绝联网；配置过共享 API 环境时，实际调用使用同一解释器。
 
 `install.py --json` 的标准输出只有最终 JSON；依赖安装和验证日志输出到标准错误，可直接交给 JSON 解析器。
+
+### 局部修正与任务恢复（2.29.0）
+
+在已记录的原件或成品上完成获授权的局部修正后，使用 `produce refine <page-spec> --slide <id> --base-image <已保留的原件或成品> --source <独立修正图> --operation <处理说明>` 登记派生成品，再重新执行 `review-init` 和 `accept`。原始调用证据保持绑定原图；修正结果另存处理记录，不把本地修改伪报成新生图。直接替换成品后创建审阅会被拒绝，使用 `refine` 登记实际修改。详见[图片制作](../references/page-production.md)。
+
+删除页面后再次恢复同一页 ID 时，制作状态从保留的归档恢复或沿用历史。重建 `prepare --job-dir` 要求新建或空目录；已有任务使用其状态、结果登记和恢复命令继续处理。生图 `prepare --force` 的输入错误不会部分覆盖旧提示、任务或内容合同。
+
+LibreOffice 后端需要 `soffice`、`pdftoppm` 和 `pdfinfo`。整套与指定页渲染保留隐藏页，PDF 总页数不符时停止。最终重建验证会检查实际 PPTX 的正文、图片与备注关联；仍需查看真实渲染结果。

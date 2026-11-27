@@ -1,6 +1,8 @@
 """Synthetic protocol fixtures; these do not measure model output or human review quality."""
 import copy
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -61,6 +63,224 @@ def fixture_review(path, slide_id, record):
                  viewed_pixels=[1600, 900])
     value["checks"] = {name: {"status": "pass", "notes": "Synthetic protocol fixture", "targets": ["page"]} for name in CHECKS}
     write(record, value)
+
+
+def test_refine_cli_preserves_real_original_binding_and_requires_new_review(production, tmp_path):
+    from page_production import digest
+    from validate_page_spec import load_page_spec
+    path, source = production
+    page = compose_fixture(path, slide_id="s01", source=source)["pages"]["s01"]
+    old_review = tmp_path / "before-refine.json"
+    fixture_review(path, "s01", old_review)
+    execute(path, "accept", slide_id="s01", record=old_review)
+    final = path.parent / json.loads(path.read_bytes())["slides"][0]["image_file"]
+    before = final.read_bytes()
+    corrected = tmp_path / "synthetic-correction.png"
+    with Image.open(final) as image:
+        image.paste("white", (10, 10, 80, 40))
+        image.save(corrected)
+    result = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] / "slidemuse.py"),
+                             "produce", "refine", str(path), "--slide", "s01", "--base-image", str(final),
+                             "--source", str(corrected), "--operation", "Synthetic local text correction; no model invocation"],
+                            text=True, capture_output=True, check=False)
+    assert result.returncode == 0, result.stderr
+    refined = json.loads(result.stdout)["pages"]["s01"]
+    assert refined["status"] == "generated" and "review_snapshot" not in refined
+    for key in ("source_snapshot", "source_sha256", "generation_snapshot", "generation_request_snapshot"):
+        assert refined[key] == page[key]
+    assert refined["derived_input_sha256"] == digest(before)
+    assert refined["correction_sha256"] == digest(corrected.read_bytes())
+    assert digest(final.read_bytes()) == refined["image_sha256"] != digest(before)
+    with pytest.raises(ValueError, match="not approved"):
+        load_page_spec(path, require_images=True)
+    with pytest.raises(ValueError, match="Stale or mismatched"):
+        execute(path, "accept", slide_id="s01", record=old_review)
+    current_bytes = final.read_bytes()
+    review = tmp_path / "after-refine.json"
+    fixture_review(path, "s01", review)
+    assert final.read_bytes() == current_bytes
+    execute(path, "accept", slide_id="s01", record=review)
+    # The second page must also be approved before testing the actual export gate.
+    compose_fixture(path, slide_id="s02", source=source)
+    fixture_review(path, "s02", tmp_path / "second-page.json")
+    execute(path, "accept", slide_id="s02", record=tmp_path / "second-page.json")
+    load_page_spec(path, require_images=True)
+    output = tmp_path / "refined.pptx"
+    built = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] / "scripts/build_image_ppt.py"),
+                            str(path), str(output)], text=True, capture_output=True, check=False)
+    assert built.returncode == 0, built.stderr
+    from pptx import Presentation
+    assert Presentation(output).slides[0].shapes[0].image.blob == current_bytes
+
+
+@pytest.mark.parametrize("damage", ["unknown-base", "protected-pixels", "wrong-size", "transparent", "blank-operation"])
+def test_refine_rejects_unbound_or_invalid_corrections_without_committing(production, tmp_path, damage):
+    path, source = production
+    compose_fixture(path, slide_id="s01", source=source)
+    base = path.parent / json.loads(path.read_bytes())["slides"][0]["image_file"]
+    corrected = tmp_path / "synthetic-correction.png"
+    image = Image.open(base).convert("RGB")
+    operation = "Synthetic local correction"
+    if damage == "unknown-base":
+        base = tmp_path / "unrelated.png"
+        Image.new("RGB", (1600, 900), "blue").save(base)
+    elif damage == "protected-pixels":
+        image.putpixel((1000, 150), (255, 0, 0))
+    elif damage == "wrong-size":
+        image = image.resize((800, 450))
+    elif damage == "transparent":
+        image = image.convert("RGBA")
+        image.putpixel((0, 0), (0, 0, 0, 0))
+    else:
+        operation = " "
+    image.save(corrected)
+    state_before = (workspace(path) / "state.json").read_bytes()
+    final_before = (path.parent / json.loads(path.read_bytes())["slides"][0]["image_file"]).read_bytes()
+    with pytest.raises(ValueError):
+        execute(path, "refine", slide_id="s01", source=corrected, base_image=base, operation=operation)
+    assert (workspace(path) / "state.json").read_bytes() == state_before
+    assert (path.parent / json.loads(path.read_bytes())["slides"][0]["image_file"]).read_bytes() == final_before
+
+
+def test_review_init_preserves_unregistered_correction_and_explains_recovery(production, tmp_path):
+    path, source = production
+    compose_fixture(path, slide_id="s01", source=source)
+    final = path.parent / json.loads(path.read_bytes())["slides"][0]["image_file"]
+    with Image.open(final) as image:
+        image.paste("white", (10, 10, 80, 40))
+        image.save(final)
+    corrected = final.read_bytes()
+    state_before = (workspace(path) / "state.json").read_bytes()
+    record = tmp_path / "unregistered-review.json"
+    with pytest.raises(ValueError, match="refine"):
+        execute(path, "review-init", slide_id="s01", record=record)
+    assert final.read_bytes() == corrected and not record.exists()
+    assert (workspace(path) / "state.json").read_bytes() == state_before
+
+
+def test_refine_can_use_historical_image_after_authorized_content_revision(production, tmp_path):
+    path, source = production
+    previous = compose_fixture(path, slide_id="s01", source=source)["pages"]["s01"]
+    spec = json.loads(path.read_bytes())
+    spec["slides"][0]["visual_brief"] += " with a corrected local label"
+    write(path, spec)
+    assert execute(path, "prepare")["pages"]["s01"]["status"] == "pending"
+    base = workspace(path) / previous["image_snapshot"]
+    corrected = tmp_path / "revised.png"
+    with Image.open(base) as image:
+        image.paste("white", (10, 10, 80, 40))
+        image.save(corrected)
+    revised = execute(path, "refine", slide_id="s01", source=corrected, base_image=base,
+                      operation="Synthetic authorized local label revision")["pages"]["s01"]
+    assert revised["status"] == "generated"
+    assert revised["source_sha256"] == previous["source_sha256"]
+    assert revised["generation_request_snapshot"] == previous["generation_request_snapshot"]
+    assert revised["contract_sha256"] != previous["contract_sha256"]
+    fixture_review(path, "s01", tmp_path / "revised-review.json")
+    execute(path, "accept", slide_id="s01", record=tmp_path / "revised-review.json")
+
+
+def test_refine_requires_explicit_new_upscale_and_reuses_existing_allowance(production, tmp_path):
+    path, source = production
+    compose_fixture(path, slide_id="s02", source=source)
+    spec = json.loads(path.read_bytes())
+    spec["canvas"] = {"width": 3200, "height": 1800}
+    write(path, spec)
+    execute(path, "prepare")
+    base = path.parent / "slides/02.png"
+    corrected = tmp_path / "enlarged-correction.png"
+    with Image.open(base) as image:
+        image.resize((3200, 1800)).save(corrected)
+    old_state = (workspace(path) / "state.json").read_bytes()
+    with pytest.raises(ValueError, match="--allow-upscale"):
+        execute(path, "refine", slide_id="s02", source=corrected, base_image=base, operation="Synthetic local correction")
+    assert (workspace(path) / "state.json").read_bytes() == old_state
+    first = execute(path, "refine", slide_id="s02", source=corrected, base_image=base,
+                    operation="Synthetic explicitly enlarged correction", allow_upscale=True)["pages"]["s02"]
+    assert first["upscaled"] is True
+    assert first["source_pixels"] == first["derived_input_pixels"] == [1600, 900]
+    assert first["final_pixels"] == [3200, 1800]
+    with Image.open(base) as image:
+        image.paste("red", (10, 10, 80, 40))
+        image.save(corrected)
+    second = execute(path, "refine", slide_id="s02", source=corrected, base_image=base,
+                     operation="Synthetic subsequent correction at the same authorized size")["pages"]["s02"]
+    assert second["upscaled"] is True
+    assert second["derived_input_pixels"] == second["final_pixels"] == [3200, 1800]
+    assert second["source_pixels"] == [1600, 900]
+
+
+@pytest.mark.parametrize("changed", [False, True])
+def test_removed_page_undo_restores_approval_or_retains_history(production, tmp_path, changed):
+    path, source = production
+    compose_fixture(path, slide_id="s02", source=source)
+    fixture_review(path, "s02", tmp_path / "review-removed.json")
+    old = execute(path, "accept", slide_id="s02", record=tmp_path / "review-removed.json")["pages"]["s02"]
+    original_spec = json.loads(path.read_bytes())
+    removed = copy.deepcopy(original_spec)
+    removed["slides"].pop()
+    write(path, removed)
+    result = execute(path, "prepare")
+    assert result["archived_page_ids"] == ["s02"]
+    archived = execute(path, "status")["archived_pages"]["s02"]
+    assert archived["review_snapshot"] == old["review_snapshot"]
+    source.unlink()
+    if changed:
+        original_spec["slides"][1]["visual_brief"] += " with revised typography"
+    write(path, original_spec)
+    restored = execute(path, "prepare")
+    assert restored["archived_page_ids"] == []
+    page = execute(path, "status")["pages"]["s02"]
+    assert page["status"] == ("pending" if changed else "approved")
+    previous = page["history"][-1] if changed else page
+    assert previous["generation_snapshot"] == old["generation_snapshot"]
+    assert previous["review_snapshot"] == old["review_snapshot"]
+    recovered = execute(path, "compose", slide_id="s02", source=workspace(path) / old["source_snapshot"])
+    assert recovered["pages"]["s02"]["status"] == ("generated" if changed else "approved")
+
+
+def test_restoring_removed_page_checks_retained_snapshot_integrity(production):
+    path, source = production
+    old = compose_fixture(path, slide_id="s02", source=source)["pages"]["s02"]
+    original_spec = json.loads(path.read_bytes())
+    removed = copy.deepcopy(original_spec)
+    removed["slides"].pop()
+    write(path, removed)
+    execute(path, "prepare")
+    before = (workspace(path) / "state.json").read_bytes()
+    (workspace(path) / old["source_snapshot"]).write_bytes(b"Damaged retained original")
+    write(path, original_spec)
+    with pytest.raises(ValueError, match="snapshot changed"):
+        execute(path, "prepare")
+    assert (workspace(path) / "state.json").read_bytes() == before
+
+
+@pytest.mark.parametrize("changed_target", [False, True])
+def test_restore_provided_archive_recovers_missing_pixels_but_rejects_replacement(production, changed_target):
+    from page_production import digest
+    path, source = production
+    original = source.read_bytes()
+    spec = json.loads(path.read_bytes())
+    spec["slides"][1].update(image_file=source.name, image_status="approved",
+                             image_origin={"kind": "provided", "source_ref": "Synthetic input", "sha256": digest(original)})
+    write(path, spec)
+    execute(path, "prepare")
+    removed = copy.deepcopy(spec)
+    removed["slides"].pop()
+    write(path, removed)
+    execute(path, "prepare")
+    source.unlink()
+    if changed_target:
+        Image.new("RGB", (1600, 900), "blue").save(source)
+        replacement = source.read_bytes()
+    write(path, spec)
+    if changed_target:
+        with pytest.raises(ValueError, match="Provided image changed"):
+            execute(path, "prepare")
+        assert source.read_bytes() == replacement
+    else:
+        assert execute(path, "prepare")["pages"]["s02"]["status"] == "approved"
+        assert source.read_bytes() == original
 
 
 def test_prepare_is_idempotent_and_does_not_reset_approved_pages(production, tmp_path):

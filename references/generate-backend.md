@@ -63,13 +63,19 @@ python slidemuse.py generate assemble "<base_dir>" "<deck>.pptx"
 
 新任务的 `result --generation-record` 使用与 [produce](page-production.md) 相同的七字段记录：`version`、`slide_id`、`request_sha256`、`source_sha256`、`backend`、`model`、`result_ref`。此处 `slide_id` 使用后端任务 ID（如 `slide_03`），请求哈希为实际 `prompts/slide_03.json` 的文件 SHA-256，后端名称与 `--backend-used` 一致。记录保存实际调用信息；`model` 未暴露时为 `null`。`review` 和 `assemble` 会重新核验记录及图片，不能靠手改完成状态跳过。`sample_approved` 仅用于明确带 `image_origin` 来源和图片哈希的既有导入样张，新生成样张同样登记真实调用。
 
-`dispatch` 在状态锁内执行 `max_concurrency` 限额，重复登记同一活动任务不额外占位。API 生成在发出请求前检查预期输出文件是否冲突；返回空结果、数量不符或不可解码图片会失败，不报告虚假成功。
+样张方法明确指定 `model` 时，登记、审阅及组装均核对实际调用记录中的模型；不匹配或实际模型未暴露时拒绝。模型名只正规化已知的 `openai/gpt-image-*` 提供商前缀及 `/edit`、`/text-to-image` 后缀，不猜测不同版本等价。七字段记录不能证明生成模式、quality 或上下文处理细节；这些字段列入 `unverified_sample_method_fields`，不会仅凭后端名称相同就把整个 `sample_generation_method_matched` 设为 true，仍须按真实调用检查。
+
+`dispatch` 在状态锁内执行 `max_concurrency` 限额，重复登记同一活动任务不额外占位。API 生成在发出请求前检查预期输出文件是否冲突；返回空结果、数量不符、不可解码图片或与显式 `WIDTHxHEIGHT` 请求不一致的实际像素会失败，并保留原输出及其预览。`--size auto` 接受服务端选择的尺寸；需要放大或其他尺寸时应重新生成或明确调整已批准规格，不能把缩略图当作请求分辨率的成功结果。
 
 `--prompt-file` 可以指定任务目录内的自定义 worker 交接文件；分派分别记录实际交接文件和批准任务 JSON 的哈希，结果登记、审阅和组装均校验它们未变。调用记录的 `request_sha256` 始终对应批准的任务 JSON，不误用交接说明文件的哈希。
 
 `prepare --spec` 的输入是上游格式的 `deck_spec.json`（字段示例可用 `prepare --write-template <path>` 生成）。它由已确认的大纲填写，不替代 `deck-spec.md`：页面类型与 3–5 条要点仍以内容门禁批准的版本为准。
 
-所有新任务默认空备注；讲稿仅从输入中显式声明的 `speaker_notes` 导出，不自动吸收工作目录遗留的 `speech.md`。Page Spec 的 `canvas` 同时传入任务、提示词与组装，4:3 等画幅不会被提示词固定为 16:9。
+`prepare` 先完整验证和构造所有页的 prompt、jobs、内容合同及显式讲稿，再在同一任务锁中提交。输入错误不会改动旧文件；提交中断时，下一次 `status`、`prepare`、登记、审阅或组装先恢复上一组完整文件。`--force` 只允许替换没有活动 worker 的任务；仍有 `dispatched` 页时，先登记其结果或明确记录 blocker，避免覆盖正在执行的输入。图片引用中的 URI 原样保留，只有相对本地路径按规格文件目录解析。
+
+所有新任务默认空备注；讲稿仅从输入中显式声明的 `speaker_notes` 导出，不自动吸收工作目录遗留的 `speech.md`。Page Spec 的 `canvas` 同时传入任务、提示词与组装，4:3 等画幅不会被提示词固定为 16:9。显式画布要求正整数像素；审阅和组装拒绝任一边小于该画布的原图，既有导入样张也执行相同要求。组装时用 `--aspect-ratio 4:3` 等实际画幅参数，比例不符时拒绝拉伸。
+
+随包保留的 AtlasCloud `generate-batch` 客户端在取得 prediction ID 后，轮询或下载重试会继续读取同一任务，并保留批内已完成图片；不因查询超时重新提交整组生成。尚未取得 ID 的提交错误与后续查询错误分开处理。公开 `generate image` 入口仍只支持单次 `generate` / `edit`。
 
 ## 离线执行
 
@@ -105,4 +111,4 @@ python slidemuse.py render "<实际最终PPTX路径>" "<work>/office-review"
 
 `prepare` 在写任务前执行当前内容检查：普通内容页默认 3–5 条，例外带理由；内容页同时保留结论、解释和来源记录。`prepare --write-template <path>` 生成当前完整示例；不覆盖已有模板。也可直接使用 `prepare --page-spec <approved.json> --out-dir <deck>`，可见内容与稳定 ID 完整进入提示和 `slidemuse-content.json`。这是一份内容的适配投影，不把两种任务文件混为同一格式。
 
-新任务在 `result` 登记后先运行 `generate review <deck> --init`，实际看图填写 `content-review.json` 并运行同一命令核对。组装检查当前合同、提示、观察和图片哈希、页面集合/顺序、完成状态及画幅，保留原图字节，不再自动压缩。失败不会替换已有 PPTX。旧任务无内容合同会报告 `legacy_not_checked`，不意味着已通过新内容验收。详细命令及例外见[内容密度与画面验收](content-density.md)。
+新任务在 `result` 登记后先运行 `generate review <deck> --init`，实际看图填写 `content-review.json` 并运行同一命令核对。组装检查当前合同、提示、观察和图片哈希、页面集合/顺序、完成状态、画幅及已声明的画布分辨率。普通图片直接保留原图字节，不自动压缩；带 EXIF 旋转或镜像的图片用无损 PNG 正规化后嵌入，原始图片及其来源哈希保持不变，最终包另核对派生媒体哈希。失败不会替换已有 PPTX。旧任务无内容合同会报告 `legacy_not_checked`，不意味着已通过新内容验收。详细命令及例外见[内容密度与画面验收](content-density.md)。

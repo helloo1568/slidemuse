@@ -466,12 +466,15 @@ def _preflight_outputs(
                 break
 
 
-def _decode_images(images: List[str], expected: int) -> List[bytes]:
+def _decode_images(images: List[str], expected: int, requested_size: Optional[str] = None) -> List[bytes]:
     """Validate the whole response before replacing any previous output."""
     if not isinstance(images, list) or len(images) != expected or not images:
         actual = len(images) if isinstance(images, list) else "invalid"
         raise ValueError(f"Image API returned {actual} images; expected {expected}")
-    from PIL import Image
+    from PIL import Image, ImageOps
+    expected_size = _parse_size(requested_size) if requested_size not in (None, "auto") else None
+    if requested_size not in (None, "auto") and expected_size is None:
+        raise ValueError(f"Invalid requested image size: {requested_size}")
     decoded = []
     for index, encoded in enumerate(images, 1):
         if not isinstance(encoded, str) or not encoded.strip():
@@ -487,8 +490,14 @@ def _decode_images(images: List[str], expected: int) -> List[bytes]:
             # truncated stream. Reopen after verification and decode fully.
             with Image.open(BytesIO(raw)) as image:
                 image.load()
+                actual_size = ImageOps.exif_transpose(image).size
         except (ValueError, OSError, SyntaxError) as error:
             raise ValueError(f"Image API returned invalid image data for result {index}") from error
+        if expected_size is not None and actual_size != expected_size:
+            raise ValueError(
+                f"Image API result {index} dimensions {actual_size[0]}x{actual_size[1]} "
+                f"differ from requested {requested_size}; original outputs were retained"
+            )
         decoded.append(raw)
     return decoded
 
@@ -535,8 +544,9 @@ def _decode_write_and_downscale(
     downscale_max_dim: Optional[int],
     downscale_suffix: str,
     output_format: str,
+    requested_size: Optional[str] = None,
 ) -> None:
-    decoded = _decode_images(images, len(outputs))
+    decoded = _decode_images(images, len(outputs), requested_size)
     pending = list(zip(outputs, decoded))
     if downscale_max_dim is not None:
         pending.extend((_derive_downscale_path(path, downscale_suffix),
@@ -710,6 +720,7 @@ async def _run_generate_batch(args: argparse.Namespace) -> int:
                 downscale_max_dim=args.downscale_max_dim,
                 downscale_suffix=args.downscale_suffix,
                 output_format=effective_output_format,
+                requested_size=payload["size"],
             )
             return i, None
         except Exception as exc:
@@ -796,6 +807,7 @@ def _generate(args: argparse.Namespace) -> None:
         downscale_max_dim=args.downscale_max_dim,
         downscale_suffix=args.downscale_suffix,
         output_format=output_format,
+        requested_size=payload["size"],
     )
 
 
@@ -873,6 +885,7 @@ def _edit(args: argparse.Namespace) -> None:
         downscale_max_dim=args.downscale_max_dim,
         downscale_suffix=args.downscale_suffix,
         output_format=output_format,
+        requested_size=payload["size"],
     )
 
 

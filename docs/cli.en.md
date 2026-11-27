@@ -67,3 +67,11 @@ Declare existing user images with Page Spec `image_origin`, using `kind: "provid
 Record failed calls with `produce failure <page-spec> --slide <id> --route host --failure-kind multi-page --evidence <actual-result-locator>`. Two consecutive same-kind failures on that route block another request. Use an available real alternative or report blocked. Authorized `generate image generate/edit` requests use the configured shared API interpreter when present; `--offline` rejects network calls.
 
 `install.py --json` writes one final JSON object to stdout. Dependency installation and validation logs go to stderr.
+
+### Local corrections and task recovery (2.29.0)
+
+After an authorized local correction to a retained original or final image, register it with `produce refine <page-spec> --slide <id> --base-image <retained-original-or-final> --source <independent-corrected-image> --operation <description>`, then run a new `review-init` and `accept`. The original call evidence remains bound to the generated original; a separate derivation record tracks the corrected output. Creating a review after an unregistered final-image replacement is rejected. See [page production](../references/page-production.md).
+
+Removed pages retain their production archive. Restoring a stable page ID restores the unchanged state or carries its history into the revised page. Reconstruction `prepare --job-dir` requires a new or empty directory; continue existing runs through their status, result and recovery commands. Invalid `generate prepare --force` inputs leave the previous prompts, jobs and content contract intact.
+
+The LibreOffice backend requires `soffice`, `pdftoppm` and `pdfinfo`. Full and selected rendering include hidden slides and reject a PDF page-count mismatch. Final reconstruction validation checks the actual PPTX body, images and speaker-note relationships; inspect the real rendered pages as well.

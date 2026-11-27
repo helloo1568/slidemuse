@@ -152,6 +152,114 @@ def test_visible_draft_is_pending_and_can_recover_retained_originals(tmp_path, a
     assert page["generation_request_snapshot"] == previous["generation_request_snapshot"]
 
 
+def test_draft_retains_removed_page_and_local_correction_after_source_deletion(tmp_path):
+    contract, path = production_case(tmp_path)
+    evidence = path.parent / "archived-only-evidence.png"
+    Image.new("RGB", (160, 90), "blue").save(evidence)
+    evidence_bytes = evidence.read_bytes()
+    spec = json.loads(path.read_bytes())
+    spec["slides"][1]["elements"].append({"id": "unique-evidence", "kind": "image", "role": "evidence",
+        "native_intent": "raster", "source_ref": "Synthetic supplied evidence", "confirmation_status": "confirmed",
+        "visual_brief": "Synthetic blue evidence", "separate_asset": True, "bbox_hint": [1000, 150, 480, 270],
+        "preserve_asset": {"file": evidence.name, "sha256": digest(evidence_bytes), "region": [1000, 150, 480, 270]}})
+    write(path, spec)
+    produce(path, path.parent / "original.png", "s02")
+    base_image = path.parent / "slides/02.png"
+    corrected = path.parent / "synthetic-corrected.png"
+    with Image.open(base_image) as image:
+        image.paste("blue", (10, 10, 80, 40))
+        image.save(corrected)
+    refined = execute(path, "refine", slide_id="s02", source=corrected, base_image=base_image,
+                      operation="Synthetic local correction, no real model call")["pages"]["s02"]
+    record = path.parent / "refined-review.json"
+    execute(path, "review-init", slide_id="s02", record=record)
+    review = json.loads(record.read_bytes())
+    spec = json.loads(path.read_bytes())
+    review.update(reviewer="Synthetic protocol fixture", viewed_pixels=[1600, 900],
+                  observed_text="\n".join(visible_text(spec["slides"][1], policy="1.1")),
+                  checks={name: {"status": "pass", "notes": "Synthetic fixture", "targets": ["page"]} for name in CHECKS})
+    write(record, review)
+    execute(path, "accept", slide_id="s02", record=record)
+    spec = json.loads(path.read_bytes())
+    removed_slide = spec["slides"].pop()
+    write(path, spec)
+    execute(path, "prepare")
+    bindings = json.loads(contract.read_bytes())
+    bindings["bindings"][0]["pointer"] = "/slides/0/speaker_notes"
+    write(contract, bindings)
+    plan, paths = plan_update(contract, {"count": 130})
+    output = tmp_path / "archive-draft"
+    export_draft(contract, output, plan, paths)
+    draft = output / "nested/page-spec.json"
+    draft_root = workspace(draft)
+    state = json.loads((draft_root / "state.json").read_bytes())
+    assert state["archived_pages"]["s02"]["status"] == "approved"
+    assert (draft.parent / evidence.name).read_bytes() == evidence_bytes
+    for key in ("source_snapshot", "image_snapshot", "derived_input_snapshot", "correction_snapshot", "derivation_snapshot"):
+        assert (draft_root / refined[key]).is_file()
+    derivation = json.loads((draft_root / refined["derivation_snapshot"]).read_bytes())
+    for field in ("input", "correction"):
+        assert digest((draft_root / derivation[field + "_snapshot"]).read_bytes()) == derivation[field + "_sha256"]
+    shutil.rmtree(contract.parent)
+    restored_spec = json.loads(draft.read_bytes())
+    restored_spec["slides"].append(removed_slide)
+    write(draft, restored_spec)
+    restored = execute(draft, "prepare")
+    assert restored["pages"]["s02"]["status"] == "approved"
+    assert restored["archived_page_ids"] == []
+    load_page_spec(draft, require_images=True)
+    assert digest((draft.parent / removed_slide["image_file"]).read_bytes()) == refined["image_sha256"]
+    # A second refinement remains self-contained after the original project is gone.
+    base_image = draft.parent / removed_slide["image_file"]
+    corrected = draft.parent / "second-synthetic-correction.png"
+    with Image.open(base_image) as image:
+        image.paste("red", (90, 10, 140, 40))
+        image.save(corrected)
+    second = execute(draft, "refine", slide_id="s02", source=corrected, base_image=base_image,
+                     operation="Second synthetic local correction")["pages"]["s02"]
+    assert second["derived_input_sha256"] == refined["image_sha256"]
+    assert second["source_sha256"] == refined["source_sha256"]
+    assert second["generation_request_snapshot"] == refined["generation_request_snapshot"]
+    record = draft.parent / "second-correction-review.json"
+    execute(draft, "review-init", slide_id="s02", record=record)
+    review = json.loads(record.read_bytes())
+    review.update(reviewer="Synthetic protocol fixture", viewed_pixels=[1600, 900],
+                  observed_text="\n".join(visible_text(removed_slide, policy="1.1")),
+                  checks={name: {"status": "pass", "notes": "Synthetic fixture", "targets": ["page"]} for name in CHECKS})
+    write(record, review)
+    execute(draft, "accept", slide_id="s02", record=record)
+    built = subprocess.run([sys.executable, str(ROOT / "scripts/build_image_ppt.py"), str(draft), str(output / "draft.pptx")],
+                           text=True, capture_output=True, check=False)
+    assert built.returncode == 0, built.stderr
+    from pptx import Presentation
+    assert digest(Presentation(output / "draft.pptx").slides[1].shapes[0].image.blob) == second["image_sha256"]
+
+
+def test_draft_rejects_replaced_historical_evidence_without_overwriting_current_assets(tmp_path):
+    contract, path = production_case(tmp_path)
+    evidence = path.parent / "historical-evidence.png"
+    Image.new("RGB", (160, 90), "blue").save(evidence)
+    spec = json.loads(path.read_bytes())
+    spec["slides"][1]["elements"].append({"id": "history-evidence", "kind": "image", "role": "evidence",
+        "native_intent": "raster", "source_ref": "Synthetic supplied evidence", "confirmation_status": "confirmed",
+        "visual_brief": "Synthetic evidence", "separate_asset": True, "bbox_hint": [1000, 150, 480, 270],
+        "preserve_asset": {"file": evidence.name, "sha256": digest(evidence.read_bytes()), "region": [1000, 150, 480, 270]}})
+    write(path, spec)
+    produce(path, path.parent / "original.png", "s02")
+    Image.new("RGB", (160, 90), "red").save(evidence)
+    spec = json.loads(path.read_bytes())
+    spec["slides"][1]["elements"][-1]["preserve_asset"]["sha256"] = digest(evidence.read_bytes())
+    write(path, spec)
+    produce(path, path.parent / "original.png", "s02")
+    before = tree_bytes(contract.parent)
+    plan, paths = plan_update(contract, {"count": 130})
+    output = tmp_path / "missing-historical-evidence-draft"
+    with pytest.raises(ValueError, match="Historical preserved asset hash changed"):
+        export_draft(contract, output, plan, paths)
+    assert not output.exists()
+    assert tree_bytes(contract.parent) == before
+
+
 @pytest.mark.parametrize("damage", ["state", "historical-artifact", "path-escape"])
 def test_invalid_production_history_fails_without_publishing_or_modifying_source(tmp_path, damage):
     contract, path = production_case(tmp_path)

@@ -57,6 +57,7 @@ def fingerprint():
         ("powerpoint", powerpoint_binary()),
         ("libreoffice", shutil.which("soffice") or shutil.which("libreoffice")),
         ("pdftoppm", shutil.which("pdftoppm")),
+        ("pdfinfo", shutil.which("pdfinfo")),
         ("powershell", shutil.which("powershell.exe") or shutil.which("powershell")))}
     for name, filenames in (("powerpoint", ("PPCORE.DLL", "MSO.DLL", "MSOINTL.DLL")),
                             ("libreoffice", ("soffice.bin", "libmergedlo.so", "mergedlo.dll"))):
@@ -85,6 +86,6 @@ def fingerprint():
 
 
 def environment_key(snapshot, backend):
-    names = ("powerpoint", "powershell") if backend == "powerpoint" else ("libreoffice", "pdftoppm")
+    names = ("powerpoint", "powershell") if backend == "powerpoint" else ("libreoffice", "pdftoppm", "pdfinfo")
     value = {**snapshot, "binaries": {name: snapshot["binaries"].get(name) for name in names}}
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()

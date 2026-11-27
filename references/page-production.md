@@ -57,6 +57,8 @@ prepare 为每页保存 `prompt_snapshot`，包含当前风格、语义、逐字
 
 重复 prepare/compose 不重置未变化页面的批准状态。改变单页内容或素材区域只使该页回 pending；改变整套风格或内容版本会影响全部页。状态文件原子提交后才更新成品文件和 Page Spec 的 `image_status`；写入中断时重跑 prepare 恢复已提交投影。旧成品快照保留，修改和失败不会删去历史。`status` 只读，prepare 才同步当前状态。
 
+删除页面后运行 prepare，会把该页完整制作记录移入 `archived_pages`，保留原件、调用、局部修正和审阅关联。恢复相同稳定页 ID 时，工具先校验快照：合同未变则恢复原状态；合同已变则回 pending 并保留历史供重新合成或局部修正。数据更新草稿也复制这些归档及所需快照、历史意图声明的保护素材和风格参考，不依赖旧项目目录。保护素材必须与其原声明哈希一致；历史文件已丢失、被替换或与草稿现有文件冲突时拒绝发布草稿，保留原项目供恢复，不用当前同名素材冒充旧版本。
+
 只改 `speaker_notes` 或工作备注保留图片批准，重新导出 PPTX/讲稿后核对备注即可；图片审核不认证讲稿。完整输入规格仍由下游流水线检查，因此旧导出不会据此自动沿用。
 
 坐标修改直接改 Page Spec，或使用以下受检入口，不再维护第二份生产坐标表：
@@ -73,6 +75,25 @@ python slidemuse.py produce compose work/page-spec.json --slide s01 --source wor
 原始临时文件丢失时，`--source` 可指向当前页或其历史记录中哈希仍匹配的 `source_snapshot`，直接用归档原图重做合成；不能把旧合成成品再次当作生成原图。
 
 同一已记录原图做获授权的区域修改时，沿用该原图的既有调用记录，不重复调用模型，也不伪造新调用。更换原图必须提供对应的新请求与新记录；局部修改后的成品仍需重新看图和批准。
+
+## 登记准确文字与局部修正（2.29.0）
+
+Prompt 2A 叠字、局部数字修正等操作，先保留真实生图原件并完成 compose，再把局部处理结果保存为**独立的不透明 PNG**，尺寸与当前画布一致。保留处理时使用的原图或成品，不覆盖 `image_file`，然后登记：
+
+```sh
+python slidemuse.py produce refine work/page-spec.json --slide s01 --base-image work/slides/01.png --source work/corrections/01.png --operation "按已确认 Page Spec 叠加准确标题和数字，保留主视觉"
+python slidemuse.py produce review-init work/page-spec.json --slide s01 --record work/reviews/s01-v2.json
+# 实际查看修正后页面，核对文字、主视觉与来源，再填写新审阅记录
+python slidemuse.py produce accept work/page-spec.json --slide s01 --record work/reviews/s01-v2.json
+```
+
+`--base-image` 必须与同页当前或历史中保存的原始生图/合成成品完全一致；也可直接使用状态中的相应快照路径。工具保留真实原件和调用绑定，另行归档局部处理输入、提交的 PNG、处理说明和最终图片哈希。修正成品回到 `generated`，旧审阅不能复用；保护素材像素发生变化时拒绝登记。内容修订让页面回 pending 后，也可基于该页已有历史图片进行已授权的局部处理。
+
+修改画布后，工具根据保留原件和实际基图像素判断是否发生放大；新增放大默认拒绝，确需处理时显式添加 `--allow-upscale` 并记录 `upscaled: true`。此前已允许放大的成品，在不增加目标尺寸的后续局部修正中沿用该选择，继续保留放大标记；不能把原始低分辨率图片的派生成品称为原生高清。
+
+`refine` 记录处理声明和文件之间的绑定，不能自动证明修改范围、调用真实性或画面质量；真实原件与结果仍须核对。不得用它将程序绘制整页冒充生图，也不把局部处理另记为一次模型调用。未登记而直接改写最终图片时，review-init 会拒绝并保留该文件；需要恢复已提交成品时运行 prepare。
+
+## 旧任务与既有图片
 
 升级已有 v2.27 制作任务时，若 state 或 history 已共同保留原始 request、route 和 source，可直接给该原图补 `--generation-record`，使用历史请求的原始 SHA-256 与真实历史调用定位；工具不重写旧请求，补证后回到 `generated`，需要重新 review/accept。没有保留实际 request 时，先从可信备份恢复；无法恢复则保留旧目录，在独立新项目中沿用已确认内容并真正重新生成。不能把旧图绑定到刚创建的新请求来补造证据。
 

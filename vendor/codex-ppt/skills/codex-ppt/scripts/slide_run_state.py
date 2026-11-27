@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import base64
 import json
 import os
 import tempfile
@@ -19,6 +20,7 @@ ACTIVE_SLIDE_STATUSES = {"dispatched"}
 DISPATCHABLE_SLIDE_STATUSES = {"pending"}
 TERMINAL_SLIDE_STATUSES = {"recorded", "accepted", "blocked"}
 DEFAULT_MAX_CONCURRENT_SLIDES = 6
+PREPARATION_JOURNAL = ".slide_prepare_transaction.json"
 
 
 def now_iso() -> str:
@@ -50,6 +52,93 @@ def write_json(path: Path, data: Any) -> None:
             os.unlink(temp_name)
 
 
+def _prepared_path(deck_dir: Path, relative: str) -> Path:
+    path = Path(relative)
+    root = Path(deck_dir).resolve()
+    if path.is_absolute() or not relative or ".." in path.parts:
+        raise ValueError("Preparation outputs must remain inside the deck")
+    target = root / path
+    if not target.resolve().is_relative_to(root) or target.is_symlink():
+        raise ValueError("Preparation output is a symlink or escapes the deck")
+    if target.exists() and not target.is_file():
+        raise ValueError(f"Preparation output is not a regular file: {relative}")
+    for parent in target.parents:
+        if parent.exists() and not parent.is_dir():
+            raise ValueError(f"Preparation output parent is not a directory: {relative}")
+        if parent == root:
+            break
+    return target
+
+
+def _write_bytes(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def recover_preparation(deck_dir: Path) -> None:
+    """Rollback an uncommitted file group while holding the jobs lock."""
+    journal = Path(deck_dir) / PREPARATION_JOURNAL
+    if not journal.exists():
+        return
+    state = read_json(journal)
+    if state.get("version") != "1.0" or not isinstance(state.get("previous"), dict):
+        raise ValueError("Invalid preparation recovery journal; retain it for recovery")
+    previous = []
+    for relative, encoded in state["previous"].items():
+        target = _prepared_path(deck_dir, relative)
+        if target == journal or target.name.endswith(".lock"):
+            raise ValueError("Invalid preparation recovery target")
+        previous.append((target, None if encoded is None else base64.b64decode(encoded, validate=True)))
+    for target, data in previous:
+        if data is None:
+            target.unlink(missing_ok=True)
+        else:
+            _write_bytes(target, data)
+    journal.unlink()
+
+
+@contextmanager
+def preparation_lock(deck_dir: Path):
+    deck_dir = Path(deck_dir)
+    deck_dir.mkdir(parents=True, exist_ok=True)
+    with FileLock(str(deck_dir / ".slide_jobs.json.lock")):
+        recover_preparation(deck_dir)
+        yield
+
+
+def commit_preparation(deck_dir: Path, files: Dict[str, bytes]) -> None:
+    """Commit validated prompts, jobs and companions as one recoverable group.
+
+    Caller owns preparation_lock. Removing the recovery journal is the commit
+    point; any interrupted or failed replacement restores the previous group.
+    """
+    previous = {}
+    pending = []
+    for relative, data in files.items():
+        target = _prepared_path(deck_dir, relative)
+        if relative == PREPARATION_JOURNAL or target.name.endswith(".lock") or not isinstance(data, bytes):
+            raise ValueError("Invalid prepared output")
+        previous[relative] = base64.b64encode(target.read_bytes()).decode("ascii") if target.exists() else None
+        pending.append((target, data))
+    journal = Path(deck_dir) / PREPARATION_JOURNAL
+    write_json(journal, {"version": "1.0", "previous": previous})
+    try:
+        for target, data in pending:
+            _write_bytes(target, data)
+        journal.unlink()
+    except BaseException:
+        recover_preparation(deck_dir)
+        raise
+
+
 @contextmanager
 def locked_json(path: Path, default: Any = None):
     path = Path(path)
@@ -73,8 +162,28 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def normalized_model(value: str) -> str:
+    """Normalize only the documented OpenAI provider/operation wrappers."""
+    value = value.strip()
+    if value.startswith("openai/gpt-image-"):
+        value = value.removeprefix("openai/")
+        for suffix in ("/text-to-image", "/edit"):
+            value = value.removesuffix(suffix)
+    return value
+
+
+def sample_method(jobs: Dict[str, Any], prompt_job: Dict[str, Any]) -> Dict[str, Any]:
+    methods = [value for value in (jobs.get("sample_generation_method"), prompt_job.get("sample_generation_method"))
+               if value is not None]
+    if any(not isinstance(value, dict) for value in methods):
+        raise ValueError("Sample generation method must be an object")
+    if methods and any(value != methods[0] for value in methods[1:]):
+        raise ValueError("Sample generation method differs between jobs and the dispatched prompt")
+    return methods[0] if methods else {}
+
+
 def validate_generation_record(value: Any, *, slide_id: str, request_sha256: str,
-                               source_sha256: str, backend: str) -> None:
+                               source_sha256: str, backend: str, expected_model: str | None = None) -> None:
     """Check call-record bindings; a declaration does not authenticate a provider."""
     required = {"version", "slide_id", "request_sha256", "source_sha256", "backend", "model", "result_ref"}
     if not isinstance(value, dict) or set(value) != required:
@@ -87,6 +196,13 @@ def validate_generation_record(value: Any, *, slide_id: str, request_sha256: str
         raise ValueError("Record the actual image tool/backend and call/result locator")
     if value["model"] is not None and (not isinstance(value["model"], str) or not value["model"].strip()):
         raise ValueError("Model must be its actual name, or null when the host does not expose it")
+    if expected_model is not None:
+        if not isinstance(expected_model, str) or not expected_model.strip():
+            raise ValueError("Approved sample model must be a non-empty name or null")
+        if value["model"] is None:
+            raise ValueError(f"Cannot verify approved sample model {expected_model}: actual model was not exposed")
+        if normalized_model(value["model"]) != normalized_model(expected_model):
+            raise ValueError(f"Model mismatch: approved sample uses {expected_model}, actual record names {value['model']}")
 
 
 def validate_dispatch_inputs(deck_dir: Path, slide: Dict[str, Any]) -> str:
@@ -122,15 +238,26 @@ def run_state_path(deck_dir: Path) -> Path:
 
 
 def load_jobs(deck_dir: Path) -> Dict[str, Any]:
-    return read_json(slide_jobs_path(deck_dir))
+    with preparation_lock(deck_dir):
+        return read_json(slide_jobs_path(deck_dir))
+
+
+def load_job_snapshot(deck_dir: Path):
+    with preparation_lock(deck_dir):
+        return (read_json(slide_jobs_path(deck_dir)),
+                read_json(run_state_path(deck_dir), default={"status": "created", "history": []}))
 
 
 def save_jobs(deck_dir: Path, jobs: Dict[str, Any]) -> None:
     write_json(slide_jobs_path(deck_dir), jobs)
 
 
+@contextmanager
 def locked_jobs(deck_dir: Path):
-    return locked_json(slide_jobs_path(deck_dir))
+    with preparation_lock(deck_dir):
+        jobs = read_json(slide_jobs_path(deck_dir))
+        yield jobs
+        write_json(slide_jobs_path(deck_dir), jobs)
 
 
 def load_run_state(deck_dir: Path) -> Dict[str, Any]:

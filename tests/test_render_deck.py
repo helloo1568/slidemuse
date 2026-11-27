@@ -1,10 +1,42 @@
 import json
 import sys
+from pathlib import Path
 
 import pytest
 import render_deck
 from PIL import Image
 from pptx import Presentation
+
+
+@pytest.mark.parametrize("metadata", ["Pages: 1\n", "Pages: 3\n", "Title: no page count\n"])
+def test_selected_libreoffice_rejects_incomplete_pdf_before_assigning_page_numbers(tmp_path, monkeypatch, metadata):
+    deck = tmp_path / "hidden.pptx"
+    presentation = Presentation()
+    for _ in range(2):
+        presentation.slides.add_slide(presentation.slide_layouts[6])
+    presentation.slides[0]._element.set("show", "0")
+    presentation.save(deck)
+    monkeypatch.setattr(render_deck.shutil, "which", lambda name: name)
+    raster_calls = []
+
+    def execute(command, **_kwargs):
+        if command[0] == "soffice":
+            options = json.loads(command[command.index("--convert-to") + 1].split(":", 2)[2])
+            assert options["ExportHiddenSlides"]["value"] == "true"
+            output = Path(command[command.index("--outdir") + 1])
+            (output / "hidden.pdf").write_bytes(b"synthetic PDF; parsed by the stub below")
+            return ""
+        if command[0] == "pdfinfo":
+            return metadata
+        raster_calls.append(command)
+        raise AssertionError("An unverified PDF must not be assigned PPTX page numbers")
+
+    monkeypatch.setattr(render_deck, "execute", execute)
+    output = tmp_path / "selected"
+    with pytest.raises(RuntimeError, match="page identity cannot be verified"):
+        render_deck.render_selected(deck, output, 320, "libreoffice", [1])
+    assert raster_calls == []
+    assert not (output / "001.png").exists()
 
 
 def test_render_deck_writes_every_slide_and_comparison(tmp_path, monkeypatch):

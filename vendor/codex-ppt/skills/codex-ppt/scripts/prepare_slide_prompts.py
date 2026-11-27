@@ -19,9 +19,10 @@ from slide_run_state import (
     DEFAULT_MAX_CONCURRENT_SLIDES,
     now_iso,
     rel_to_deck,
-    save_jobs,
+    commit_preparation,
+    preparation_lock,
+    read_json,
     sha256_file,
-    set_run_status,
 )
 
 
@@ -367,7 +368,7 @@ def _write_template(path: Path) -> None:
     path.write_text(json.dumps(template, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def main() -> int:
+def main(argv=None, companion=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--spec", help="Deck spec JSON file.")
     parser.add_argument("--out-dir", help="Deck project directory.")
@@ -383,7 +384,7 @@ def main() -> int:
         help=f"Maximum slide subagents to dispatch at once. Defaults to {DEFAULT_MAX_CONCURRENT_SLIDES}.",
     )
     parser.add_argument("--force", action="store_true", help="Overwrite existing prompt files.")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.write_template:
         _write_template(Path(args.write_template))
@@ -413,10 +414,19 @@ def main() -> int:
         seen_slide_numbers[number] = fallback
         numbered_slides.append((fallback, slide, number))
 
-    out_dir = Path(args.out_dir)
+    with preparation_lock(Path(args.out_dir)):
+        return _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion)
+
+
+def _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion):
+    out_dir = Path(args.out_dir).resolve()
     prompts_dir = out_dir / "prompts"
-    prompts_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "origin_image").mkdir(parents=True, exist_ok=True)
+    if (out_dir / "origin_image").exists() and not (out_dir / "origin_image").is_dir():
+        _die("origin_image must be a directory; prior files were retained.")
+    prepared_files = {}
+    old_jobs = read_json(out_dir / "slide_jobs.json", default={})
+    if any(page.get("status") == "dispatched" for page in old_jobs.get("slides", [])):
+        _die("Cannot prepare while slide workers are dispatched; record or block their results first.")
 
     global_style_reference = spec.get("approved_style_reference")
     if global_style_reference is not None and not isinstance(global_style_reference, dict):
@@ -459,6 +469,7 @@ def main() -> int:
             "requires_context_images": bool(images),
             "expected_backend": selected_backend,
             "sample_generation_method": sample_generation_method,
+            **({"canvas": spec["canvas"]} if "canvas" in spec else {}),
             "generation_contract": {
                 "must_use_selected_image_backend": True,
                 "must_match_sample_generation_method": bool(sample_generation_method),
@@ -475,7 +486,7 @@ def main() -> int:
         prompt_path = prompts_dir / f"slide_{number:02d}.json"
         if prompt_path.exists() and not args.force:
             _die(f"Slide job file already exists: {prompt_path} (use --force)")
-        prompt_path.write_text(json.dumps(job, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        prepared_files[rel_to_deck(out_dir, prompt_path)] = (json.dumps(job, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
         slide_id = f"slide_{number:02d}"
         final_image = out_dir / "origin_image" / f"{slide_id}.png"
         sample_approved = bool(slide.get("sample_approved") or slide.get("approved_sample"))
@@ -512,13 +523,23 @@ def main() -> int:
         "deck_name": spec.get("deck_name"),
         "selected_backend": selected_backend,
         "sample_generation_method": sample_generation_method,
+        **({"canvas": spec["canvas"]} if "canvas" in spec else {}),
         "max_concurrent_slides": max_concurrent_slides,
         "generation_evidence_policy": "1.0",
         "slides": slide_job_entries,
         "updated_at": now_iso(),
     }
-    save_jobs(out_dir, slide_jobs)
-    set_run_status(out_dir, "jobs_prepared", "prepared slide prompt jobs")
+    if companion is not None:
+        prepared_files.update(companion(out_dir, spec, slide_jobs, prepared_files))
+    state = read_json(out_dir / "slide_run_state.json", default={"status": "created", "history": []})
+    if state.get("status") != "jobs_prepared":
+        state.setdefault("history", []).append({"from": state.get("status"), "to": "jobs_prepared",
+                                                "at": now_iso(), "note": "prepared slide prompt jobs"})
+    state.update(status="jobs_prepared", updated_at=now_iso())
+    for name, value in (("slide_jobs.json", slide_jobs), ("slide_run_state.json", state)):
+        prepared_files[name] = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    (out_dir / "origin_image").mkdir(parents=True, exist_ok=True)
+    commit_preparation(out_dir, prepared_files)
 
     print(f"Wrote {len(slides)} slide job file(s) to {prompts_dir}")
     print(f"Wrote slide job state to {out_dir / 'slide_jobs.json'}")

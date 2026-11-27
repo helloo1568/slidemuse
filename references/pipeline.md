@@ -64,7 +64,7 @@ python scripts/run_deck.py task/job.json task-output
 - 编译产物、图片和输入均核对 SHA-256。渲染缓存按页绑定规格、Scene、源图、素材、顺序、画布、样式、宽度、脚本版本、数据契约及实际渲染后端。缓存缺失或损坏会重建。
 - 修改一页时重新编译整个 PPTX，只渲染受影响页面；其余页面仅在输入和图片哈希一致时复用。有效的已记录审阅逐页迁移，修改页回到 pending。讲稿变更会重新编译并审查讲稿，可复用未变的画面。
 - 整套评分每次重新计算，旧评分卡先归档，不沿用旧通过结果。`review-history` 保留被替换的审阅和评分记录。状态哈希用于检测损坏，不是数字签名，也不认证审阅者身份或原始事实。
-- PowerPoint 直接按页导出；LibreOffice 仍转换整套 PDF，再只栅格化所需页。后端切换时全部页面重渲染，避免混合不同后端的旧画面。
+- PowerPoint 直接按页导出；LibreOffice 转换整套 PDF 时保留隐藏页，用 Poppler `pdfinfo` 核对总页数后，再按原 PPTX 页号栅格化所需页。页数不一致时停止，避免把后续可见页误记为隐藏页。LibreOffice 后端需要 `soffice`、`pdftoppm` 和 `pdfinfo`。后端切换时全部页面重渲染，避免混合不同后端的旧画面。
 - 2.16.0 起自动记录系统、Python/关键依赖版本、渲染器可执行文件与系统/用户字体目录中字节指纹；变化自动重渲染与复审。指纹不能覆盖 Office 所有设置、云字体或任意外部插件，改变这些设置时仍用 `--refresh-render`。字体扫描问题会保留在报告中。工具升级通常也会使旧缓存失效。
 
 输出包括 `cache/*.pptx`、`cache/*.png`、`render-report.json`、`review.png`、`object-audit.json`（可编辑模式）、审阅模板、`scorecard.json`、`summary.json` 和 `summary.md`。具体 PPTX 路径以当次摘要的 `deck` 为准。缓存保留历次版本，不自动删除任务材料。
@@ -89,4 +89,4 @@ python scripts/run_deck.py task/job.json task-output
 }
 ```
 
-固定真实后端回归：`python scripts/verify_render_backend.py regression-output --backend powerpoint`。输出必须是新目录；六页包含中文、故意溢出、故意重叠、表格、混合字体和图表标签，机械检查不代替检查导出的 PNG。CI 单独安装 LibreOffice/Poppler 和中文字体并运行实际六页导出，上传图片供查看。发布前还应在可用的 Windows PowerPoint 环境运行此命令。
+固定真实后端回归：`python scripts/verify_render_backend.py regression-output --backend powerpoint`。输出必须是新目录；六页包含中文、故意溢出、故意重叠、表格、混合字体和图表标签，另用首张隐藏的双色页面核对整套及指定页渲染的页号。机械检查不代替检查导出的 PNG。CI 单独安装 LibreOffice/Poppler 和中文字体并运行这些真实导出，上传图片供查看。发布前还应在可用的 Windows PowerPoint 环境运行此命令。

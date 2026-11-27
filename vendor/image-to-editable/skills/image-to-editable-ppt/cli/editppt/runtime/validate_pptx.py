@@ -15,6 +15,7 @@ from _input_normalization import approved_notes_contract, notes_body_text
 NS = {
     "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
     "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
+    "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
     "rel": "http://schemas.openxmlformats.org/package/2006/relationships",
 }
 
@@ -484,13 +485,105 @@ def collect_paragraph_text(xml_bytes):
     return "\n".join(paragraphs)
 
 
-def collect_notes_texts(z, names):
-    notes = {}
-    for name in sorted(n for n in names if re.match(r"ppt/notesSlides/notesSlide\d+\.xml$", n)):
-        match = re.search(r"notesSlide(\d+)\.xml$", name)
-        if not match:
+def relationships_for_part(z, part, names):
+    rels_name = f"{posixpath.dirname(part)}/_rels/{posixpath.basename(part)}.rels"
+    entries = relationship_targets(z, rels_name, names)
+    by_id = {entry["id"]: entry for entry in entries}
+    if len(by_id) != len(entries) or None in by_id:
+        raise ValueError(f"Invalid or duplicate relationship IDs in {rels_name}")
+    return by_id
+
+
+def internal_relationship_part(entry, suffix, names):
+    if (entry is None or entry["external"] or not entry["type"].endswith(suffix)
+            or not entry["resolved"] or entry["resolved"] not in names):
+        raise ValueError(f"Missing or invalid internal {suffix} relationship")
+    return entry["resolved"]
+
+
+def ordered_slide_parts(z, names):
+    """Use the presentation's actual slide order, independent of part filenames."""
+    presentation = ET.fromstring(z.read("ppt/presentation.xml"))
+    relationships = relationships_for_part(z, "ppt/presentation.xml", names)
+    slides = [internal_relationship_part(
+        relationships.get(slide.get(f"{{{NS['r']}}}id")), "/slide", names)
+        for slide in presentation.findall("p:sldIdLst/p:sldId", NS)]
+    if not slides or len(slides) != len(set(slides)):
+        raise ValueError("Presentation has no slides or references the same slide more than once")
+    return slides
+
+
+def object_structure(node):
+    """Compare content/geometry while allowing harmless IDs and XML whitespace."""
+    if node is None:
+        return None
+    ignored = {f"{{{NS['r']}}}embed"}
+    if node.tag == f"{{{NS['p']}}}cNvPr":
+        ignored.update({"id", "name"})
+    attributes = sorted((key, value) for key, value in node.attrib.items() if key not in ignored)
+    return (node.tag, attributes, node.text if node.tag == f"{{{NS['a']}}}t" else None,
+            [object_structure(child) for child in node])
+
+
+def slide_content_violations(manifest, manifest_path, root, z, slide_part, names):
+    """Verify the delivered slide itself against the recorded page's content."""
+    expected = ET.fromstring(slide_xml(normalize_manifest(manifest)))
+    ignored = {f"{{{NS['p']}}}{name}" for name in ("nvGrpSpPr", "grpSpPr", "extLst")}
+
+    def objects(slide):
+        tree = slide.find("p:cSld/p:spTree", NS)
+        return [] if tree is None else [child for child in tree if child.tag not in ignored]
+
+    wanted, actual = objects(expected), objects(root)
+    violations = []
+    if root.get("show", "1").lower() in {"0", "false"}:
+        violations.append({"field": "slide", "reason": "recorded page was hidden in the final presentation"})
+    if object_structure(expected.find("p:cSld/p:bg", NS)) != object_structure(root.find("p:cSld/p:bg", NS)):
+        violations.append({"field": "slide.background", "reason": "background differs from manifest"})
+    if len(wanted) != len(actual):
+        violations.append({"field": "slide.objects", "reason": "actual object count differs from manifest"})
+    for index, (reference, delivered) in enumerate(zip(wanted, actual)):
+        if object_structure(reference) != object_structure(delivered):
+            violations.append({"field": f"slide.objects[{index}]", "reason": "actual text, geometry, styling or visibility differs from manifest"})
+
+    text = "".join(node.text or "" for node in root.findall(".//a:t", NS))
+    for required in required_texts_from_manifest(manifest):
+        if required.replace("\n", "") not in text:
+            violations.append({"field": "required_text", "reason": "required text is missing from the actual slide", "text": required})
+
+    # Resolve each visible picture's relationship rather than assuming that
+    # imageN.ext or an unused ZIP media part belongs to this page.
+    relationships = relationships_for_part(z, slide_part, names)
+    image_by_id = {f"rId{index + 1}": item for index, item in enumerate(manifest.get("images", []), 1)}
+    for index, (reference, delivered) in enumerate(zip(wanted, actual)):
+        if reference.tag != f"{{{NS['p']}}}pic" or delivered.tag != reference.tag:
             continue
-        notes[int(match.group(1))] = notes_body_text(ET.fromstring(z.read(name)))
+        expected_blip = reference.find("p:blipFill/a:blip", NS)
+        actual_blip = delivered.find("p:blipFill/a:blip", NS)
+        try:
+            image = image_by_id[expected_blip.get(f"{{{NS['r']}}}embed")]
+            relation = relationships.get(actual_blip.get(f"{{{NS['r']}}}embed")) if actual_blip is not None else None
+            media_part = internal_relationship_part(relation, "/image", names)
+            source = Path(image["path"])
+            if not source.is_absolute():
+                source = Path(manifest_path).parent / source
+            if file_sha256(source) != hashlib.sha256(z.read(media_part)).hexdigest():
+                raise ValueError("embedded image bytes differ from the recorded asset")
+        except (OSError, ValueError, KeyError, AttributeError) as exc:
+            violations.append({"field": f"slide.objects[{index}].image", "reason": str(exc)})
+    return violations
+
+
+def collect_notes_texts(z, names, slide_parts=None):
+    notes = {}
+    for index, slide_part in enumerate(slide_parts or ordered_slide_parts(z, names), 1):
+        entries = [entry for entry in relationships_for_part(z, slide_part, names).values()
+                   if entry["type"].endswith("/notesSlide")]
+        if len(entries) > 1:
+            raise ValueError(f"Slide {index} references more than one notes slide")
+        if entries:
+            part = internal_relationship_part(entries[0], "/notesSlide", names)
+            notes[index] = notes_body_text(ET.fromstring(z.read(part)))
     return notes
 
 
@@ -522,6 +615,7 @@ def validate_deck(args):
         "notes_hash_mismatches": [],
         "notes_contract_errors": [],
         "missing_parts": [],
+        "missing_relationship_targets": [],
         "warnings": [],
         "passed": False,
     }
@@ -543,10 +637,12 @@ def validate_deck(args):
             report["page_manifests_missing"].append(str(manifest_path))
         else:
             try:
+                if "manifest_sha256" in page and file_sha256(manifest_path) != page["manifest_sha256"]:
+                    raise ValueError("Page manifest differs from the recorded assembly input")
                 raw_manifest = read_manifest(manifest_path)
                 normalized_manifest, authoring_violations = normalize_for_validation(raw_manifest)
                 if not authoring_violations:
-                    geometry_manifests.append((page_index, normalized_manifest))
+                    geometry_manifests.append((page_index, raw_manifest, manifest_path))
                 violations = (
                     authoring_violations
                     + page_contract_violations(normalized_manifest)
@@ -572,8 +668,10 @@ def validate_deck(args):
             report["page_validation_missing"].append(str(validation_path))
         else:
             try:
+                if "validation_sha256" in page and file_sha256(validation_path) != page["validation_sha256"]:
+                    raise ValueError("Page validation differs from the recorded assembly input")
                 page_report = read_manifest(validation_path)
-                if page_report.get("passed") is False:
+                if page_report.get("passed") is not True:
                     report["failed_page_validations"].append(str(validation_path))
             except Exception as exc:
                 report["failed_page_validations"].append(f"{validation_path}: {exc}")
@@ -581,28 +679,43 @@ def validate_deck(args):
     try:
         with zipfile.ZipFile(args.pptx) as z:
             names = z.namelist()
-            report["slides"] = len([n for n in names if re.match(r"ppt/slides/slide\d+\.xml$", n)])
-            for page_index, page_manifest in geometry_manifests:
-                slide_part = f"ppt/slides/slide{page_index}.xml"
-                if slide_part in names:
-                    slide_root = ET.fromstring(z.read(slide_part))
-                    violations = (line_geometry_violations(page_manifest, slide_root)
-                                  + table_structure_violations(page_manifest, slide_root))
-                    if violations:
-                        report["page_contract_violations"].append({"page_index": page_index, "violations": violations})
+            if z.testzip() is not None or len(names) != len(set(names)):
+                raise ValueError("PPTX contains damaged or duplicate ZIP parts")
             for part in ("[Content_Types].xml", "_rels/.rels", "ppt/presentation.xml", "ppt/_rels/presentation.xml.rels"):
                 if part not in names:
                     report["missing_parts"].append(part)
-            notes_texts = collect_notes_texts(z, names)
+            slide_parts = ordered_slide_parts(z, names)
+            report["slides"] = len(slide_parts)
+            for page_index, page_manifest, manifest_path in geometry_manifests:
+                if page_index <= len(slide_parts):
+                    slide_part = slide_parts[page_index - 1]
+                    slide_root = ET.fromstring(z.read(slide_part))
+                    violations = (line_geometry_violations(page_manifest, slide_root)
+                                  + table_structure_violations(page_manifest, slide_root)
+                                  + slide_content_violations(page_manifest, manifest_path, slide_root, z, slide_part, names))
+                    if violations:
+                        report["page_contract_violations"].append({"page_index": page_index, "violations": violations})
+            for rels in (name for name in names if name.endswith(".rels")):
+                for entry in relationship_targets(z, rels, names):
+                    if not entry["external"] and (not entry["resolved"] or entry["resolved"] not in names):
+                        report["missing_relationship_targets"].append({"rels": rels, "id": entry["id"], "target": entry["target"]})
+            notes_texts = collect_notes_texts(z, names, slide_parts)
             report["notes_found"] = len(notes_texts)
+            expected_notes = set()
             for entry in notes_manifest.get("notes", []):
                 page_index = int(entry.get("page_index", 0))
+                if page_index in expected_notes or not 1 <= page_index <= expected_pages:
+                    report["notes_contract_errors"].append("Notes manifest has a duplicate or invalid page index")
+                expected_notes.add(page_index)
                 expected_hash = entry.get("text_sha256", sha256_text(entry.get("text", "")))
                 actual = notes_texts.get(page_index, "" if not entry.get("text") else None)
                 if actual is None:
                     report["notes_hash_mismatches"].append({"page_index": page_index, "reason": "missing notes slide"})
                 elif sha256_text(actual) != expected_hash:
                     report["notes_hash_mismatches"].append({"page_index": page_index, "reason": "text hash mismatch"})
+            for page_index, text in notes_texts.items():
+                if text and page_index not in expected_notes:
+                    report["notes_hash_mismatches"].append({"page_index": page_index, "reason": "unexpected speaker notes"})
             if approved_notes is not None:
                 for page_index, expected in approved_notes.items():
                     if notes_texts.get(page_index, "") != expected:
@@ -618,6 +731,7 @@ def validate_deck(args):
         and not report["failed_page_validations"]
         and not report["page_contract_violations"]
         and not report["missing_parts"]
+        and not report["missing_relationship_targets"]
         and not report["notes_hash_mismatches"]
         and not report["notes_contract_errors"]
         and not report["warnings"]
@@ -643,6 +757,8 @@ def rel_source_part(rels_name):
 def resolve_target(rels_name, target):
     if not target or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", target):
         return None
+    if target.startswith("/"):
+        return posixpath.normpath(target.lstrip("/"))
     source = rel_source_part(rels_name)
     return posixpath.normpath(posixpath.join(posixpath.dirname(source), target))
 

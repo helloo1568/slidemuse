@@ -210,6 +210,9 @@ def full_slide_picture_target(zip_file, slide_part, slide_cx, slide_cy):
     if len(pictures) != 1:
         raise ValueError(f"{slide_part} must contain exactly one full-slide picture; found {len(pictures)}.")
     picture = pictures[0]
+    properties = picture.find("p:nvPicPr/p:cNvPr", NS)
+    if properties is not None and properties.get("hidden", "0").lower() in {"1", "true"}:
+        raise ValueError(f"{slide_part} has a hidden picture; render the slide before rebuilding.")
     tree = slide_root.find("p:cSld/p:spTree", NS)
     if tree is None or picture not in list(tree) or any(
         child.tag.rsplit("}", 1)[-1] not in {"nvGrpSpPr", "grpSpPr", "pic", "extLst"}
@@ -360,6 +363,36 @@ def default_output_name(input_paths):
 
 
 def normalize_inputs(inputs, out_root="output/image-to-editable-ppt", job_dir=None, dpi=180):
+    """Prepare a new run without modifying an existing task or partial input set."""
+    input_paths = [Path(path).expanduser().resolve() for path in inputs]
+    if not input_paths or any(not path.is_file() for path in input_paths):
+        raise ValueError("Prepare requires existing input files")
+    target = Path(job_dir).expanduser() if job_dir else default_job_dir(out_root, input_paths)
+    if target.is_symlink():
+        raise ValueError("Prepare requires a new or empty task directory, not a symlink")
+    target = target.resolve()
+    if target.exists() and (not target.is_dir() or any(target.iterdir())):
+        raise ValueError(f"Task directory is not empty: {target}. Resume the existing run or choose a new --job-dir.")
+    if any(path.is_relative_to(target) for path in input_paths):
+        raise ValueError("Prepare inputs must be outside the new task directory")
+
+    # Unsupported inputs and conversion failures never leave a half-prepared run.
+    # Rename only a complete directory; rmdir refuses a destination populated by
+    # another prepare/worker since the initial check.
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=f".{target.name}-prepare-", dir=target.parent) as temporary:
+        stage = Path(temporary) / "run"
+        deck_path = _normalize_inputs(input_paths, job_dir=stage, dpi=dpi)
+        deck = json.loads(deck_path.read_text(encoding="utf-8"))
+        deck["job_dir"] = str(target)
+        deck_path.write_text(json.dumps(deck, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        if target.exists():
+            target.rmdir()
+        stage.rename(target)
+    return target / "deck_manifest.json"
+
+
+def _normalize_inputs(inputs, out_root="output/image-to-editable-ppt", job_dir=None, dpi=180):
     input_paths = [Path(path).resolve() for path in inputs]
     job_dir = Path(job_dir).resolve() if job_dir else default_job_dir(out_root, input_paths).resolve()
     input_dir = job_dir / "input"

@@ -14,9 +14,9 @@ from PIL import Image
 SCRIPTS = Path(__file__).resolve().parents[1] / "vendor/codex-ppt/skills/codex-ppt/scripts"
 
 
-def image_bytes(color="navy"):
+def image_bytes(color="navy", size=(2560, 1440)):
     stream = io.BytesIO()
-    Image.new("RGB", (160, 90), color).save(stream, format="PNG")
+    Image.new("RGB", size, color).save(stream, format="PNG")
     return stream.getvalue()
 
 
@@ -138,3 +138,35 @@ def test_truncated_jpeg_cannot_overwrite_previous_output(cli, tmp_path):
                 "--output-format", "jpeg", "--force")
     assert error.value.code == 1
     assert out.read_bytes() == original
+
+
+@pytest.mark.parametrize("kind", ["generate", "edit", "generate-batch"])
+def test_wrong_response_dimensions_never_replace_previous_outputs(cli, tmp_path, kind):
+    out = tmp_path / "output.png"
+    out.write_bytes(b"previous approved original")
+    downscaled = tmp_path / "output-web.png"
+    downscaled.write_bytes(b"previous approved preview")
+    getattr(cli.provider, "generate_batch" if kind == "generate-batch" else kind).return_value = [
+        base64.b64encode(image_bytes(size=(16, 9))).decode()]
+    with pytest.raises(SystemExit) as error:
+        cli.run(*command(tmp_path, kind, out, "--size", "2560x1440", "--force", "--downscale-max-dim", 80))
+    assert error.value.code == 1
+    assert out.read_bytes() == b"previous approved original"
+    assert downscaled.read_bytes() == b"previous approved preview"
+
+
+@pytest.mark.parametrize("kind", ["generate", "edit", "generate-batch"])
+def test_auto_size_accepts_provider_selected_dimensions(cli, tmp_path, kind):
+    out = tmp_path / "output.png"
+    raw = image_bytes(size=(1280, 720))
+    getattr(cli.provider, "generate_batch" if kind == "generate-batch" else kind).return_value = [base64.b64encode(raw).decode()]
+    assert cli.run(*command(tmp_path, kind, out, "--size", "auto")) == 0
+    assert out.read_bytes() == raw
+
+
+def test_every_response_size_is_checked_before_writing_any_image(cli, tmp_path):
+    cli.provider.generate.return_value = [cli.encoded, base64.b64encode(image_bytes(size=(16, 9))).decode()]
+    with pytest.raises(SystemExit):
+        cli.run("generate", "--prompt", "Synthetic slides", "--n", 2, "--out", tmp_path / "deck.png")
+    assert not (tmp_path / "deck-1.png").exists()
+    assert not (tmp_path / "deck-2.png").exists()

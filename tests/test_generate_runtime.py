@@ -31,7 +31,7 @@ def test_core_install_uses_runtime_prepared_by_fyai_setup(tmp_path, monkeypatch)
                       check=True, capture_output=True, text=True)
     assert result.stdout.strip() == "None"
     image = io.BytesIO()
-    Image.new("RGB", (64, 36), "navy").save(image, format="PNG")
+    Image.new("RGB", (2560, 1440), "navy").save(image, format="PNG")
     encoded = base64.b64encode(image.getvalue()).decode("ascii")
     calls = []
     runtime = generate_backend.ROOT / generate_backend.VENDOR / generate_backend.SKILL / "scripts/codex_ppt_runtime.py"
@@ -71,7 +71,7 @@ def test_core_install_uses_runtime_prepared_by_fyai_setup(tmp_path, monkeypatch)
     ]) == 0
     assert calls[-1][0] == str(shared_python.absolute())
     with Image.open(output) as generated:
-        assert generated.size == (64, 36)
+        assert generated.size == (2560, 1440)
         assert generated.getpixel((0, 0)) == (0, 0, 128)
 
 

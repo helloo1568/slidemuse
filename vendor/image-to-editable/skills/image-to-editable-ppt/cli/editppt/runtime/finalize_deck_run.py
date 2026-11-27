@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 import argparse
+import copy
 import json
+import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
-from deck_run_state import load_deck, load_jobs, now_iso, run_dir_from_target, save_deck, save_jobs, set_run_status, sha256_file, write_json
+from deck_run_state import load_deck, load_jobs, now_iso, read_json, resolve_inside, run_dir_from_target, save_deck, save_jobs, set_run_status, sha256_file, write_json
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -34,13 +37,17 @@ def assert_pages_ready(run_dir, jobs):
             problems.append(f"{page['page_id']} validation_passed={result.get('validation_passed')}")
         outputs = result.get("outputs") or {}
         hashes = result.get("hashes") or {}
-        if not outputs or set(outputs) != set(hashes):
+        if not {"page_manifest", "validation"}.issubset(outputs) or set(outputs) != set(hashes):
             problems.append(f"{page['page_id']} missing recorded output hashes; validate and record the page again")
             continue
         files = [(outputs[key], digest) for key, digest in hashes.items()]
         files.extend((result.get("asset_hashes") or {}).items())
         for relative_path, expected_hash in files:
-            path = Path(run_dir) / relative_path
+            try:
+                path = resolve_inside(run_dir, relative_path)
+            except ValueError:
+                problems.append(f"{page['page_id']} recorded artifact is outside the run: {relative_path}")
+                continue
             if not path.is_file() or sha256_file(path) != expected_hash:
                 problems.append(
                     f"{page['page_id']} recorded artifact changed or missing: {relative_path}; "
@@ -48,6 +55,28 @@ def assert_pages_ready(run_dir, jobs):
                 )
     if problems:
         raise SystemExit("Pages are not ready for finalize:\n" + "\n".join(problems))
+
+
+def recorded_deck(run_dir, deck, jobs):
+    """Bind compilation and validation to the exact artifacts accepted by record."""
+    pages, recorded = deck.get("pages", []), jobs.get("pages", [])
+    ids = [page.get("page_id") for page in pages]
+    if (not pages or len(pages) != len(recorded) or len(ids) != len(set(ids))
+            or any(not value for value in ids)
+            or ids != [page.get("page_id") for page in recorded]
+            or int(deck.get("page_count", len(pages))) != len(pages)
+            or deck.get("run_id") != jobs.get("run_id")):
+        raise SystemExit("Recorded page identities/order differ from the deck; reconcile the run before finalize")
+    bound = copy.deepcopy(deck)
+    bound["job_dir"] = str(run_dir)
+    bound["page_count"] = len(pages)
+    for index, (page, record) in enumerate(zip(bound["pages"], recorded), 1):
+        if page.get("page_index", index) != index or record.get("page_index", index) != index:
+            raise SystemExit("Recorded page indices differ from deck order")
+        outputs, hashes = record["result"]["outputs"], record["result"]["hashes"]
+        page.update(manifest=outputs["page_manifest"], validation=outputs["validation"],
+                    manifest_sha256=hashes["page_manifest"], validation_sha256=hashes["validation"])
+    return bound
 
 
 def main():
@@ -59,14 +88,29 @@ def main():
     deck = load_deck(run_dir)
     jobs = load_jobs(run_dir)
     assert_pages_ready(run_dir, jobs)
+    assembly = recorded_deck(run_dir, deck, jobs)
 
-    out = final_output_path(run_dir, deck)
+    out = final_output_path(run_dir, assembly).resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
-    run([sys.executable, SCRIPT_DIR / "build_pptx_from_manifest.py", "--deck-manifest", run_dir / "deck_manifest.json", "--out", out])
-    set_run_status(run_dir, "deck_built", "final pptx built")
-
     validation = out.parent / "validation.json"
-    run([sys.executable, SCRIPT_DIR / "validate_pptx.py", out, "--deck-manifest", run_dir / "deck_manifest.json", "--report", validation])
+    assembly_path = out.with_name(out.stem + "-assembly.json")
+    with tempfile.TemporaryDirectory(prefix=".finalize-", dir=out.parent) as temporary:
+        stage = Path(temporary)
+        staged_deck, staged_out, staged_validation = stage / "assembly.json", stage / out.name, stage / "validation.json"
+        write_json(staged_deck, assembly)
+        run([sys.executable, SCRIPT_DIR / "build_pptx_from_manifest.py", "--deck-manifest", staged_deck, "--out", staged_out])
+        run([sys.executable, SCRIPT_DIR / "validate_pptx.py", staged_out, "--deck-manifest", staged_deck, "--report", staged_validation])
+        # Inputs must still be the same recorded revision when publishing.
+        assert_pages_ready(run_dir, jobs)
+        if load_jobs(run_dir) != jobs or load_deck(run_dir) != deck:
+            raise SystemExit("Run changed during finalize; retain the existing output and finalize the current records again")
+        report = read_json(staged_validation)
+        report.update(pptx=str(out), deck_manifest=str(assembly_path))
+        write_json(staged_validation, report)
+        os.replace(staged_out, out)
+        os.replace(staged_deck, assembly_path)
+        os.replace(staged_validation, validation)
+    set_run_status(run_dir, "deck_built", "final pptx built")
     set_run_status(run_dir, "deck_validated", "final pptx validation passed")
 
     for page in jobs.get("pages", []):
@@ -76,8 +120,8 @@ def main():
     jobs["run_status"] = "complete"
     jobs["updated_at"] = now_iso()
     save_jobs(run_dir, jobs)
-    deck["completed_at"] = now_iso()
-    save_deck(run_dir, deck)
+    assembly["completed_at"] = now_iso()
+    save_deck(run_dir, assembly)
     summary = {
         "schema_version": 1,
         "run_id": deck.get("run_id"),

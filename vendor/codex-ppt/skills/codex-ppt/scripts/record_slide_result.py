@@ -17,6 +17,7 @@ from slide_run_state import (
     now_iso,
     rel_to_deck,
     resolve_deck_path,
+    sample_method,
     set_run_status,
     sha256_file,
     update_jobs_run_status,
@@ -149,6 +150,7 @@ def main() -> int:
         prompt_job = _load_prompt_job(deck_dir, slide)
         expected_backend_labels = _expected_backend_labels(jobs, slide, prompt_job)
         matched_expected_backend = _matched_expected_backend(backend_used, expected_backend_labels)
+        method = sample_method(jobs, prompt_job)
         source = ensure_file(Path(args.selected_source).expanduser().resolve(), "selected source image")
         source_hash = sha256_file(source)
         generation_record = None
@@ -158,7 +160,13 @@ def main() -> int:
             request_hash = validate_dispatch_inputs(deck_dir, slide)
             generation_record = json.loads(Path(args.generation_record).read_text(encoding="utf-8-sig"))
             validate_generation_record(generation_record, slide_id=slide["slide_id"],
-                                       request_sha256=request_hash, source_sha256=source_hash, backend=backend_used)
+                                       request_sha256=request_hash, source_sha256=source_hash, backend=backend_used,
+                                       expected_model=method.get("model"))
+        elif method.get("model") is not None:
+            raise ValueError("An approved sample model requires a generation record with the actual model")
+        # Seven-field call records prove backend/model bindings, not every
+        # declared mode, quality or context-preparation detail of the sample.
+        unverified_method_fields = sorted(set(method) - {"backend_used", "selected_backend", "backend", "tool_name", "model"})
         out_ref = slide.get("out") or f"origin_image/{slide['slide_id']}.png"
         target = resolve_deck_path(deck_dir, out_ref)
         try:
@@ -178,7 +186,8 @@ def main() -> int:
             "final_image_sha256": sha256_file(target),
             "expected_backend": matched_expected_backend,
             "expected_backend_labels": expected_backend_labels,
-            "sample_generation_method_matched": bool(matched_expected_backend),
+            "sample_generation_method_matched": bool(method and matched_expected_backend and not unverified_method_fields),
+            "unverified_sample_method_fields": unverified_method_fields,
             "qa_note": args.qa_note,
             "recorded_at": now_iso(),
             **({"source_kind": "generated", "generation_record": generation_record}
@@ -188,8 +197,8 @@ def main() -> int:
         update_jobs_run_status(jobs)
         run_status = jobs.get("run_status")
         slide_id = slide["slide_id"]
-    if run_status == "slides_recorded":
-        set_run_status(deck_dir, "slides_recorded", "all slide images recorded")
+        if run_status == "slides_recorded":
+            set_run_status(deck_dir, "slides_recorded", "all slide images recorded")
 
     print(json.dumps({"slide_id": slide_id, "status": "recorded"}, ensure_ascii=False))
     return 0

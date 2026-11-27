@@ -114,6 +114,8 @@ def test_discovery_requires_poppler_and_respects_backend(monkeypatch):
     monkeypatch.setattr(runtime_environment.shutil, "which", lambda name: "/bin/soffice" if name == "soffice" else None)
     assert runtime_environment.renderer_environment("libreoffice")["ready"] is False
     monkeypatch.setattr(runtime_environment.shutil, "which", lambda name: "/bin/" + name if name in ("soffice", "pdftoppm") else None)
+    assert runtime_environment.renderer_environment("libreoffice")["ready"] is False
+    monkeypatch.setattr(runtime_environment.shutil, "which", lambda name: "/bin/" + name if name in ("soffice", "pdftoppm", "pdfinfo") else None)
     assert runtime_environment.renderer_environment("libreoffice")["ready"] is True
     assert runtime_environment.renderer_environment("powerpoint")["ready"] is False
 

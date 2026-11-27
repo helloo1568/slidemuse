@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import os
 import re
@@ -12,7 +13,6 @@ from pathlib import Path
 
 from audit_page_content import text_present
 from content_density import prompt_elements, validate_content, visible_text
-from filelock import FileLock
 from json_io import read_json
 from PIL import Image, ImageOps
 from pptx import Presentation
@@ -54,6 +54,11 @@ def prepare_spec(spec):
     spec = copy.deepcopy(spec)
     if not isinstance(spec.get("slides"), list) or not spec["slides"]:
         raise ValueError("Generation spec requires slides")
+    if "canvas" in spec:
+        canvas = spec["canvas"]
+        if (not isinstance(canvas, dict) or set(canvas) != {"width", "height"}
+                or any(type(value) is not int or value <= 0 for value in canvas.values())):
+            raise ValueError("Generation canvas requires positive integer width and height")
     policy = spec.get("content_policy")
     for number, slide in enumerate(spec["slides"], 1):
         if not isinstance(slide, dict):
@@ -109,24 +114,44 @@ def from_page_spec(path):
     return result
 
 
+def generation_helpers():
+    helper = Path(__file__).resolve().parents[1] / "vendor/codex-ppt/skills/codex-ppt/scripts/slide_run_state.py"
+    return runpy.run_path(str(helper))
+
+
+def prepared_contract_files(deck, spec, jobs, prepared_files):
+    """Build companion bytes before the helper commits any prepared output."""
+    if len(jobs["slides"]) != len(spec["slides"]):
+        raise ValueError("Prepared jobs do not match the approved content")
+    pages = []
+    for entry, slide in zip(jobs["slides"], sorted(spec["slides"], key=lambda s: s.get("number", 0))):
+        if entry["status"] == "accepted" and sha(inside(deck, entry["out"])) != entry["result"]["final_image_sha256"]:
+            raise ValueError("Provided sample changed during preparation")
+        pages.append({"id": entry["slide_id"], "number": entry["number"],
+                      "expected_text": visible_text(slide, policy=spec.get("content_policy")), "content": slide,
+                      "job_sha256": hashlib.sha256(prepared_files[entry["job"]]).hexdigest()})
+    jobs["slidemuse_content_policy"] = "1.0"
+    contract = {"version": "1.0", "pages": pages,
+                **({"canvas": dict(spec["canvas"])} if "canvas" in spec else {}),
+                "speaker_notes_policy": "explicit-only", "generation_evidence_policy": "1.0",
+                "scope": "Declared content; evidence accuracy and readability require actual review."}
+    files = {CONTRACT: (json.dumps(contract, ensure_ascii=False, indent=2) + "\n").encode("utf-8")}
+    if any("speaker_notes" in slide for slide in spec["slides"]):
+        notes = "\n\n".join(f"## Slide {slide['number']}: {slide['title']}\n{slide.get('speaker_notes', '')}"
+                             for slide in spec["slides"])
+        files["speech.md"] = (notes + "\n").encode("utf-8")
+    return files
+
+
 def save_contract(deck, spec):
-    jobs_path = deck / "slide_jobs.json"
-    with FileLock(str(deck / ".slide_jobs.json.lock")):
-        jobs = read_json(jobs_path)
-        pages = []
-        for entry, slide in zip(jobs["slides"], sorted(spec["slides"], key=lambda s: s.get("number", 0))):
-            if entry["status"] == "accepted":
-                image = inside(deck, entry["out"])
-                entry["result"]["final_image_sha256"] = sha(image)
-            pages.append({"id": entry["slide_id"], "number": entry["number"],
-                          "expected_text": visible_text(slide, policy=spec.get("content_policy")), "content": slide,
-                          "job_sha256": sha(inside(deck, entry["job"]))})
-        jobs["slidemuse_content_policy"] = "1.0"
-        write(jobs_path, jobs)
-        write(deck / CONTRACT, {"version": "1.0", "pages": pages,
-                               "speaker_notes_policy": "explicit-only",
-                               "generation_evidence_policy": "1.0",
-                               "scope": "Declared content; evidence accuracy and readability require actual review."})
+    """Compatibility entry point; keep the jobs and content snapshot together."""
+    helpers = generation_helpers()
+    with helpers["preparation_lock"](deck):
+        jobs = read_json(deck / "slide_jobs.json")
+        prompts = {entry["job"]: inside(deck, entry["job"]).read_bytes() for entry in jobs["slides"]}
+        files = prepared_contract_files(deck, spec, jobs, prompts)
+        files["slide_jobs.json"] = (json.dumps(jobs, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        helpers["commit_preparation"](deck, files)
 
 
 def checked_images(deck, jobs, ratio=None):
@@ -138,11 +163,12 @@ def checked_images(deck, jobs, ratio=None):
     images = []
     validate_generation = None
     validate_dispatch = None
+    sample_method = None
     if jobs.get("generation_evidence_policy") == "1.0":
-        helper = (Path(__file__).resolve().parents[1] / "vendor/codex-ppt/skills/codex-ppt/scripts/slide_run_state.py")
-        helpers = runpy.run_path(str(helper))
+        helpers = generation_helpers()
         validate_generation = helpers["validate_generation_record"]
         validate_dispatch = helpers["validate_dispatch_inputs"]
+        sample_method = helpers["sample_method"]
     for slide in slides:
         label = slide["slide_id"]
         if label != f"slide_{slide['number']:02d}":
@@ -159,9 +185,10 @@ def checked_images(deck, jobs, ratio=None):
                 raise ValueError(f"{label}: final image differs from its recorded original")
             if result.get("source_kind") == "generated":
                 request_hash = validate_dispatch(deck, slide)
+                method = sample_method(jobs, read_json(inside(deck, slide["job"])))
                 validate_generation(result.get("generation_record"), slide_id=label,
                                     request_sha256=request_hash, source_sha256=image_hash,
-                                    backend=result.get("backend_used"))
+                                    backend=result.get("backend_used"), expected_model=method.get("model"))
             elif result.get("source_kind") == "provided" and result.get("accepted_sample") is True:
                 if not isinstance(result.get("source_ref"), str) or not result["source_ref"].strip():
                     raise ValueError(f"{label}: provided sample requires its actual source reference")
@@ -169,11 +196,18 @@ def checked_images(deck, jobs, ratio=None):
                 raise ValueError(f"{label}: missing generation evidence or declared provided sample")
         with Image.open(path) as im:
             im.verify()
-        if ratio:
-            with Image.open(path) as im:
-                w, h = ImageOps.exif_transpose(im).size
-                if abs(w - h * ratio) > max(1, ratio) + 1e-6:
-                    raise ValueError(f"{label}: image aspect ratio differs from export")
+        with Image.open(path) as im:
+            w, h = ImageOps.exif_transpose(im).size
+        canvas = jobs.get("canvas")
+        if canvas is not None:
+            if (not isinstance(canvas, dict) or set(canvas) != {"width", "height"}
+                    or any(type(value) is not int or value <= 0 for value in canvas.values())):
+                raise ValueError("Generation canvas requires positive integer width and height")
+            if w < canvas["width"] or h < canvas["height"]:
+                raise ValueError(f"{label}: image resolution {w}x{h} is below approved canvas "
+                                 f"{canvas['width']}x{canvas['height']}; do not silently upscale")
+        if ratio and abs(w - h * ratio) > max(1, ratio) + 1e-6:
+            raise ValueError(f"{label}: image aspect ratio differs from export")
         images.append(path)
     actual = {p.resolve() for p in (deck / "origin_image").iterdir()
               if p.is_file() and re.fullmatch(r"slide_\d+\.(png|jpe?g|gif|bmp)", p.name, re.IGNORECASE)}
@@ -188,6 +222,8 @@ def check_contract(deck, jobs):
             and jobs.get("generation_evidence_policy") != "1.0"):
         raise ValueError("Generation evidence policy changed; retain the current source records")
     pages = contract.get("pages", [])
+    if contract.get("canvas") != jobs.get("canvas"):
+        raise ValueError("Generation canvas differs from the approved content contract")
     if [p["id"] for p in pages] != [s["slide_id"] for s in jobs["slides"]]:
         raise ValueError("Content contract page order differs from jobs")
     for page, slide in zip(pages, jobs["slides"]):
@@ -196,7 +232,10 @@ def check_contract(deck, jobs):
     return contract
 
 
-def review(deck, record, initialize=False):
+def review(deck, record, initialize=False, *, _locked=False):
+    if not _locked:
+        with generation_helpers()["preparation_lock"](deck):
+            return review(deck, record, initialize, _locked=True)
     jobs = read_json(deck / "slide_jobs.json")
     images = checked_images(deck, jobs)
     contract = check_contract(deck, jobs)
@@ -240,14 +279,14 @@ def assemble(argv, vendor_script):
     deck = inside(args.base_dir, Path(name).stem)
     if not (deck / "slide_jobs.json").is_file():
         raise ValueError("Missing slide_jobs.json; prepare and record every page before assembly")
-    with FileLock(str(deck / ".slide_jobs.json.lock")):
+    with generation_helpers()["preparation_lock"](deck):
         jobs = read_json(deck / "slide_jobs.json")
         ratio = 16 / 9 if args.aspect_ratio == "16:9" else 4 / 3
         images = checked_images(deck, jobs, ratio)
         if jobs.get("slidemuse_content_policy") == "1.0" and not (deck / CONTRACT).is_file():
             raise ValueError("Current generation job is missing its content contract")
         if (deck / CONTRACT).exists():
-            report = review(deck, deck / REVIEW)
+            report = review(deck, deck / REVIEW, _locked=True)
             if report["status"] != "pass":
                 raise ValueError("Content review incomplete or failed; run generate review and inspect findings")
         contract = read_json(deck / CONTRACT) if (deck / CONTRACT).exists() else {}
@@ -257,12 +296,26 @@ def assemble(argv, vendor_script):
         else:
             notes = runpy.run_path(str(vendor_script))["load_speaker_notes"](str(deck))
         before = [sha(p) for p in images]
+        embedded_hashes = []
         prs = Presentation()
         prs.slide_width, prs.slide_height = Inches(10), Inches(10 / ratio)
         for i, path in enumerate(images, 1):
             slide = prs.slides.add_slide(prs.slide_layouts[6])
-            picture = slide.shapes.add_picture(str(path), 0, 0, width=prs.slide_width, height=prs.slide_height)
-            if hashlib.sha256(picture.image.blob).hexdigest() != before[i - 1]:
+            raw = path.read_bytes()
+            if hashlib.sha256(raw).hexdigest() != before[i - 1]:
+                raise ValueError("Source image changed during assembly")
+            media = raw
+            with Image.open(io.BytesIO(raw)) as image:
+                if image.getexif().get(274, 1) in range(2, 9):
+                    normalized = io.BytesIO()
+                    transposed = ImageOps.exif_transpose(image)
+                    if transposed.mode == "CMYK":
+                        transposed = transposed.convert("RGB")
+                    transposed.save(normalized, format="PNG")
+                    media = normalized.getvalue()
+            embedded_hashes.append(hashlib.sha256(media).hexdigest())
+            picture = slide.shapes.add_picture(io.BytesIO(media), 0, 0, width=prs.slide_width, height=prs.slide_height)
+            if hashlib.sha256(picture.image.blob).hexdigest() != embedded_hashes[-1]:
                 raise ValueError("Image embedding changed source media")
             if notes.get(i, ""):
                 slide.notes_slide.notes_text_frame.text = notes[i]
@@ -275,7 +328,7 @@ def assemble(argv, vendor_script):
             if len(reopened.slides) != len(images) or before != [sha(p) for p in images]:
                 raise ValueError("Images changed during assembly")
             for i, slide in enumerate(reopened.slides, 1):
-                if (hashlib.sha256(slide.shapes[0].image.blob).hexdigest() != before[i - 1]
+                if (hashlib.sha256(slide.shapes[0].image.blob).hexdigest() != embedded_hashes[i - 1]
                         or read_notes(slide) != canonical_notes(notes.get(i, ""))):
                     raise ValueError("Exported media/notes differ from input")
             os.replace(temporary, target)

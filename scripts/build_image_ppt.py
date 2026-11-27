@@ -9,7 +9,6 @@ import math
 import os
 import re
 import tempfile
-from contextlib import nullcontext
 from pathlib import Path
 
 from PIL import Image, ImageOps
@@ -48,6 +47,7 @@ def prepare_image(
 ) -> Path:
     """Return an embeddable image, optionally downscaled and re-encoded."""
     with Image.open(image_path) as image:
+        oriented = image.getexif().get(0x0112, 1) in range(2, 9)
         image = ImageOps.exif_transpose(image)
         if max_width > 0 and image.width > max_width:
             new_height = round(image.height * max_width / image.width)
@@ -64,7 +64,11 @@ def prepare_image(
             target = work_dir / f"{index:04d}-{image_path.stem}{suffix}"
             image.save(target, "JPEG", quality=jpeg_quality, optimize=True)
         else:
-            suffix = image_path.suffix.lower()
+            # Office renderers do not consistently apply JPEG EXIF orientation.
+            # Store the transformed pixels losslessly unless JPEG was requested.
+            suffix = ".png" if oriented else image_path.suffix.lower()
+            if suffix == ".png" and image.mode == "CMYK":
+                image = image.convert("RGB")
             target = work_dir / f"{index:04d}-{image_path.stem}{suffix}"
             if suffix in (".jpg", ".jpeg"):
                 image.save(target, "JPEG", quality=95)
@@ -171,7 +175,7 @@ def build_deck(args: argparse.Namespace) -> dict[str, object]:
     slide_height = presentation.slide_height
     blank_layout = presentation.slide_layouts[6]
     process = args.max_width > 0 or args.jpeg_quality > 0
-    with (tempfile.TemporaryDirectory() if process or spec else nullcontext(None)) as tmp:
+    with tempfile.TemporaryDirectory() as tmp:
         for index, image_path in enumerate(images):
             source_path = image_path
             if spec:
@@ -180,11 +184,13 @@ def build_deck(args: argparse.Namespace) -> dict[str, object]:
                     raise ValueError("Approved image changed during export")
                 source_path = Path(tmp) / f"approved-{index:04d}{image_path.suffix.lower()}"
                 source_path.write_bytes(raw)
+            with Image.open(source_path) as image:
+                oriented = image.getexif().get(0x0112, 1) in range(2, 9)
             embed_path = (
                 prepare_image(
                     source_path, index, Path(tmp), args.max_width, args.jpeg_quality, args.background
                 )
-                if process
+                if process or oriented
                 else source_path
             )
             slide = presentation.slides.add_slide(blank_layout)

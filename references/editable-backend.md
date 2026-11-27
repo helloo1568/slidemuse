@@ -2,6 +2,8 @@
 
 S6 直接还原图片/PDF/图片版 PPTX，或需要 Scene 尚未表达的曲线、表格单元格样式、测量提示、公式和逐页恢复时读取。统一入口为 `slidemuse.py rebuild`，不用另外安装名为 `editppt` 的全局命令。
 
+`prepare --job-dir` 只用于新建或空目录。已有任务通过其状态、派发、结果登记和恢复命令继续，重复 prepare 不会覆盖原图或清空活动任务。图片版 PPTX 的轻量提取只接受可忠实还原的可见整页图片；隐藏图片对象及其他不支持的效果需先真实渲染。
+
 上游为 `ningzimu/image-to-editable-ppt-skill`，完整安装用源码、字段参考、提示模板和测试随技能保留。[upstream.json](../vendor/image-to-editable/upstream.json)记录固定提交、原始文件哈希及本地补丁哈希；[MIT 许可证](../vendor/image-to-editable/LICENSE)随包保留。上游 SKILL 是来源记录，当前任务仍以 SlideMuse 主入口、用户授权和宿主工具规则为准。
 
 ## 安装和选择
@@ -78,6 +80,8 @@ python slidemuse.py rebuild formula render-latex work/rebuild/pages/page_001 --t
 用户选用 PaddleOCR 或外部图片 API 时，可不加 `--offline` 并配置对应服务，密钥不写入任务文件。接口接入不代表本机账号/服务可用性已实测；原生工具存在时按宿主要求使用原生工具。
 
 ## 验证与交付
+
+`run finalize` 使用 `run record` 已登记并核验的页面文件，支持 `page_result.json` 指定的自定义 Manifest 和输出路径。最终验证按实际幻灯片顺序核对正文、对象、图片媒体及页面关联的备注；页级旧报告不能代替最终包检查。
 
 完整后端 `preview.png` 是 Pillow 示意预览，不是 Office 排版。最终 PPTX 仍执行：
 

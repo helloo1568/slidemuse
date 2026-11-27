@@ -18,7 +18,8 @@ def renderer_environment(backend="auto"):
         except OSError:
             pass
     powerpoint = bool(shell and registered)
-    libreoffice = bool((shutil.which("soffice") or shutil.which("libreoffice")) and shutil.which("pdftoppm"))
+    libreoffice = bool((shutil.which("soffice") or shutil.which("libreoffice"))
+                       and shutil.which("pdftoppm") and shutil.which("pdfinfo"))
     available = {"powerpoint": powerpoint, "libreoffice": libreoffice}
     candidates = [backend] if backend != "auto" else (["powerpoint", "libreoffice"] if os.name == "nt" else ["libreoffice"])
     return {"requested": backend, "available": available, "ready": any(available.get(name, False) for name in candidates),
