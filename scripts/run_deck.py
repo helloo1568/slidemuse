@@ -13,6 +13,8 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
+from audit_chart_geometry import charts as geometry_charts
+from audit_chart_geometry import template as geometry_template
 from audit_editability import audit as audit_objects
 from audit_page_content import template as content_template
 from build_editable_ppt import build_deck as build_editable
@@ -222,6 +224,25 @@ def archive_review(work, path):
         target.parent.mkdir(parents=True, exist_ok=True)
         if not target.exists():
             shutil.copyfile(path, target)
+
+
+def default_chart_observations(spec_path, spec, work):
+    """Preserve current observations; changed material cannot inherit a pass."""
+    path = work / "chart-observations.json"
+    want = geometry_template(spec_path, spec)
+    if path.exists():
+        old = read(path)
+        matches = (isinstance(old, dict) and old.get("version") == want["version"]
+                   and old.get("page_spec_sha256") == want["page_spec_sha256"]
+                   and isinstance(old.get("charts"), list)
+                   and all(isinstance(x, dict) for x in old["charts"])
+                   and [(x.get("slide_id"), x.get("element_id"), x.get("image_sha256")) for x in old["charts"]]
+                   == [(x["slide_id"], x["element_id"], x["image_sha256"]) for x in want["charts"]])
+        if matches:
+            return path
+        archive_review(work, path)
+    write(path, want)
+    return path
 
 
 def update_templates(inputs, work, report, page_keys, previous):
@@ -477,8 +498,12 @@ def run(config_path, work, stop_after=None, refresh_render=False):
                 result["actions"].extend(action("missing_evidence", "缺少审阅证据文件。按当前模板实际审阅后提供，再重复原命令。", file=p) for p in missing)
                 result["status"] = "awaiting_review"
                 return summary(work, result)
+            chart_path = inputs["optional"].get("chart_observations")
+            if (chart_path is None and config["mode"] == "image" and inputs["spec"].get("content_policy") == "1.1"
+                    and geometry_charts(inputs["spec"])):
+                chart_path = default_chart_observations(inputs["spec_path"], inputs["spec"], work)
             scorecard = evaluate(inputs["spec_path"], work / "render-report.json", review_path, observations,
-                                 inputs["scene_path"], inputs["optional"].get("chart_observations"), inputs["optional"].get("data_bindings"))
+                                 inputs["scene_path"], chart_path, inputs["optional"].get("data_bindings"))
             write(work / "scorecard.json", scorecard)
             # Existing current-hash visual review is the gate for layout. Keep
             # estimates in the report, but do not ask again after genuine review.
@@ -507,7 +532,7 @@ def run(config_path, work, stop_after=None, refresh_render=False):
                 for sid in scorecard["content"]["missing_observations"]:
                     result["actions"].append(review_action("content_observations", sid, "缺少此页文字观测。实际查看源图片后补充记录。", observations[0]))
             if scorecard["chart_geometry"].get("status") in ("fail", "incomplete"):
-                result["actions"].append(action("chart_geometry", "测量当前图表端点并修复几何检查问题。", file=inputs["optional"].get("chart_observations")))
+                result["actions"].append(action("chart_geometry", "对照原始数据实测轴与端点；比例错则停止交付，按授权定点修复或报告，不重排整页。", file=chart_path))
             result["stages"]["evaluate"] = scorecard["status"]
             result["status"] = "complete" if scorecard["status"] == "pass" else "failed" if scorecard["status"] == "fail" else "awaiting_review"
             if result["status"] != "complete" and not result["actions"]:

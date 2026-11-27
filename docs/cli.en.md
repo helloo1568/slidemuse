@@ -21,7 +21,7 @@ The launcher prefers `.venv/Scripts/python.exe` on Windows or `.venv/bin/python`
 | `run task/job.json task-output` | `scripts/run_deck.py` | Build, render, evaluate or resume |
 | `render deck.pptx previews` | `scripts/render_deck.py` | Render an actual PPTX |
 | `validate page-spec.json --strict` | `scripts/validate_page_spec.py` | Validate specifications |
-| `style-reference page-spec.json --box x y w h --output styles/reference.png` | `scripts/style_reference.py` | Register a single-page visual reference bound to the selected source |
+| `style-reference page-spec.json --box x y w h --output styles/reference.png` | `scripts/style_reference.py` | Register a style reference bound to the selected source |
 | `produce prepare page-spec.json` | `scripts/page_production.py` | [Resume image production](../references/page-production.md): original snapshots, protected evidence composition, bound reviews and region updates |
 | `audit deck.pptx --scene scene.json` | `scripts/audit_editability.py` | Check native objects |
 | `review task/job.json task-output` | `scripts/review_panel.py` | Export a review panel or import records |
@@ -79,6 +79,6 @@ The LibreOffice backend requires `soffice`, `pdftoppm` and `pdfinfo`. Full and s
 
 ### Preserve the chosen visual style (2.30.0)
 
-After selecting an overview, register a measured complete single-page region with `style-reference <page-spec> --box <x> <y> <width> <height> --output <reference-PNG>`. Relative output paths resolve from the Page Spec directory; use `--single-page` for an explicitly locked independent page. This image is only a visual reference, never a final slide. See [style selection](../references/style-options.md).
+Register a chosen standalone card with `style-reference <page-spec> --style-sample --output <reference-PNG>`. From a multi-panel overview, use the measured `--box <x> <y> <width> <height>` of one representative region; its aspect ratio does not matter. Relative output paths resolve from the Page Spec directory; use `--single-page` for an explicitly locked independent page. This image is only a visual reference, never a final slide. See [style selection](../references/style-options.md).
 
 The `request_reference` returned by `produce request` and the per-page inputs produced by `generate prepare --page-spec` bind to the same selected visual baseline. Attach the actual image to the image model; a path in prompt text is not an attachment. Structured requests requiring images cannot use text-only `generate image generate`; compatible APIs use `generate image edit --image <actual-reference>`. Review `style_consistency` against the correct reference. Changed, missing or mismatched references block new approval and delivery.

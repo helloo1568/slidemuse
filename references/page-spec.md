@@ -12,7 +12,7 @@
 
 ## 生命周期
 
-正式逐页生成使用 `produce request` 单页包；完整选型总览留作授权与对照，先用 `style-reference` 从已选总览登记一个实测完整单页，正式请求实际附上该单页参考。每页都绑定同一选型基线，不能在首次生成或后续已批准页面中悄悄换风格。明确锁定的独立单页图片直接保留。详见[风格参考登记](style-options.md)。
+正式逐页生成使用 `produce request` 单页包；完整选型总览留作授权与对照，先用 `style-reference` 登记所选独立风格卡或总览中的一个实测连续区域，正式请求实际附上参考图。每页都绑定同一选型基线，不能在首次生成或后续已批准页面中悄悄换风格。明确锁定的独立单页图片直接保留。详见[风格参考登记](style-options.md)。
 
 1. Step 1 内容确认后，把页序、标题、核心结论、准确文字/数据和来源写入 `deck-spec.md`。
 2. 风格锁定后进入 S5，将已确认内容与 `style` 一起写入 Page Spec，再运行验证器；不得提前写入虚假的风格授权。
@@ -28,7 +28,7 @@
 - 新材料用 `content_policy: "1.1"`。在 `workflow` 里记录 `content_mode`、`approved_content_version` 和 `outline_ref`。版本必须和 `content_version` 一致。定位可用消息链接、消息 ID 或可找回的版本和消息描述。
 - `workflow.content_mode` 可取 `confirmed`（确认逐页大纲）、`delegated`（明确由 Agent 决定内容并已展示）、`reused`（用户明确沿用既有版本）或 `authorized-revision`（在既有版本上直接应用用户明确指定的局部修改）。沿用或局部修改时，定位可指向历史大纲、锁定页面或已记录的变更对话。
 - `style.decision` 记录 `selected`、`locked-reference`、`skipped` 或 `delegated`，并在 `style.authorization` 写用户对风格阶段的原话。1.1 下，四套方案用户选定或授权代选时，还须写 `style.option`（1–4）、`style.choice`（名称）及 `style.tokens.reference_images`（所选预览放首位）。明确锁定模板或明确要求跳过预览时分别用 `locked-reference` 或 `skipped`。
-- `style.generation_reference` 保存 `version: "1.0"`、`kind`（`preview-crop` 或明确锁定的 `single-page`）、`source`、`source_sha256`、`box`、`image` 与 `image_sha256`，由 `style-reference` 工具登记。路径相对 Page Spec，派生图逐像素对应 EXIF 校正后的源区域。新 1.1 选型任务与已有视觉参考的历史选型任务，在新请求前必须准备该基线；旧批准记录可读，不自动补称已通过新风格校准。
+- `style.generation_reference` 保存 `version: "1.0"`、`kind`（裁切区域 `preview-crop`、独立风格卡 `style-sample` 或明确锁定的 `single-page`）、`source`、`source_sha256`、`box`、`image` 与 `image_sha256`，由 `style-reference` 工具登记。路径相对 Page Spec，派生图逐像素对应 EXIF 校正后的源区域。新 1.1 选型任务与已有视觉参考的历史选型任务，在新请求前必须准备该基线；旧批准记录可读，不自动补称已通过新风格校准。
 - `slides[].role` 记录页面类型：`cover`、`agenda`、`section-divider`、`concept`、`process`、`comparison`、`timeline`、`data-evidence`、`architecture`、`case-study`、`summary`、`qa`。它描述页面作用，与 `deck-spec.md` 页序表一致；视觉系统仍由风格选择决定。
 - `slides[].key_points` 保留该页已确认支撑，逐条与内容稿对应；普通页默认 3–5 条，声明 density 例外后按用途接受 1–8 条非空不重复文本（具体范围见 content-density.md）。要点是论证复杂度的下限，不是凑字数的理由；封面、过渡等页按各自必答内容处理，不强行填满。详见[内容大纲](content-outline.md)。
 - `slides[].elements` 使用稳定 ID。准确文字写 `text`，表格/图表原始值写 `data`，来源写 `source_ref`。

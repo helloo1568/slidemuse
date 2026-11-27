@@ -94,7 +94,7 @@ def test_missing_derivation_is_readable_but_explicit_generation_requires_it(sele
     ("different-box", "pixels differ"),
     ("other-option", "first selected"),
     ("whole-overview", "entire overview"),
-    ("wrong-ratio", "16:9"),
+    ("wrong-ratio", "pixels differ"),
     ("outside-box", "inside.*source"),
     ("missing-closure", "retained in"),
     ("renamed-jpeg", "normalized PNG"),
@@ -189,7 +189,7 @@ def test_locked_single_page_preserves_four_by_three_and_text_only_compatibility(
 
 
 @pytest.mark.parametrize("box", [None, [0, 0, 640, 360], [-1, 0, 160, 90], [0, 0, 0, 90],
-                                  [500, 300, 160, 90], [0, 0, 160, 100], [0, 0, 1, 1], [0, 0, 160.0, 90]])
+                                  [500, 300, 160, 90], [0, 0, 1, 1], [0, 0, 160.0, 90]])
 def test_invalid_or_implicit_crop_never_changes_spec_or_output(selected, box):
     path, source = selected
     before = path.read_bytes(), source.read_bytes()
@@ -319,10 +319,11 @@ def test_input_change_during_preparation_is_not_overwritten(selected, monkeypatc
     assert not (path.parent / "new").exists()
 
 
-def test_reference_creation_uses_the_same_lock_as_production(selected):
+def test_reference_creation_uses_the_same_lock_as_production(selected, monkeypatch):
+    monkeypatch.setattr(style_reference, "locked_log", lambda path, **kwargs: locked_log(path, wait_seconds=0.05))
     path, _ = selected
     before = path.read_bytes()
-    with locked_log(workspace(path) / "transaction"), pytest.raises(OSError):
+    with locked_log(workspace(path) / "transaction"), pytest.raises(TimeoutError, match="workspace is busy"):
         create_reference(path, "styles/reference.png", BOX)
     assert path.read_bytes() == before and not (path.parent / "styles/reference.png").exists()
 
@@ -353,3 +354,17 @@ def test_schema_rejects_extra_or_incomplete_derivation_fields(selected):
             del invalid["style"]["generation_reference"][field]
         with pytest.raises(ValueError, match="Page Spec schema"):
             validate_page_spec(invalid, path.parent)
+
+
+@pytest.mark.parametrize("standalone", [False, True])
+def test_relaxed_preview_carries_exact_style_pixels(selected, standalone):
+    path, source = selected
+    Image.new("RGB", (458, 373), "navy").save(source)
+    box = [10, 12, 410, 300]
+    result = create_reference(path, "styles/relaxed.png", None if standalone else box, style_sample=standalone)
+    declared = resolve_reference(json.loads(path.read_bytes()), path.parent, required=True)
+    assert result["purpose"] == "style-reference-only"
+    assert declared["kind"] == ("style-sample" if standalone else "preview-crop")
+    with Image.open(declared["path"]) as attached, Image.open(source) as original:
+        expected = original.convert("RGBA") if standalone else original.convert("RGBA").crop((10, 12, 420, 312))
+        assert attached.size == expected.size and attached.tobytes() == expected.tobytes()

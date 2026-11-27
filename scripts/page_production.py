@@ -179,15 +179,16 @@ def generation_input(spec, slide):
     return {"instructions": (
         "Generate ONE independent full-canvas slide using the actual authorized image model. "
         "Never output a contact sheet, thumbnails, multiple slides, or a preview grid. "
-        "Use only this page packet and its explicitly selected single-page visual reference; ignore prior preview instructions. "
+        "Use only this page packet and its explicitly selected visual style sample; ignore prior preview instructions. "
         "Attach the image in style_reference.reference_snapshot when present, never style_reference.source_snapshot. "
-        "Preserve its palette, typography hierarchy, background and materials, graphic language, whitespace and layout family. "
+        "Preserve palette, typography hierarchy, materials and graphic language, not the reference composition. "
         "Adapt the design to this page's confirmed content; never copy old reference text or data, or an overview grid. "
         "Preserve the confirmed style and visible text. "
         "Keep the reference's visual language without treating its exact composition as a fixed template. "
-        "Respect explicitly approved layouts and compose for the role of the current page. "
+        "Respect any explicitly approved layout; otherwise design for this specific page role and do not reuse a cover or content template by default. "
         "Give the main message or evidence priority; use imagery only when it reinforces that message. "
         "Use the exact visible text list for wording. Express semantic fields through the approved text and graphics. "
+        "Use accurately proportional data marks on the declared shared scale; reading a correct label does not verify geometry. "
         "Keep recorded sources and speaker notes off the slide. "
         "Leave every preserve_asset.region blank for later local placement of the original evidence; "
         "do not redraw evidence, move its region or place other text there. Current canvas, visible text and "
@@ -754,7 +755,7 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
         state = current(spec_path, spec, root, persist=False)
         return {"state": str(root / "state.json"), "pages": state["pages"], "archived_pages": state["archived_pages"]}
     root.mkdir(parents=True, exist_ok=True)
-    with locked_log(root / "transaction"):
+    with locked_log(root / "transaction", wait_seconds=15):
         spec, _ = load_page_spec(spec_path, strict=True, content=True)
         if any(type(v) is not int for v in spec["canvas"].values()):
             raise ValueError("Production canvas needs integer pixel dimensions")

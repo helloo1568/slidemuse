@@ -66,7 +66,8 @@ def charts(spec, slide_id=None):
         raise ValueError(f"Unknown slide: {slide_id}")
     return [(slide, element) for slide in spec["slides"] if not slide_id or slide["id"] == slide_id
             for element in slide["elements"] if element["kind"] == "chart"
-            and isinstance(element["data"], dict) and element["data"].get("chart_type") in ("bar", "column")]
+            and isinstance(element["data"], dict) and element["data"].get("chart_type") in ("bar", "column")
+            and not element["data"].get("stacked", False) and element["data"].get("baseline", 0) == 0]
 
 
 def template(spec_path, spec, slide_id=None):

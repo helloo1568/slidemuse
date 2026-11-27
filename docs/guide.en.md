@@ -124,10 +124,10 @@ Send the actual slide-by-slide copy, diagrams, and key numbers in the conversati
 
 ### Style and image production
 
-Use the standard 16:9 slide size in all four style previews. Each option is one 16:9 overview with a fixed 3-by-2 grid of six 16:9 thumbnails. For decks of at least six pages, use the same six representative pages; for shorter decks, show every page and leave the remaining positions empty. Never invent pages.
+Show four distinct style samples, normally one image per option. The preview compares palette, typography, materials, and graphic language; it need not follow a grid or slide aspect ratio or reproduce the final text.
 Generate each option once, then use `build_style_overview.py` to label the preview with its fixed number and name. Present the four labeled images in numeric order. When the user points to an attachment, match the attachment to its option. Save the selected number, name, and preview together in the Page Spec. See [style previews](../references/style-options.md) (Chinese).
 
-Register a measured complete single-page crop from the chosen overview with `style-reference`. Attach the actual reference to every final-page image call, and complete `style_consistency` by comparing against the selected visual baseline. Do not attach the full overview or enlarge a preview crop into a delivered slide. Keeping only a style name or written description is not enough to preserve the chosen design.
+Register the chosen standalone visual sample or one measured contiguous region from a larger overview with `style-reference`. Attach the actual reference to every final-page image call, and complete `style_consistency` by comparing against the selected visual baseline. Do not attach the full overview or enlarge a preview crop into a delivered slide. Keeping only a style name or written description is not enough to preserve the chosen design.
 
 For content policy 1.1, literal slide checks cover the title, explicit text elements, and required visible values. Keep provenance in the Page Spec and review how the visuals convey the recorded reasoning separately.
 If text is still incorrect after two attempts, generate a text-free page retaining all subjects and graphics, then overlay accurate text. Subject removal belongs to Step 3.

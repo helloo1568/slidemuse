@@ -21,7 +21,7 @@ python slidemuse.py doctor
 | `run task/job.json task-output` | `scripts/run_deck.py` | 编译、渲染、评分或接续任务 |
 | `render deck.pptx previews` | `scripts/render_deck.py` | 生成真实渲染预览 |
 | `validate page-spec.json --strict` | `scripts/validate_page_spec.py` | 验证规格 |
-| `style-reference page-spec.json --box x y w h --output styles/reference.png` | `scripts/style_reference.py` | 从所选图登记单页视觉参考与来源绑定 |
+| `style-reference page-spec.json --box x y w h --output styles/reference.png` | `scripts/style_reference.py` | 从所选图登记风格参考与来源绑定 |
 | `produce prepare page-spec.json` | `scripts/page_production.py` | [图片制作与恢复](../references/page-production.md)：宿主原图归档、精确证据合成、逐页审阅和坐标修改 |
 | `audit deck.pptx --scene scene.json` | `scripts/audit_editability.py` | 检查原生对象 |
 | `review task/job.json task-output` | `scripts/review_panel.py` | 生成审阅面板或导入记录 |
@@ -69,6 +69,6 @@ LibreOffice 后端需要 `soffice`、`pdftoppm` 和 `pdfinfo`。整套与指定�
 
 ### 保持所选风格（2.30.0）
 
-选定总览后，用 `style-reference <page-spec> --box <x> <y> <width> <height> --output <参考PNG>` 登记其中一个实测完整单页。相对输出路径按 Page Spec 目录解析；`--single-page` 用于明确锁定的独立单页。该图只用于视觉参考，不是正式成品，详见[风格选型](../references/style-options.md)。
+选定独立风格卡后，用 `style-reference <page-spec> --style-sample --output <参考PNG>` 登记；多画面用 `--box <x> <y> <width> <height>` 实测一处连续区域，比例不限。相对输出路径按 Page Spec 目录解析；`--single-page` 用于明确锁定的独立单页。该图只用于视觉参考，不是正式成品，详见[风格选型](../references/style-options.md)。
 
 `produce request` 的 `request_reference` 和 `generate prepare --page-spec` 的逐页图片输入均绑定同一选型。调用图像模型时必须真正附图；带图片要求的结构化请求不能用纯文本 `generate image generate`，支持参考图的 API 使用 `generate image edit --image <实际参考>`。正式页审阅包含 `style_consistency`，必须实际对照正确参考，修改、缺失或错用参考会阻止新审阅及交付。

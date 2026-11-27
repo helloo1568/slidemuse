@@ -897,3 +897,15 @@ def test_export_checks_for_input_changes_after_embedding(production, tmp_path, m
     with pytest.raises(ValueError, match="Approved image or review changed"):
         build_image_ppt.build_deck(args)
     assert not args.output.exists()
+
+
+def test_parallel_requests_wait_for_short_transaction_and_keep_both_pages(production):
+    import concurrent.futures
+    path, _ = production
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(execute, path, "request", slide_id=sid, route="host") for sid in ("s01", "s02")]
+        for future in futures:
+            future.result(timeout=20)
+    result = execute(path, "status")
+    for sid in ("s01", "s02"):
+        assert result["pages"][sid]["request_snapshot"]
