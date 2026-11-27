@@ -36,12 +36,12 @@ def produce(path, original, slide_id, *, approve=True):
         review.update(reviewer="Synthetic protocol fixture", viewed_pixels=[1600, 900],
                       observed_text="\n".join(visible_text(slide, policy="1.1")))
         review["checks"] = {name: {"status": "pass", "notes": "Synthetic protocol fixture", "targets": ["page"]}
-                            for name in CHECKS}
+                            for name in review["checks"]}
         write(record, review)
         execute(path, "accept", slide_id=slide_id, record=record)
 
 
-def production_case(tmp_path, *, approved=True, visible=False):
+def production_case(tmp_path, *, approved=True, visible=False, style_reference=False):
     source = tmp_path / "source"
     base = source / "nested"
     base.mkdir(parents=True)
@@ -61,6 +61,9 @@ def production_case(tmp_path, *, approved=True, visible=False):
     spec["slides"].append(second)
     path = base / "page-spec.json"
     write(path, spec)
+    if style_reference:
+        from test_page_production import selected_style_fixture
+        selected_style_fixture(path)
     original = base / "original.png"
     Image.new("RGB", (1600, 900), "navy").save(original)
     produce(path, original, "s01")
@@ -119,6 +122,90 @@ def test_notes_only_cli_draft_retains_approval_and_self_contained_history(tmp_pa
     old = next(p for p in state["pages"]["s01"]["history"] if p.get("status") == "approved")
     for field in ("source_snapshot", "request_snapshot", "generation_snapshot", "review_snapshot"):
         assert (draft_root / old[field]).is_file()
+
+
+def test_selected_style_draft_restores_archived_refined_page_without_source_project(tmp_path):
+    from test_page_production import fixture_review
+    contract, path = production_case(tmp_path, style_reference=True)
+    spec = json.loads(path.read_bytes())
+    original_root = workspace(path)
+    final = path.parent / spec["slides"][1]["image_file"]
+    correction = path.parent / "style-correction.png"
+    with Image.open(final) as image:
+        image.paste("navy", (10, 10, 80, 40))
+        image.save(correction)
+    execute(path, "refine", slide_id="s02", source=correction, base_image=final,
+            operation="Synthetic local correction retaining the selected style")
+    fixture_review(path, "s02", path.parent / "style-correction-review.json")
+    execute(path, "accept", slide_id="s02", record=path.parent / "style-correction-review.json")
+    before = execute(path, "status")["pages"]["s02"]
+    request_bytes = (original_root / before["generation_request_snapshot"]).read_bytes()
+    reference_bytes = (original_root / before["style_reference"]["reference_snapshot"]).read_bytes()
+    source_bytes = (original_root / before["style_reference"]["source_snapshot"]).read_bytes()
+    spec = json.loads(path.read_bytes())
+    removed = spec["slides"].pop()
+    write(path, spec)
+    execute(path, "prepare")
+    binding = json.loads(contract.read_bytes())
+    binding["bindings"][0]["pointer"] = "/slides/0/speaker_notes"
+    write(contract, binding)
+    plan, paths = plan_update(contract, {"count": 130})
+    output = tmp_path / "style-draft"
+    export_draft(contract, output, plan, paths)
+    draft = output / "nested/page-spec.json"
+    draft_root = workspace(draft)
+    state = json.loads((draft_root / "state.json").read_bytes())
+    archived = state["archived_pages"]["s02"]
+    assert (draft_root / archived["generation_request_snapshot"]).read_bytes() == request_bytes
+    assert (draft_root / archived["style_reference"]["reference_snapshot"]).read_bytes() == reference_bytes
+    assert (draft_root / archived["style_reference"]["source_snapshot"]).read_bytes() == source_bytes
+    assert Path(archived["request_reference"]).is_relative_to(draft_root)
+    assert str(contract.parent) not in json.dumps(state)
+    shutil.rmtree(contract.parent)
+    load_page_spec(draft, require_images=True)
+    restored = json.loads(draft.read_bytes())
+    restored["slides"].append(removed)
+    write(draft, restored)
+    assert execute(draft, "prepare")["pages"]["s02"]["status"] == "approved"
+    load_page_spec(draft, require_images=True)
+    final = draft.parent / removed["image_file"]
+    correction = draft.parent / "next-style-correction.png"
+    with Image.open(final) as image:
+        image.paste("navy", (90, 10, 120, 40))
+        image.save(correction)
+    execute(draft, "refine", slide_id="s02", source=correction, base_image=final,
+            operation="Synthetic second local correction after source project removal")
+    record = draft.parent / "next-style-review.json"
+    fixture_review(draft, "s02", record)
+    assert json.loads(record.read_bytes())["style_reference"] == archived["style_reference"]
+    execute(draft, "accept", slide_id="s02", record=record)
+    result = subprocess.run([sys.executable, str(ROOT / "scripts/build_image_ppt.py"), str(draft), str(output / "restored.pptx")],
+                            text=True, capture_output=True, check=False)
+    assert result.returncode == 0, result.stderr
+    restored = json.loads(draft.read_bytes())
+    restored["slides"][1]["visual_brief"] += " Synthetic authorized revision."
+    write(draft, restored)
+    requested = execute(draft, "request", slide_id="s02", route="host")["pages"]["s02"]
+    assert Path(requested["request_reference"]).read_bytes() == reference_bytes
+    assert Path(requested["request_reference"]).is_relative_to(draft_root)
+
+
+@pytest.mark.parametrize("damage", ["current-reference", "retained-reference"])
+def test_style_draft_rejects_changed_reference_and_keeps_output_unpublished(tmp_path, damage):
+    contract, path = production_case(tmp_path, style_reference=True)
+    plan, paths = plan_update(contract, {"count": 130})
+    if damage == "current-reference":
+        declaration = json.loads(path.read_bytes())["style"]["generation_reference"]
+        target = path.parent / declaration["image"]
+    else:
+        state = execute(path, "status")
+        target = workspace(path) / state["pages"]["s01"]["style_reference"]["reference_snapshot"]
+    target.write_bytes(b"Synthetic corrupt style reference")
+    output = tmp_path / "invalid-style-draft"
+    with pytest.raises(ValueError):
+        export_draft(contract, output, plan, paths)
+    assert not output.exists()
+    assert not list(tmp_path.glob(".data-draft-*"))
 
 
 @pytest.mark.parametrize("approved", [False, True])

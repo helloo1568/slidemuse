@@ -40,4 +40,12 @@ All clients share the same content planning, style selection, image generation, 
 
 After installation, run the installed `slidemuse.py doctor --json` from a separate working directory and confirm that the client can discover `slidemuse`. Append `--with-editable --with-generate` to the selected install command when you need the complete backend dependencies.
 
-Repeat the same installation command to upgrade. The installer prepares and validates a staged version before activation, preserving or restoring the previous install on failure. Other skill directories stay independent.
+To upgrade, first download and extract the intended new version, then run the same installation command from that source directory. The installer copies its own source tree; it does not fetch a newer GitHub version first. Reinstalling an old download installs the old version again. It prepares and validates a staged version before activation, preserving or restoring the previous install on failure. Other skill directories stay independent.
+
+## WorkBuddy: the final slides differ from the chosen style
+
+Ask WorkBuddy for the absolute path of the `SKILL.md` it actually read for the task, then run `python "<actual-skill-directory>/slidemuse.py" --version` from that installation. The downloaded filename alone does not establish the loaded version. `doctor --json` also reports `skill_root` and `skill_version`. The standard installer uses `~/.workbuddy/skills/slidemuse/`; other imports must be checked at their actual loaded path.
+
+Version 2.30.0 fixes the handoff that kept only written style descriptions while dropping the chosen visual reference. Reuse the approved content and chosen preview, register a complete single-page reference with `style-reference`, then use `produce request` or `generate prepare --page-spec`. The actual image call must attach that reference; a path or JSON string in a text prompt is not an image attachment. Review `style_consistency` for each page. A preview crop is only a style input and must never be delivered as an enlarged final slide.
+
+Compare the chosen preview, the corresponding full-page PNG/JPEG before assembly, and the final PPTX. If the PNG already differs, fix generation. If the PNG is correct and the editable version differs, fix its Scene/Manifest and compare a real render. Standard Page Spec image assembly embeds the selected original without redesigning it; do not pass a mixed folder of previews and old drafts to the legacy directory-merging entry point. Retain existing materials and the user's style choice without repeating the four-option selection.

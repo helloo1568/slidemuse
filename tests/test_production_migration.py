@@ -26,13 +26,18 @@ def write(path, value):
     path.write_bytes(encoded(value))
 
 
-def legacy_fixture(tmp_path, *, request=True, route="host"):
+def legacy_fixture(tmp_path, *, request=True, route="host", locked_style=False):
     spec = json.loads((ROOT / "examples/page-spec.example.json").read_text(encoding="utf-8"))
     spec["content_policy"] = "1.1"
     spec["workflow"] = {"content_mode": "confirmed", "approved_content_version": spec["content_version"],
                         "outline_ref": "Synthetic approved legacy outline"}
-    spec["style"].pop("tokens", None)
+    tokens = spec["style"].pop("tokens", None)
     spec["style"].update(decision="skipped", authorization="Synthetic legacy authorization")
+    if locked_style:
+        reference = tmp_path / "legacy-locked-reference.png"
+        Image.new("RGB", (1600, 900), "purple").save(reference)
+        tokens["reference_images"] = [reference.name]
+        spec["style"].update(decision="locked-reference", tokens=tokens)
     slide = spec["slides"][0]
     slide["image_status"] = "approved"
     path = tmp_path / "legacy.json"
@@ -78,9 +83,35 @@ def accept_current(path, record):
     value.update(reviewer="Synthetic migration reviewer", observed_text="\n".join(visible_text(slide, policy="1.1")),
                  viewed_pixels=[1600, 900])
     value["checks"] = {name: {"status": "pass", "notes": "Synthetic migration review", "targets": ["page"]}
-                       for name in CHECKS}
+                       for name in value["checks"]}
     write(record, value)
     execute(path, "accept", slide_id="s01", record=record)
+
+
+def test_old_approved_visual_reference_remains_readable_until_explicit_new_review(tmp_path):
+    path, original, old = legacy_fixture(tmp_path, locked_style=True)
+    root = workspace(path)
+    call = historical_record(path, original, old)
+    state = json.loads((root / "state.json").read_bytes())
+    page = state["pages"]["s01"]
+    # Complete a synthetic historical approval exactly as stored before style comparisons
+    # were introduced; do not use today's compose to retroactively add calibration.
+    page.update(generation_snapshot=store(root, call.read_bytes(), ".generation.json"),
+                generation_request_snapshot=page["request_snapshot"], generation_request_route="host")
+    commit(path, json.loads(path.read_bytes()), root, state)
+    load_page_spec(path, require_images=True)
+    assert "style_reference" not in execute(path, "status")["pages"]["s01"]
+    record = tmp_path / "first-style-review.json"
+    updated = execute(path, "review-init", slide_id="s01", record=record)["pages"]["s01"]
+    template = json.loads(record.read_bytes())
+    assert updated["status"] == "generated" and "review_snapshot" not in updated
+    assert template["style_reference"]["sha256"] == digest((tmp_path / "legacy-locked-reference.png").read_bytes())
+    assert template["checks"]["style_consistency"]["status"] == "pending"
+    with pytest.raises(ValueError, match="not approved"):
+        load_page_spec(path, require_images=True)
+    accept_current(path, tmp_path / "completed-style-review.json")
+    load_page_spec(path, require_images=True)
+    assert execute(path, "status")["pages"]["s01"]["history"][-1]["review_snapshot"] == old["review_snapshot"]
 
 
 @pytest.mark.parametrize("archived", [False, True])

@@ -52,6 +52,29 @@
         "option": {"type": "integer", "minimum": 1, "maximum": 4},
         "authorization": {"type": "string", "minLength": 1},
         "visual_spec": {"type": "string", "minLength": 1},
+        "generation_reference": {
+          "description": "An explicit single-slide crop of the selected preview, or an explicitly locked complete page; for visual reference only, never a delivery slide.",
+          "type": "object", "additionalProperties": false,
+          "required": ["version", "kind", "source", "source_sha256", "box", "image", "image_sha256"],
+          "properties": {
+            "version": {"const": "1.0"},
+            "kind": {"enum": ["preview-crop", "single-page"]},
+            "source": {"type": "string", "minLength": 1},
+            "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "box": {
+              "type": "array",
+              "prefixItems": [
+                {"type": "integer", "minimum": 0},
+                {"type": "integer", "minimum": 0},
+                {"type": "integer", "minimum": 1},
+                {"type": "integer", "minimum": 1}
+              ],
+              "minItems": 4, "maxItems": 4
+            },
+            "image": {"type": "string", "pattern": "\\.[Pp][Nn][Gg]$"},
+            "image_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
         "tokens": {
           "type": "object",
           "additionalProperties": false,

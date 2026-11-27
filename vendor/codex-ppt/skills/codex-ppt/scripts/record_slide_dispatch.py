@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 
 from slide_run_state import (
     deck_dir_from_target,
@@ -12,11 +11,13 @@ from slide_run_state import (
     find_slide,
     locked_jobs,
     now_iso,
+    read_json,
     rel_to_deck,
     resolve_deck_path,
     set_run_status,
     sha256_file,
     update_jobs_run_status,
+    validate_style_reference,
 )
 
 
@@ -53,6 +54,10 @@ def main() -> int:
         job_path = resolve_deck_path(deck_dir, job_ref)
         if not job_path.is_relative_to(deck_dir) or not job_path.is_file() or not prompt_path.is_file():
             raise SystemExit("Canonical job and worker prompt must be files inside the deck")
+        job = read_json(job_path)
+        if job.get("style_reference") != jobs.get("style_reference"):
+            raise SystemExit("Selected style reference differs between the job and deck")
+        validate_style_reference(job.get("style_reference"), job.get("input_images", []))
 
         slide["dispatch"] = {
             "agent_id": args.agent_id,

@@ -141,6 +141,8 @@ def test_dispatch_result_and_assemble_produce_deck_with_notes(tmp_path):
     for observation, page in zip(record["slides"], contract["pages"]):
         observation.update(observed_text="\n".join(page["expected_text"]),
                            notes="Synthetic protocol fixture only", checks=dict.fromkeys(CHECKS, "pass"))
+        observation["checks"]["style_consistency"] = {
+            "status": "pass", "notes": "Synthetic style observation; not actual visual approval", "targets": ["page"]}
     (deck / "content-review.json").write_text(json.dumps(record), encoding="utf-8")
     assembled = invoke("--offline", "assemble", tmp_path, f"{deck.name}.pptx")
     assert assembled.returncode == 0, assembled.stdout + assembled.stderr

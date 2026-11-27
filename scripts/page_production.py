@@ -19,9 +19,11 @@ from json_io import read_json
 from PIL import Image, ImageChops, ImageOps
 from preserved_assets import expected_patch, relative_file, validate_preserved_assets
 from record_work import locked_log
+from style_reference import resolve_reference
 from validate_page_spec import load_page_spec
 
 CHECKS = ("semantic_coverage", "source_accuracy", "readability", "density", "visual_relationships")
+STYLE_CHECK = "style_consistency"
 ROUTES = ("host", "fresh-host", "isolated-worker", "isolated-api")
 FAILURE_KINDS = ("multi-page", "style-drift", "text", "chart", "tool-error", "other")
 
@@ -65,6 +67,89 @@ def store(root, data, suffix):
     return str(path.relative_to(root))
 
 
+def needs_style_reference(spec):
+    """New selections and old selections with visual inputs need an explicit baseline."""
+    style = spec["style"]
+    return style["decision"] in {"selected", "delegated"} and bool(
+        spec.get("content_policy") == WORKFLOW_POLICY or style.get("generation_reference")
+        or style.get("tokens", {}).get("reference_images"))
+
+
+def reference_identity(reference):
+    return {key: reference.get(key) for key in ("kind", "sha256", "source_sha256", "box", "option", "choice")}
+
+
+def retained_style_reference(root, reference):
+    """Archive the actual single-page input separately from its selection evidence."""
+    binding = reference_identity(reference)
+    for path_key, hash_key, snapshot_key, suffix in (
+        ("path", "sha256", "reference_snapshot", ".style-reference"),
+        ("source_path", "source_sha256", "source_snapshot", ".style-source"),
+    ):
+        path = Path(reference[path_key])
+        raw = path.read_bytes()
+        if digest(raw) != reference[hash_key]:
+            raise ValueError("Style reference changed while preparing its production record")
+        binding[snapshot_key] = store(root, raw, suffix + path.suffix.lower())
+    return binding
+
+
+def verify_style_reference(root, binding):
+    if not isinstance(binding, dict):
+        raise TypeError("Production style reference must retain its identity and snapshots")
+    for snapshot_key, hash_key in (("reference_snapshot", "sha256"), ("source_snapshot", "source_sha256")):
+        if not isinstance(binding.get(snapshot_key), str) or not isinstance(binding.get(hash_key), str):
+            raise TypeError("Production style reference must retain its identity and snapshots")
+        path = relative_file(root, binding[snapshot_key])
+        if (not path.is_file() or path.name[:64] != binding[hash_key]
+                or digest(path.read_bytes()) != binding[hash_key]):
+            raise ValueError("Production style reference snapshot changed")
+
+
+def bind_current_style(spec_path, spec, root, page):
+    """New production/review operations use today's selected reference, never a substitute page."""
+    reference = resolve_reference(spec, spec_path.parent, required=needs_style_reference(spec))
+    previous = page.get("style_reference")
+    if reference is None:
+        if previous is not None:
+            raise ValueError("Production style reference no longer matches the current selection")
+        return
+    if previous is not None:
+        verify_style_reference(root, previous)
+        if reference_identity(previous) != reference_identity(reference):
+            raise ValueError("Production style reference no longer matches the current selection")
+    else:
+        binding = retained_style_reference(root, reference)
+        if page["status"] == "approved":
+            old = {key: value for key, value in page.items() if key != "history"}
+            page["history"] = [*page.get("history", []), old]
+            page["status"] = "generated"
+            page.pop("review_snapshot", None)
+        page["style_reference"] = binding
+
+
+def validate_style_review(spec_path, spec, root, page, review, generation_packet):
+    """Check recorded comparison bindings, without claiming to measure visual similarity."""
+    binding = page.get("style_reference")
+    if binding is None:
+        # Historical approvals remain readable; they are not retroactively style-calibrated.
+        if (review.get("style_reference") is not None or generation_packet.get("style_reference") is not None
+                or spec["style"].get("generation_reference") is not None):
+            raise ValueError("Selected style reference has no corresponding production review binding")
+        return
+    verify_style_reference(root, binding)
+    reference = resolve_reference(spec, spec_path.parent, required=needs_style_reference(spec))
+    if reference is None or reference_identity(binding) != reference_identity(reference):
+        raise ValueError("Production style reference no longer matches the current selection")
+    if review.get("style_reference") != binding:
+        raise ValueError("Review style reference differs from the current selected reference")
+    check = review.get("checks", {}).get(STYLE_CHECK, {})
+    if (not isinstance(check, dict) or check.get("status") != "pass"
+            or not isinstance(check.get("notes"), str) or not check["notes"].strip()
+            or check.get("targets") != ["page"]):
+        raise ValueError("Review style_consistency needs an actual pass, comparison observations and page target")
+
+
 def fingerprint(spec, slide, base):
     intent = {key: value for key, value in slide.items() if key not in ("image_status", "speaker_notes", "notes")}
     intent["elements"] = [{key: value for key, value in e.items() if key not in ("notes", "prompt_record")}
@@ -87,13 +172,17 @@ def generation_input(spec, slide):
     content = {k: v for k, v in slide.items() if k not in {"image_status", "image_file", "image_origin", "source_refs", "speaker_notes", "notes", "generation_prompt"}}
     style = copy.deepcopy(spec["style"])
     style.pop("authorization", None)
-    # Preview references stay in Page Spec for selection and integrity, not in the generation packet.
+    # Never attach an overview grid. request_page supplies the selected independent reference.
     style.get("tokens", {}).pop("reference_images", None)
+    style.pop("generation_reference", None)
     content["elements"] = prompt_elements(slide["elements"])
     return {"instructions": (
         "Generate ONE independent full-canvas slide using the actual authorized image model. "
         "Never output a contact sheet, thumbnails, multiple slides, or a preview grid. "
-        "Use only this page packet and its explicitly selected single-page style anchor; ignore prior preview instructions. "
+        "Use only this page packet and its explicitly selected single-page visual reference; ignore prior preview instructions. "
+        "Attach the image in style_reference.reference_snapshot when present, never style_reference.source_snapshot. "
+        "Preserve its palette, typography hierarchy, background and materials, graphic language, whitespace and layout family. "
+        "Adapt the design to this page's confirmed content; never copy old reference text or data, or an overview grid. "
         "Preserve the confirmed style and visible text. "
         "Use the exact visible text list for wording. Express semantic fields through the approved text and graphics. "
         "Keep recorded sources and speaker notes off the slide. "
@@ -139,7 +228,7 @@ def verify_snapshots(root, value):
         for key, item in value.items():
             if key.endswith("_snapshot") and item is not None:
                 stored = relative_file(root, item)
-                hash_key = {"image_snapshot": "image_sha256", "source_snapshot": "source_sha256",
+                hash_key = {"image_snapshot": "image_sha256", "source_snapshot": "source_sha256", "reference_snapshot": "sha256",
                             "derived_input_snapshot": "derived_input_sha256", "correction_snapshot": "correction_sha256"}.get(key)
                 expected = value.get(hash_key) if hash_key else stored.name[:64]
                 if not stored.is_file() or digest(stored.read_bytes()) != expected:
@@ -192,7 +281,7 @@ def route_blocked(page, route):
     return len(failures) >= 2 and failures[-1]["kind"] == failures[-2]["kind"]
 
 
-def request_page(spec, slide, root, state, route):
+def request_page(spec_path, spec, slide, root, state, route):
     if route not in ROUTES:
         raise ValueError("Choose a real generation route")
     page = state["pages"][slide["id"]]
@@ -204,12 +293,16 @@ def request_page(spec, slide, root, state, route):
         raise ValueError("Two repeated failures on this route; change isolation method or report blocked")
     packet = generation_input(spec, slide)
     packet.update(request_id=uuid.uuid4().hex, route=route, contract_sha256=page["contract_sha256"])
-    # Only reviewed full-page originals/projections can anchor the next page.
+    bind_current_style(spec_path, spec, root, page)
+    page.pop("request_reference", None)
+    if page.get("style_reference"):
+        packet["style_reference"] = copy.deepcopy(page["style_reference"])
+        page["request_reference"] = str(relative_file(root, page["style_reference"]["reference_snapshot"]))
+    # Only old/text-only workflows may use another approved page as their primary anchor.
     candidates = [s for s in spec["slides"] if s["id"] != slide["id"]
                   and state["pages"][s["id"]]["status"] == "approved"]
     candidates.sort(key=lambda s: (s.get("role") == "cover", s["page_number"]))
-    page.pop("request_reference", None)
-    if candidates:
+    if not page.get("style_reference") and candidates:
         anchor = candidates[0]
         approved = state["pages"][anchor["id"]]
         if not anchor.get("image_origin"):
@@ -218,7 +311,9 @@ def request_page(spec, slide, root, state, route):
         if digest(reference.read_bytes()) != approved["image_sha256"]:
             raise ValueError("Approved style anchor changed")
         page["request_reference"] = str(reference)
-        packet["style_anchor"] = {"slide_id": anchor["id"], "use": "Style only; never reproduce the anchor's text or layout"}
+        packet["style_anchor"] = {"slide_id": anchor["id"], "image_snapshot": approved["image_snapshot"],
+                                  "image_sha256": approved["image_sha256"],
+                                  "use": "Preserve the design language and layout family; never copy old text or data"}
     page["request_snapshot"] = store(root, encoded(packet), ".request.json")
     page["request_sha256"] = digest(encoded(packet))
     page["request_route"] = route
@@ -243,6 +338,9 @@ def validate_targets(spec_path, spec, root):
     inputs.update(relative_file(spec_path.parent, e["preserve_asset"]["file"])
                   for s in spec["slides"] for e in s["elements"] if "preserve_asset" in e)
     inputs.update(relative_file(spec_path.parent, name) for name in spec["style"].get("tokens", {}).get("reference_images", []))
+    reference = resolve_reference(spec, spec_path.parent)
+    if reference:
+        inputs.update((Path(reference["path"]), Path(reference["source_path"])))
     for slide in spec["slides"]:
         target = relative_file(spec_path.parent, slide["image_file"])
         if not slide.get("image_origin") and (
@@ -320,7 +418,11 @@ def verified_generation(root, page, slide_id):
     for path in (evidence_path, request_path):
         if not path.is_file() or digest(path.read_bytes()) != path.name[:64]:
             raise ValueError("Generation evidence snapshot changed")
-    validate_generation_record(read_json(evidence_path), read_json(request_path), digest(request_path.read_bytes()),
+    packet = read_json(request_path)
+    verify_snapshots(root, packet)
+    if "style_reference" in packet:
+        verify_style_reference(root, packet["style_reference"])
+    validate_generation_record(read_json(evidence_path), packet, digest(request_path.read_bytes()),
                                page.get("source_sha256"), slide_id,
                                legacy_route=page.get("generation_request_route"))
     if page.get("derivation_snapshot"):
@@ -341,6 +443,7 @@ def verified_generation(root, page, slide_id):
             reference = page.get(field + "_snapshot")
             if not reference or digest(relative_file(root, reference).read_bytes()) != page.get(field + "_sha256"):
                 raise ValueError("Local correction input changed")
+    return packet
 
 
 def missing_historical_request():
@@ -372,6 +475,9 @@ def request_for_record(root, page, source_hash, value, slide_id):
         if request_hash != request.name[:64]:
             raise ValueError("Retained generation request changed")
         packet = json.loads(raw_request.decode("utf-8-sig"))
+        verify_snapshots(root, packet)
+        if "style_reference" in packet:
+            verify_style_reference(root, packet["style_reference"])
         legacy = isinstance(packet, dict) and not any(
             key in packet for key in ("route", "request_id", "contract_sha256"))
         route = candidate.get("request_route")
@@ -432,11 +538,12 @@ def approved_image_hashes(spec_path, spec):
             page = state["pages"][slide["id"]] if state else {}
             if page.get("status") != "approved" or not page.get("review_snapshot"):
                 raise ValueError(f"Missing current production approval for {slide['id']}; existing user images need an explicit image_origin")
-            verified_generation(root, page, slide["id"])
+            generation_packet = verified_generation(root, page, slide["id"])
             review = read_json(relative_file(root, page["review_snapshot"]))
             if (actual != page.get("image_sha256") or review.get("image_sha256") != actual
                     or review.get("contract_sha256") != page["contract_sha256"] or review.get("id") != slide["id"]):
                 raise ValueError(f"Approved image or review changed for {slide['id']}; review the current image again")
+            validate_style_review(spec_path, spec, root, page, review, generation_packet)
         hashes[slide["id"]] = actual
     return hashes
 
@@ -582,17 +689,25 @@ def refine(spec_path, spec, root, state, slide, source, base_image, operation, a
 def review_template(slide, page):
     if page["status"] == "pending":
         raise ValueError("Compose the page before requesting its review")
-    return {"version": "1.0", "id": slide["id"], "contract_sha256": page["contract_sha256"],
-            "image_sha256": page["image_sha256"], "reviewer": "", "observed_text": "",
-            "viewed_pixels": None, "checks": {name: {"status": "pending", "notes": "", "targets": []} for name in CHECKS},
-            "protected_regions": page.get("protected_regions", []),
-            "scope": "Actual visual observations and source comparison; hash/text matches do not prove truth or independence."}
+    value = {"version": "1.0", "id": slide["id"], "contract_sha256": page["contract_sha256"],
+             "image_sha256": page["image_sha256"], "reviewer": "", "observed_text": "",
+             "viewed_pixels": None, "checks": {name: {"status": "pending", "notes": "", "targets": []} for name in CHECKS},
+             "protected_regions": page.get("protected_regions", []),
+             "scope": "Actual visual observations and source comparison; hash/text matches do not prove truth or independence."}
+    if page.get("style_reference"):
+        value["style_reference"] = copy.deepcopy(page["style_reference"])
+        value["checks"][STYLE_CHECK] = {"status": "pending", "notes": "", "targets": []}
+        value["scope"] += (
+            " Compare the current image with style_reference.reference_snapshot (paths relative to production state): "
+            "palette, typography hierarchy, background/materials, graphics and imagery, whitespace and layout rhythm. "
+            "source_snapshot retains the selected preview for provenance; never use an overview grid as the generation attachment.")
+    return value
 
 
-def accept(spec_path, slide, root, page, record, *, policy=None):
+def accept(spec_path, spec, slide, root, page, record, *, policy=None):
     if page["status"] == "pending":
         raise ValueError("Compose the page before review")
-    verified_generation(root, page, slide["id"])
+    generation_packet = verified_generation(root, page, slide["id"])
     value = read_json(record)
     for key, expected in (("version", "1.0"), ("id", slide["id"]), ("contract_sha256", page["contract_sha256"]), ("image_sha256", page["image_sha256"])):
         if value.get(key) != expected:
@@ -613,6 +728,7 @@ def accept(spec_path, slide, root, page, record, *, policy=None):
         if (check.get("status") != "pass" or not isinstance(check.get("notes"), str) or not check["notes"].strip()
                 or not isinstance(targets, list) or not targets or any(not isinstance(t, str) or t not in ids for t in targets)):
             raise ValueError(f"Review {name} needs actual pass, observations and valid targets")
+    validate_style_review(spec_path, spec, root, page, value, generation_packet)
     # Compare the current projection too; never certify a substituted final PNG.
     target = relative_file(spec_path.parent, slide["image_file"])
     if not target.is_file() or digest(target.read_bytes()) != page["image_sha256"]:
@@ -658,16 +774,18 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
             spec = changed
             state = current(spec_path, spec, root)
         elif action == "request":
-            request_page(spec, selected, root, state, route)
+            request_page(spec_path, spec, selected, root, state, route)
         elif action == "failure":
             record_failure(state["pages"][slide_id], route, failure_kind, evidence)
         elif action == "compose":
             if source is None:
                 raise ValueError("compose requires --source")
+            bind_current_style(spec_path, spec, root, state["pages"][slide_id])
             compose(spec_path, spec, root, state, selected, Path(source), allow_upscale, generation_record)
         elif action == "refine":
             if source is None or base_image is None:
                 raise ValueError("refine requires --source and --base-image")
+            bind_current_style(spec_path, spec, root, state["pages"][slide_id])
             refine(spec_path, spec, root, state, selected, Path(source), Path(base_image), operation, allow_upscale)
         elif action == "review-init":
             if record is None or Path(record).exists():
@@ -675,6 +793,7 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
             if Path(record).resolve() in {spec_path, *[relative_file(spec_path.parent, s["image_file"]) for s in spec["slides"]]} or Path(record).resolve().is_relative_to(root):
                 raise ValueError("Review record must be independent of managed outputs")
             page = state["pages"][slide_id]
+            bind_current_style(spec_path, spec, root, page)
             template = review_template(selected, page)
             target = relative_file(spec_path.parent, selected["image_file"])
             if not target.is_file() or digest(target.read_bytes()) != page["image_sha256"]:
@@ -683,7 +802,8 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
         elif action == "accept":
             if record is None:
                 raise ValueError("accept requires --record")
-            accept(spec_path, selected, root, state["pages"][slide_id], Path(record), policy=spec.get("content_policy"))
+            bind_current_style(spec_path, spec, root, state["pages"][slide_id])
+            accept(spec_path, spec, selected, root, state["pages"][slide_id], Path(record), policy=spec.get("content_policy"))
         elif action not in ("prepare", "status"):
             raise ValueError("Unknown production action")
         commit(spec_path, spec, root, state)

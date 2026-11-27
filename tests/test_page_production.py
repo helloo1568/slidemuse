@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 from content_density import semantic_claims, validate_content, visible_text
-from page_production import CHECKS, execute, workspace
-from PIL import Image, ImageChops
+from page_production import STYLE_CHECK, execute, workspace
+from PIL import Image, ImageChops, PngImagePlugin
 from preserved_assets import expected_patch
 
 
@@ -61,8 +61,39 @@ def fixture_review(path, slide_id, record):
     slide = next(s for s in spec["slides"] if s["id"] == slide_id)
     value.update(reviewer="Synthetic test fixture", observed_text="\n".join(visible_text(slide, policy=spec.get("content_policy"))),
                  viewed_pixels=[1600, 900])
-    value["checks"] = {name: {"status": "pass", "notes": "Synthetic protocol fixture", "targets": ["page"]} for name in CHECKS}
+    value["checks"] = {name: {"status": "pass", "notes": "Synthetic protocol fixture", "targets": ["page"]}
+                       for name in value["checks"]}
     write(record, value)
+
+
+def selected_style_fixture(path, *, decision="selected", register=True, legacy=False):
+    """Synthetic visual baseline and selection; never a model result or visual quality claim."""
+    from style_reference import create_reference, resolve_reference
+    spec = json.loads(path.read_bytes())
+    if not legacy:
+        spec["content_policy"] = "1.1"
+        spec["workflow"] = {"content_mode": "confirmed", "approved_content_version": spec["content_version"],
+                            "outline_ref": "Synthetic authorized content fixture"}
+    preview = path.parent / "selected-overview.png"
+    metadata = PngImagePlugin.PngInfo()
+    metadata.add_text("slidemuse_style_option", "2")
+    metadata.add_text("slidemuse_style_name", "Synthetic crimson")
+    image = Image.new("RGB", (1800, 1100), "#882244")
+    image.paste("#442288", (20, 70, 980, 610))
+    image.save(preview, pnginfo=metadata)
+    spec["style"].update(decision=decision, option=2, choice="Synthetic crimson",
+                         authorization="Synthetic style authorization", visual_spec="Synthetic crimson and purple style")
+    spec["style"]["tokens"] = {
+        "palette": {"background": "#882244", "text": "#FFFFFF", "primary": "#442288", "accent": "#DDCC66"},
+        "typography": {"heading_font": "Arial", "body_font": "Arial", "heading_size": 36, "body_size": 20},
+        "layout": {"grid": "single page", "margin_px": 40, "spacing_px": 12},
+        "image_treatment": "Synthetic flat fixture", "reference_images": [preview.name]}
+    if decision == "locked-reference":
+        Image.new("RGB", (1600, 900), "#442288").save(preview)
+    write(path, spec)
+    if register and decision != "locked-reference":
+        return create_reference(path, "styles/selected-single.png", box=[20, 70, 960, 540])
+    return resolve_reference(spec, path.parent)
 
 
 def test_refine_cli_preserves_real_original_binding_and_requires_new_review(production, tmp_path):
@@ -500,20 +531,21 @@ def test_semantics_can_be_encoded_by_a_chart_without_forcing_repeated_bullets():
 
 def test_single_page_requests_isolate_preview_and_anchor_after_review(production, tmp_path):
     path, source = production
+    reference = selected_style_fixture(path)
     spec = json.loads(path.read_text(encoding="utf-8"))
-    preview = tmp_path / "overview.png"
-    Image.new("RGB", (1600, 900)).save(preview)
-    spec["style"]["tokens"] = {"palette": {"background": "#FFFFFF", "text": "#222222", "primary": "#334455", "accent": "#667788"},
-                               "typography": {"heading_font": "Arial", "body_font": "Arial", "heading_size": 36, "body_size": 20},
-                               "layout": {"grid": "single page", "margin_px": 40, "spacing_px": 12},
-                               "image_treatment": "ink", "reference_images": [preview.name]}
     spec["slides"][1]["generation_prompt"] = "OLD PREVIEW INSTRUCTION"
     write(path, spec)
     state = execute(path, "request", slide_id="s01", route="host")
     page = state["pages"]["s01"]
     packet = json.loads((workspace(path) / page["request_snapshot"]).read_text(encoding="utf-8"))
     assert "reference_images" not in packet["style"]["tokens"]
-    assert "request_reference" not in page
+    baseline = packet["style_reference"]
+    assert baseline == page["style_reference"]
+    assert baseline["sha256"] == reference["sha256"]
+    assert baseline["source_sha256"] == reference["source_sha256"]
+    assert Path(page["request_reference"]).read_bytes() == Path(reference["path"]).read_bytes()
+    assert (workspace(path) / baseline["source_snapshot"]).read_bytes() == Path(reference["source_path"]).read_bytes()
+    assert "style_anchor" not in packet
     assert packet["slide"]["id"] == "s01" and "slides" not in packet
     compose_fixture(path, slide_id="s01", source=source)
     record = tmp_path / "anchor-review.json"
@@ -522,10 +554,179 @@ def test_single_page_requests_isolate_preview_and_anchor_after_review(production
     state = execute(path, "request", slide_id="s02", route="isolated-worker")
     page = state["pages"]["s02"]
     packet = json.loads((workspace(path) / page["request_snapshot"]).read_text(encoding="utf-8"))
-    assert packet["style_anchor"]["slide_id"] == "s01"
-    assert Path(page["request_reference"]).is_file()
+    assert packet["style_reference"] == baseline
+    assert Path(page["request_reference"]).read_bytes() == Path(reference["path"]).read_bytes()
+    assert "style_anchor" not in packet
     assert "OLD PREVIEW INSTRUCTION" not in json.dumps(packet)
-    assert preview.name not in json.dumps(packet)
+    assert Path(reference["source_path"]).name not in json.dumps(packet)
+    assert "generation_reference" not in packet["style"]
+
+
+@pytest.mark.parametrize("decision", ["selected", "delegated"])
+@pytest.mark.parametrize("legacy", [False, True])
+def test_selected_visual_requests_require_registered_single_page_baseline(production, decision, legacy):
+    path, _ = production
+    selected_style_fixture(path, decision=decision, register=False, legacy=legacy)
+    # Reading and preparing a historical contract does not invent calibration.
+    execute(path, "prepare")
+    before = (workspace(path) / "state.json").read_bytes()
+    with pytest.raises(ValueError, match="style-reference"):
+        execute(path, "request", slide_id="s01", route="host")
+    assert (workspace(path) / "state.json").read_bytes() == before
+
+
+def test_locked_single_page_is_the_first_and_later_request_reference(production, tmp_path):
+    path, source = production
+    reference = selected_style_fixture(path, decision="locked-reference")
+    first = execute(path, "request", slide_id="s01", route="host")["pages"]["s01"]
+    assert Path(first["request_reference"]).read_bytes() == Path(reference["path"]).read_bytes()
+    assert first["style_reference"]["kind"] == "single-page"
+    compose_fixture(path, slide_id="s01", source=source)
+    fixture_review(path, "s01", tmp_path / "locked-review.json")
+    execute(path, "accept", slide_id="s01", record=tmp_path / "locked-review.json")
+    second = execute(path, "request", slide_id="s02", route="host")["pages"]["s02"]
+    assert second["style_reference"] == first["style_reference"]
+    assert second["request_reference"] == first["request_reference"]
+
+
+@pytest.mark.parametrize("damage", ["missing-reference", "wrong-reference", "wrong-source", "missing-check",
+                                     "failed-check", "blank-observations", "wrong-target"])
+def test_style_review_rejects_missing_or_mismatched_comparisons(production, tmp_path, damage):
+    path, source = production
+    selected_style_fixture(path)
+    compose_fixture(path, slide_id="s01", source=source)
+    record = tmp_path / "style-review.json"
+    fixture_review(path, "s01", record)
+    review = json.loads(record.read_bytes())
+    if damage == "missing-reference":
+        review.pop("style_reference")
+    elif damage == "wrong-reference":
+        review["style_reference"]["sha256"] = "0" * 64
+    elif damage == "wrong-source":
+        review["style_reference"]["source_sha256"] = "0" * 64
+    elif damage == "missing-check":
+        review["checks"].pop(STYLE_CHECK)
+    elif damage == "failed-check":
+        review["checks"][STYLE_CHECK]["status"] = "fail"
+    elif damage == "blank-observations":
+        review["checks"][STYLE_CHECK]["notes"] = " "
+    else:
+        review["checks"][STYLE_CHECK]["targets"] = ["title"]
+    write(record, review)
+    before = (workspace(path) / "state.json").read_bytes()
+    with pytest.raises(ValueError, match="style reference|style_consistency"):
+        execute(path, "accept", slide_id="s01", record=record)
+    assert (workspace(path) / "state.json").read_bytes() == before
+    assert execute(path, "status")["pages"]["s01"]["status"] == "generated"
+
+
+def test_style_refine_requires_new_comparison_and_exports_current_pixels(production, tmp_path):
+    from validate_page_spec import load_page_spec
+    path, source = production
+    selected_style_fixture(path)
+    for slide_id in ("s01", "s02"):
+        compose_fixture(path, slide_id=slide_id, source=source)
+        fixture_review(path, slide_id, tmp_path / f"original-{slide_id}.json")
+        execute(path, "accept", slide_id=slide_id, record=tmp_path / f"original-{slide_id}.json")
+    before = execute(path, "status")["pages"]["s01"]
+    spec = json.loads(path.read_bytes())
+    final = path.parent / spec["slides"][0]["image_file"]
+    corrected = tmp_path / "style-local-correction.png"
+    with Image.open(final) as image:
+        image.paste("white", (10, 10, 80, 40))
+        image.save(corrected)
+    refined = execute(path, "refine", slide_id="s01", source=corrected, base_image=final,
+                      operation="Synthetic local text correction; no model call")["pages"]["s01"]
+    assert refined["style_reference"] == before["style_reference"]
+    assert refined["status"] == "generated" and "review_snapshot" not in refined
+    with pytest.raises(ValueError, match="not approved"):
+        load_page_spec(path, require_images=True)
+    with pytest.raises(ValueError, match="Stale or mismatched"):
+        execute(path, "accept", slide_id="s01", record=tmp_path / "original-s01.json")
+    record = tmp_path / "refined-style-review.json"
+    fixture_review(path, "s01", record)
+    assert json.loads(record.read_bytes())["style_reference"] == before["style_reference"]
+    execute(path, "accept", slide_id="s01", record=record)
+    output = tmp_path / "style-refined.pptx"
+    result = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] / "scripts/build_image_ppt.py"),
+                             str(path), str(output)], text=True, capture_output=True, check=False)
+    assert result.returncode == 0, result.stderr
+    from pptx import Presentation
+    assert Presentation(output).slides[0].shapes[0].image.blob == final.read_bytes()
+
+
+@pytest.mark.parametrize("damage", ["reference_snapshot", "source_snapshot", "current-reference", "current-source",
+                                     "review-reference", "review-failed", "missing-binding"])
+def test_style_export_rechecks_reference_files_and_comparison_record(production, tmp_path, damage):
+    from page_production import commit, encoded, store
+    from validate_page_spec import load_page_spec
+    path, source = production
+    reference = selected_style_fixture(path)
+    for slide_id in ("s01", "s02"):
+        compose_fixture(path, slide_id=slide_id, source=source)
+        record = tmp_path / f"accepted-{slide_id}.json"
+        fixture_review(path, slide_id, record)
+        execute(path, "accept", slide_id=slide_id, record=record)
+    load_page_spec(path, require_images=True)
+    root = workspace(path)
+    state = json.loads((root / "state.json").read_bytes())
+    page = state["pages"]["s01"]
+    spec = json.loads(path.read_bytes())
+    if damage in {"reference_snapshot", "source_snapshot"}:
+        (root / page["style_reference"][damage]).write_bytes(b"Synthetic corrupt reference snapshot")
+    elif damage.startswith("current-"):
+        target = Path(reference["path" if damage == "current-reference" else "source_path"])
+        with Image.open(target) as image:
+            changed = image.convert("RGBA")
+            changed.putpixel((1, 1), (255, 255, 255, 255))
+            changed.save(target)
+    else:
+        # A deliberately malformed but content-addressed synthetic approval exercises
+        # export's independent style gate instead of merely the outer state checksum.
+        review = json.loads((root / page["review_snapshot"]).read_bytes())
+        if damage == "review-reference":
+            review["style_reference"]["sha256"] = "0" * 64
+        elif damage == "missing-binding":
+            page.pop("style_reference")
+            review.pop("style_reference")
+            review["checks"].pop(STYLE_CHECK)
+        else:
+            review["checks"][STYLE_CHECK]["status"] = "fail"
+        page["review_snapshot"] = store(root, encoded(review), ".review.json")
+        commit(path, spec, root, state)
+    with pytest.raises(ValueError):
+        load_page_spec(path, require_images=True)
+
+
+def test_changed_selection_invalidates_prior_style_review_and_request(production, tmp_path):
+    from style_reference import create_reference
+    path, source = production
+    selected_style_fixture(path)
+    compose_fixture(path, slide_id="s01", source=source)
+    old_review = tmp_path / "old-style-review.json"
+    fixture_review(path, "s01", old_review)
+    execute(path, "accept", slide_id="s01", record=old_review)
+    before = execute(path, "status")["pages"]["s01"]
+    spec = json.loads(path.read_bytes())
+    changed = tmp_path / "new-selected-overview.png"
+    Image.new("RGB", (1800, 1100), "#224488").save(changed)
+    spec["style"]["tokens"]["reference_images"] = [changed.name]
+    spec["style"].pop("generation_reference")
+    spec["style"].update(option=3, choice="Synthetic blue", authorization="Synthetic changed selection")
+    write(path, spec)
+    create_reference(path, "styles/new-selected-single.png", box=[20, 70, 960, 540])
+    current = execute(path, "request", slide_id="s01", route="host")["pages"]["s01"]
+    assert current["status"] == "pending"
+    assert current["contract_sha256"] != before["contract_sha256"]
+    assert current["style_reference"]["sha256"] != before["style_reference"]["sha256"]
+    # Reusing a retained original does not invent a new model call or old-style approval.
+    compose_fixture(path, slide_id="s01", source=source)
+    with pytest.raises(ValueError, match="Stale or mismatched"):
+        execute(path, "accept", slide_id="s01", record=old_review)
+    record = tmp_path / "new-style-review.json"
+    fixture_review(path, "s01", record)
+    assert json.loads(record.read_bytes())["style_reference"] == current["style_reference"]
+    execute(path, "accept", slide_id="s01", record=record)
 
 
 def test_duplicate_failure_fuses_route_and_requires_new_route(production):
