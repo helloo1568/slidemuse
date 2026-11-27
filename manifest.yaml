@@ -6,7 +6,7 @@ description: >-
   按固定三阶段流程将材料制作成图片版 PPT，并在明确授权后还原为可编辑 PPTX：
   需求确认与逐页内容稿自检/确认 → 四套幻灯片浏览视图选型 → Page Spec 驱动的逐页图片生成 →
   Scene v1 可编辑重建。
-  未指定的风格、页数和交付采用合理默认值；只询问影响结果的缺失信息，已有授权直接继续。最佳推荐 Codex + GPT Image 2.5；
+  未指定的风格、页数和交付采用合理默认值；只询问影响结果的缺失信息，已有授权直接继续。最佳推荐 Codex + GPT Image 2.6；
   也可在其他 Agent 中调用该 Agent 自身的生图能力。宿主 Agent 负责内容、识别与生图，
   本地脚本负责图片合并、Scene 编译、素材裁剪和对象审查；完整图片重建后端另提供输入归一化、文字尺寸提示、曲线/表格、公式、素材处理和任务恢复。
 author: 风清云影 (helloo1568)
@@ -95,7 +95,7 @@ triggers:
   - doc-to-editable-ppt
 requires_api_keys: false
 platforms:
-  - Codex with image generation and local file tools (recommended with GPT Image 2.5)
+  - Codex with image generation and local file tools (recommended with GPT Image 2.6)
   - Claude Code, OpenCode, WorkBuddy, Trae, and Qoder with native or connected image tools
   - Other agents with document reading, vision, native or connected image generation, and Python
 security_notes: >-
