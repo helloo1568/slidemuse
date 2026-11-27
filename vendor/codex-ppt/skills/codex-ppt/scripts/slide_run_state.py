@@ -115,7 +115,7 @@ def preparation_lock(deck_dir: Path):
         yield
 
 
-def commit_preparation(deck_dir: Path, files: Dict[str, bytes]) -> None:
+def commit_preparation(deck_dir: Path, files: Dict[str, bytes | None]) -> None:
     """Commit validated prompts, jobs and companions as one recoverable group.
 
     Caller owns preparation_lock. Removing the recovery journal is the commit
@@ -125,7 +125,7 @@ def commit_preparation(deck_dir: Path, files: Dict[str, bytes]) -> None:
     pending = []
     for relative, data in files.items():
         target = _prepared_path(deck_dir, relative)
-        if relative == PREPARATION_JOURNAL or target.name.endswith(".lock") or not isinstance(data, bytes):
+        if relative == PREPARATION_JOURNAL or target.name.endswith(".lock") or (data is not None and not isinstance(data, bytes)):
             raise ValueError("Invalid prepared output")
         previous[relative] = base64.b64encode(target.read_bytes()).decode("ascii") if target.exists() else None
         pending.append((target, data))
@@ -133,7 +133,10 @@ def commit_preparation(deck_dir: Path, files: Dict[str, bytes]) -> None:
     write_json(journal, {"version": "1.0", "previous": previous})
     try:
         for target, data in pending:
-            _write_bytes(target, data)
+            if data is None:
+                target.unlink(missing_ok=True)
+            else:
+                _write_bytes(target, data)
         journal.unlink()
     except BaseException:
         recover_preparation(deck_dir)

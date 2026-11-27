@@ -31,6 +31,7 @@ python slidemuse.py rebuild --help
 | 背景/前景拆分与来源决策 | `background_strategy`、`visual_inventory` | 复杂补全由图像工具执行，脚本不自动理解页面 |
 | 透明/纯色素材板去背与区域拆分 | `image process-sheet` | 按完整对象保留断开笔画；核对 alpha 边缘 |
 | 素材导入、哈希与来源 | `image import`、`imagegen-jobs.json` | 仅记录真实来源和工具输出 |
+| 用户原图与受保护证据保留 | `preserve-asset` | 对照独立登记原件及 SHA-256，逐字节保留 PNG/JPEG |
 | LaTeX 公式素材 | `formula render-latex` | 需 TeX/转换器；SVG/PNG/PDF，不是原生公式对象 |
 | 宿主生图、OAuth/API 接口 | `builtin-imagegen` 或可选 `image generate/edit` | 优先使用宿主工具；外部接口按用户选定后端使用 |
 | 逐页分派、租约与失败恢复 | `run next/dispatch/record/reset` | 真实 worker 才能登记；慢不代表失联 |
@@ -66,6 +67,8 @@ python slidemuse.py rebuild run finalize work/rebuild
 
 页面重建后按真实检查填写 `page_result.json`，验证通过才可 record。错误只修相关对象或素材；重试须有实际变化，保留原证据；不能因为耗时长就 reset 活跃租约。
 
+`page build` 先在临时位置完成 PPTX、检查 ZIP/XML，再生成本次示意预览，全部成功后才发布。输入缺失、非法 XML、预览失败或文件发布失败时，保留或恢复上一版 PPTX 与预览；两个输出路径必须是相互独立的文件路径。若文件系统也阻止回滚，错误会指出仍保留旧文件的备份目录，不能把此次构建当成成功。
+
 字段按需读取[Manifest 协议](../vendor/image-to-editable/skills/image-to-editable-ppt/references/manifest-schema.md)，对象决策读[页面重建树](../vendor/image-to-editable/skills/image-to-editable-ppt/references/page-decision-tree.md)，详细参数读[CLI 参考](../vendor/image-to-editable/skills/image-to-editable-ppt/references/cli-helper.md)。这些参考中的裸 `editppt` 命令均替换为 `python <skill-dir>/slidemuse.py rebuild`。上游要求所有前景都经生图提取的做法，不覆盖本技能受保护证据和现有透明原始素材的保留规则。
 
 ## 按区域测量文字
@@ -87,11 +90,25 @@ python slidemuse.py rebuild formula render-latex work/rebuild/pages/page_001 --t
 
 复杂图像编辑使用当前宿主的图像工具，先看源图、保持同一视觉基准，按工具返回的有效路径导入。原始证据和已有透明素材优先保留，不用生图替换精确来源。工具输出成功后仍需看图核对边缘和主体完整性。
 
+需要原样保留用户提供的标志、照片或证据图时，由任务主 Agent 在派发该页前登记实际原件；这沿用已有用户授权，不新增确认步骤：
+
+```sh
+python slidemuse.py rebuild --offline preserve-asset work/rebuild --page 1 --source materials/official-logo.png --asset-id official-logo --note "用户提供的原始透明标志"
+```
+
+命令将 PNG/JPEG 原件及其 SHA-256 登记到 `input/preserved-originals/<asset-id>/`，把相同字节复制到页内 `assets/`，并返回 `asset_provenance` 和 `visual_inventory` 的条目。将条目分别加入 Manifest 中对应的数组，再为 `images[]` 填写返回的 `path` 和页面位置。登记副本属于任务输入，不在页 worker 的可写范围内。相同 ID 只能复用相同原件；原件改变时使用新的 ID。
+
+页级与最终验证均要求来源路径指向该独立登记原件，并核对登记哈希、原件和使用素材的实际字节。仅写 `source_type: "user-provided"`、自行声明一个哈希或把 `source` 指回素材自身不能通过。不得把页截图的裁片重新命名为用户原件；命令拒绝直接从任务页输出登记原图，整页位图加重复可编辑文字的原有限制继续适用。原件登记证明复用的是哪一份输入，不能代替对来源说明、证据含义和显示效果的核查。
+
 用户选用 PaddleOCR 或外部图片 API 时，可不加 `--offline` 并配置对应服务，密钥不写入任务文件。接口接入不代表本机账号/服务可用性已实测；原生工具存在时按宿主要求使用原生工具。
 
 ## 验证与交付
 
 `run finalize` 使用 `run record` 已登记并核验的页面文件，支持 `page_result.json` 指定的自定义 Manifest 和输出路径。最终验证按实际幻灯片顺序核对正文、对象、图片媒体及页面关联的备注；页级旧报告不能代替最终包检查。
+
+使用 `prepare --page-spec` 时，最终验证还独立读取哈希绑定的批准内容，对照最终 PPTX 的原生正文，而不只检查 worker 的 Manifest 是否自洽。批准为 `native` 的文字必须在实际文本对象中出现；同一文本框内的 runs、段落、换行及空白拆分可以合并匹配，标点、数值、正负号和单位仍须相同。不同对象的数字不会被拼接成一个批准值。原生表格核对行、列和逐格内容；数值 `10` 可对应数值等价的 `10.0`。批准的原生图表核对实际类别、系列和数值缓存；完整后端不能构建所需原生数据图表时，应使用 Scene 图表通路。
+
+报告中的 `approved_content_errors` 非空会阻止最终发布，`approved_content_checks` 记录逐页核对范围。明确选择 `raster`/`either` 的内容及受保护图片保持原来的编辑性选择；无法从原生对象验证的内容列入 `visual_review_required`。这个列表表示**仍需完成视觉核查**，不表示机器已经看过图片或批准其内容；即使结构 `passed: true`，也必须在下面的真实渲染中核对这些项。语义概括不会被误当成必须逐字展示的正文，备注继续由独立备注契约检查。
 
 完整后端 `preview.png` 是 Pillow 示意预览，不是 Office 排版。最终 PPTX 仍执行：
 

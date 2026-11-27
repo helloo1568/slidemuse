@@ -189,6 +189,65 @@ def test_review_init_preserves_unregistered_correction_and_explains_recovery(pro
     assert (workspace(path) / "state.json").read_bytes() == state_before
 
 
+@pytest.mark.parametrize("action", ["prepare", "request", "compose", "review-init"])
+def test_unrelated_page_actions_preserve_external_edits_before_any_commit(production, tmp_path, action):
+    path, source = production
+    compose_fixture(path, slide_id="s01", source=source)
+    compose_fixture(path, slide_id="s02", source=source)
+    final = path.parent / json.loads(path.read_bytes())["slides"][0]["image_file"]
+    with Image.open(final) as image:
+        image.paste("white", (10, 10, 80, 40))
+        image.save(final)
+    corrected = final.read_bytes()
+    before = {p: p.read_bytes() for p in workspace(path).rglob("*") if p.is_file()}
+    spec_before = path.read_bytes()
+    record = tmp_path / "other-page-review.json"
+    with pytest.raises(ValueError, match="s01.*|refine"):
+        execute(path, action, slide_id="s02", route="host", source=source, record=record)
+    assert final.read_bytes() == corrected and not record.exists()
+    assert path.read_bytes() == spec_before
+    assert {p: p.read_bytes() for p in workspace(path).rglob("*") if p.is_file()} == before
+    # Moving the correction aside allows explicit recovery and registration.
+    correction = tmp_path / "independent-correction.png"
+    final.rename(correction)
+    execute(path, "prepare")
+    execute(path, "refine", slide_id="s01", source=correction, base_image=final,
+            operation="Synthetic local correction retained after conflict")
+    assert correction.read_bytes() == corrected
+
+
+@pytest.mark.parametrize("external_edit", [False, True])
+def test_prepare_recovers_interrupted_replacement_only_from_retained_pixels(production, tmp_path, monkeypatch, external_edit):
+    import page_production
+    path, source = production
+    old = compose_fixture(path, slide_id="s01", source=source)["pages"]["s01"]
+    target = path.parent / json.loads(path.read_bytes())["slides"][0]["image_file"]
+    Image.new("RGB", (1600, 900), "purple").save(source)
+    atomic = page_production.atomic
+
+    def interrupted(destination, data):
+        if destination == target:
+            raise OSError("Synthetic interruption replacing an existing projection")
+        atomic(destination, data)
+
+    monkeypatch.setattr(page_production, "atomic", interrupted)
+    with pytest.raises(OSError, match="interruption"):
+        compose_fixture(path, slide_id="s01", source=source)
+    monkeypatch.setattr(page_production, "atomic", atomic)
+    assert page_production.digest(target.read_bytes()) == old["image_sha256"]
+    if external_edit:
+        Image.new("RGB", (1600, 900), "orange").save(target)
+        edited = target.read_bytes()
+        before = (workspace(path) / "state.json").read_bytes()
+        with pytest.raises(ValueError, match="retain|Keep"):
+            execute(path, "prepare")
+        assert target.read_bytes() == edited
+        assert (workspace(path) / "state.json").read_bytes() == before
+    else:
+        page = execute(path, "prepare")["pages"]["s01"]
+        assert page_production.digest(target.read_bytes()) == page["image_sha256"] != old["image_sha256"]
+
+
 def test_refine_can_use_historical_image_after_authorized_content_revision(production, tmp_path):
     path, source = production
     previous = compose_fixture(path, slide_id="s01", source=source)["pages"]["s01"]
@@ -797,7 +856,12 @@ def test_export_rejects_shadow_approval_and_changed_approved_image(production, t
     write(path, spec)
     with pytest.raises(ValueError, match="production approval"):
         load_page_spec(path, require_images=True)
+    with pytest.raises(ValueError, match="Final image changed"):
+        execute(path, "request", slide_id="s01", route="host")
+    retained = tmp_path / "unregistered-existing.png"
+    target.rename(retained)
     compose_fixture(path, slide_id="s01", source=source)
+    assert retained.read_bytes() == source.read_bytes()
     review = tmp_path / "approved-review.json"
     fixture_review(path, "s01", review)
     execute(path, "accept", slide_id="s01", record=review)

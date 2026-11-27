@@ -9,7 +9,9 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from build_pptx_from_manifest import TEXT_ALIGNMENTS, TEXT_VERTICAL_ALIGNMENTS, normalize_manifest, slide_xml
-from _input_normalization import approved_notes_contract, notes_body_text
+from _input_normalization import approved_content_contract, approved_notes_contract, notes_body_text
+from approved_content import check_approved_slide
+from original_assets import preserved_original_error
 
 
 NS = {
@@ -17,6 +19,7 @@ NS = {
     "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
     "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
     "rel": "http://schemas.openxmlformats.org/package/2006/relationships",
+    "c": "http://schemas.openxmlformats.org/drawingml/2006/chart",
 }
 
 ALLOWED_SOURCE_TYPES = {
@@ -148,7 +151,7 @@ def has_forbidden_decision(decision):
     return contains_any(text, FORBIDDEN_FOREGROUND_FALLBACK_TERMS)
 
 
-def foreground_asset_contract_violations(manifest):
+def foreground_asset_contract_violations(manifest, manifest_path=None):
     violations = []
     allowed_foreground_sources = {"asset-sheet-separated", "imagegen"}
     provenance_by_path = {
@@ -156,6 +159,16 @@ def foreground_asset_contract_violations(manifest):
         for entry in manifest.get("asset_provenance", [])
         if isinstance(entry, dict) and entry.get("path")
     }
+    preserved_paths = set()
+    for index, entry in enumerate(manifest.get("asset_provenance", [])):
+        if not isinstance(entry, dict) or "original_asset_id" not in entry:
+            continue
+        error = (preserved_original_error(entry, manifest_path) if manifest_path is not None
+                 else "Original asset registration must be verified against the actual page manifest")
+        if error:
+            violations.append({"field": f"asset_provenance[{index}]", "reason": error})
+        else:
+            preserved_paths.add(Path(entry["path"]).as_posix())
     foreground_paths = set()
 
     for index, item in enumerate(manifest.get("visual_inventory", [])):
@@ -167,14 +180,15 @@ def foreground_asset_contract_violations(manifest):
         structured = isinstance(item, dict) and any(key in item for key in ("role", "object_type", "source_type"))
         decision = item.get("decision", "") if isinstance(item, dict) else item
         declared_source = item.get("source_type") if isinstance(item, dict) else None
-        if (not structured and has_forbidden_decision(decision)) or (declared_source is not None and declared_source not in allowed_foreground_sources):
-            violations.append({"field": field, "reason": "foreground visual decisions must not use direct crops, native approximations, emoji/text symbols, or warning-only fallbacks"})
         path = visual_item_path(item)
+        allowed_sources = allowed_foreground_sources | ({"user-provided"} if path in preserved_paths else set())
+        if (not structured and has_forbidden_decision(decision)) or (declared_source is not None and declared_source not in allowed_sources):
+            violations.append({"field": field, "reason": "foreground visual decisions must not use direct crops, native approximations, emoji/text symbols, or warning-only fallbacks"})
         if path:
             foreground_paths.add(path)
             provenance = provenance_by_path.get(path)
-            if not provenance or provenance.get("source_type") not in allowed_foreground_sources:
-                violations.append({"field": field, "path": path, "reason": "foreground visual objects require matching asset-sheet-separated or imagegen provenance"})
+            if not provenance or provenance.get("source_type") not in allowed_sources:
+                violations.append({"field": field, "path": path, "reason": "foreground visual objects require generated/separated provenance or a verified original asset registration"})
             elif declared_source is not None and declared_source != provenance.get("source_type"):
                 violations.append({"field": field + ".source_type", "path": path, "reason": "source_type must match the linked asset provenance"})
         elif structured:
@@ -190,7 +204,9 @@ def foreground_asset_contract_violations(manifest):
         if not isinstance(entry, dict):
             continue
         path = Path(entry.get("path", "")).as_posix()
-        if (path in foreground_paths or is_foreground_visual_item(entry)) and entry.get("source_type") not in allowed_foreground_sources:
+        if ((path in foreground_paths or is_foreground_visual_item(entry))
+                and entry.get("source_type") not in allowed_foreground_sources
+                and not (path in preserved_paths and entry.get("source_type") == "user-provided")):
             violations.append({"field": f"asset_provenance[{index}]", "path": path, "reason": "foreground asset provenance must use asset-sheet-separated or imagegen"})
     return violations
 
@@ -248,7 +264,7 @@ def page_contract_violations(manifest):
     return violations
 
 
-def quality_contract_violations(manifest):
+def quality_contract_violations(manifest, manifest_path=None):
     violations = []
 
     if "visual_inventory" not in manifest:
@@ -322,7 +338,7 @@ def quality_contract_violations(manifest):
                 }
             )
 
-    violations.extend(foreground_asset_contract_violations(manifest))
+    violations.extend(foreground_asset_contract_violations(manifest, manifest_path))
     return violations
 
 
@@ -614,16 +630,21 @@ def validate_deck(args):
         "notes_found": 0,
         "notes_hash_mismatches": [],
         "notes_contract_errors": [],
+        "approved_content_errors": [],
+        "approved_content_checks": [],
         "missing_parts": [],
         "missing_relationship_targets": [],
         "warnings": [],
         "passed": False,
     }
     try:
+        approved_content = approved_content_contract(deck, root)
         approved_notes = approved_notes_contract(deck, root)
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        approved_content = None
         approved_notes = None
         report["notes_contract_errors"].append(str(exc))
+        report["approved_content_errors"].append(str(exc))
 
     geometry_manifests = []
     for page_index, page in enumerate(deck.get("pages", []), start=1):
@@ -646,7 +667,7 @@ def validate_deck(args):
                 violations = (
                     authoring_violations
                     + page_contract_violations(normalized_manifest)
-                    + quality_contract_violations(raw_manifest)
+                    + quality_contract_violations(raw_manifest, manifest_path)
                 )
                 if violations:
                     report["page_contract_violations"].append(
@@ -686,6 +707,18 @@ def validate_deck(args):
                     report["missing_parts"].append(part)
             slide_parts = ordered_slide_parts(z, names)
             report["slides"] = len(slide_parts)
+            if approved_content is not None:
+                for page_index, (approved_slide, slide_part) in enumerate(zip(approved_content["slides"], slide_parts), 1):
+                    slide_root = ET.fromstring(z.read(slide_part))
+                    relationships = relationships_for_part(z, slide_part, names)
+                    charts = [ET.fromstring(z.read(internal_relationship_part(
+                        relationships.get(chart.get(f"{{{NS['r']}}}id")), "/chart", names)))
+                        for chart in slide_root.findall(".//c:chart", NS)]
+                    checked = check_approved_slide(approved_slide, slide_root, charts)
+                    report["approved_content_checks"].append({"page_index": page_index,
+                        "slide_id": approved_slide.get("id"), **checked})
+                    report["approved_content_errors"].extend({"page_index": page_index,
+                        "slide_id": approved_slide.get("id"), **error} for error in checked["errors"])
             for page_index, page_manifest, manifest_path in geometry_manifests:
                 if page_index <= len(slide_parts):
                     slide_part = slide_parts[page_index - 1]
@@ -734,6 +767,7 @@ def validate_deck(args):
         and not report["missing_relationship_targets"]
         and not report["notes_hash_mismatches"]
         and not report["notes_contract_errors"]
+        and not report["approved_content_errors"]
         and not report["warnings"]
     )
     output = json.dumps(report, ensure_ascii=False, indent=2)
@@ -970,7 +1004,7 @@ def main():
         if not source_path.exists():
             report["missing_provenance_sources"].append({"path": key, "source": str(source)})
     report["page_contract_violations"] = (
-        authoring_violations + page_contract_violations(manifest) + quality_contract_violations(raw_manifest)
+        authoring_violations + page_contract_violations(manifest) + quality_contract_violations(raw_manifest, args.manifest)
     )
 
     report["passed"] = (

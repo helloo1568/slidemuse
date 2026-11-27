@@ -26,6 +26,7 @@ import time
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlparse
 
+from codex_ppt_runtime import _load_env_values
 from image_providers import create_image_provider
 from image_providers.atlascloud import atlascloud_model_for_operation
 
@@ -73,19 +74,14 @@ def _runtime_env_path() -> Path:
 
 
 def _load_runtime_env() -> None:
-    path = _runtime_env_path()
-    if not path.exists():
-        return
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        if key not in ENV_FIELDS or os.getenv(key):
-            continue
-        value = value.strip().strip('"').strip("'")
-        os.environ[key] = value
+    values = _load_env_values(_runtime_home())
+    # Clear absent fields too: a saved official-API key must never inherit a
+    # host proxy URL, and a saved endpoint without a key must remain unusable.
+    for key in ENV_FIELDS:
+        if values.get(key):
+            os.environ[key] = values[key]
+        else:
+            os.environ.pop(key, None)
 
 
 def _default_model() -> str:

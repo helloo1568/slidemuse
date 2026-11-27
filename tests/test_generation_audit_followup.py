@@ -29,7 +29,8 @@ def snapshot(deck):
 
 def test_prepare_preserves_remote_references_and_resolves_local_images(tmp_path):
     spec = deck_spec()
-    spec["approved_style_reference"] = {"path": "https://example.invalid/style.png", "role": "style-only"}
+    Image.new("RGB", (1600, 900), "navy").save(tmp_path / "style.png")
+    spec["approved_style_reference"] = {"path": "style.png", "role": "style-only"}
     spec["slides"][0]["required_images"] = [
         {"path": "https://example.invalid/figure.png", "role": "strict input asset"},
         {"path": "assets/local.png", "role": "local evidence"},
@@ -42,7 +43,7 @@ def test_prepare_preserves_remote_references_and_resolves_local_images(tmp_path)
     assert result.returncode == 0, result.stderr
     images = json.loads((deck / "prompts/slide_01.json").read_text(encoding="utf-8"))["input_images"]
     assert [image["path"] for image in images] == [
-        "https://example.invalid/style.png", "https://example.invalid/figure.png",
+        str((tmp_path / "style.png").resolve()), "https://example.invalid/figure.png",
         str((tmp_path / "assets/local.png").resolve()), "https://example.invalid/markdown.png",
     ]
 

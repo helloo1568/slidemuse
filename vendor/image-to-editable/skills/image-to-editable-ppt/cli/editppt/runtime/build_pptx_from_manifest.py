@@ -5,12 +5,14 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import zipfile
 from copy import deepcopy
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 from native_tables import normalize_table, table_xml, cell_text_box
 
@@ -696,25 +698,90 @@ def write_common_parts(z, slide_count, width, height, notes_count):
         z.writestr("ppt/notesMasters/_rels/notesMaster1.xml.rels", notes_master_rels_xml())
 
 
+def check_page_output_paths(paths):
+    """Reject invalid or overlapping destinations before touching prior outputs."""
+    paths = [Path(path) for path in paths]
+    resolved = [path.resolve() for path in paths]
+    for index, path in enumerate(paths):
+        if path.exists() and not path.is_file():
+            raise ValueError(f"Page output path is not a file: {path}")
+        for other, other_resolved in zip(paths[:index], resolved[:index]):
+            if (resolved[index] == other_resolved or resolved[index] in other_resolved.parents
+                    or other_resolved in resolved[index].parents
+                    or (path.exists() and other.exists() and path.samefile(other))):
+                raise ValueError("Page PPTX and preview must have separate output paths")
+
+
+def publish_page_outputs(outputs):
+    """Publish one completed page revision, restoring both outputs on failure."""
+    outputs = [(Path(source), Path(target)) for source, target in outputs]
+    check_page_output_paths([target for _, target in outputs])
+    previous, published, backup_dirs = {}, set(), []
+    try:
+        for _, target in outputs:
+            if target.exists() or target.is_symlink():
+                # Keep backups beside each destination, outside build staging,
+                # so even a failed rollback leaves recoverable prior files.
+                backup = Path(tempfile.mkdtemp(prefix=".page-previous-", dir=target.parent))
+                backup_dirs.append(backup)
+                saved = backup / target.name
+                os.replace(target, saved)
+                previous[target] = saved
+        for source, target in outputs:
+            os.replace(source, target)
+            published.add(target)
+    except BaseException as error:
+        restore_errors = []
+        for _, target in reversed(outputs):
+            try:
+                if target in previous:
+                    os.replace(previous[target], target)
+                elif target in published:
+                    target.unlink(missing_ok=True)
+            except OSError as restore_error:
+                restore_errors.append(str(restore_error))
+        if restore_errors:
+            locations = ", ".join(str(path) for path in backup_dirs)
+            raise RuntimeError(f"Page publication and rollback failed; recover prior files from {locations}: "
+                               + "; ".join(restore_errors)) from error
+        for backup in backup_dirs:
+            shutil.rmtree(backup, ignore_errors=True)
+        raise
+    else:
+        for backup in backup_dirs:
+            shutil.rmtree(backup, ignore_errors=True)
+
+
 def write_pptx(manifest, out_path, manifest_path):
     width = emu(manifest.get("slide", {}).get("width", 13.333))
     height = emu(manifest.get("slide", {}).get("height", 7.5))
     out = Path(out_path)
+    check_page_output_paths([out])
     out.parent.mkdir(parents=True, exist_ok=True)
     normalized = normalize_manifest(manifest)
     media_index = 1
-    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("[Content_Types].xml", content_types_xml([normalized], []))
-        write_common_parts(z, 1, width, height, 0)
-        z.writestr("ppt/slides/slide1.xml", slide_xml(normalized))
-        z.writestr("ppt/slides/_rels/slide1.xml.rels", rels_xml(normalized, media_index, None))
-        base = Path(manifest_path).resolve().parent
-        for item in normalized.get("images", []):
-            src = Path(item["path"])
-            if not src.is_absolute():
-                src = base / src
-            z.write(src, f"ppt/media/image{media_index}{image_ext(src)}")
-            media_index += 1
+    # Read every dependency and finish the ZIP before replacing prior work.
+    with tempfile.TemporaryDirectory(prefix=".page-build-", dir=out.parent) as temporary:
+        staged = Path(temporary) / "page.pptx"
+        with zipfile.ZipFile(staged, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("[Content_Types].xml", content_types_xml([normalized], []))
+            write_common_parts(z, 1, width, height, 0)
+            z.writestr("ppt/slides/slide1.xml", slide_xml(normalized))
+            z.writestr("ppt/slides/_rels/slide1.xml.rels", rels_xml(normalized, media_index, None))
+            base = Path(manifest_path).resolve().parent
+            for item in normalized.get("images", []):
+                src = Path(item["path"])
+                if not src.is_absolute():
+                    src = base / src
+                z.write(src, f"ppt/media/image{media_index}{image_ext(src)}")
+                media_index += 1
+        with zipfile.ZipFile(staged) as z:
+            if z.testzip() is not None:
+                raise ValueError("Built page contains a damaged ZIP part")
+            for part in z.namelist():
+                if part.endswith((".xml", ".rels")):
+                    ET.fromstring(z.read(part))
+        os.replace(staged, out)
 
 
 def deck_slide_size(deck, page_entries):
@@ -1037,9 +1104,22 @@ def main():
     if not args.out:
         parser.error("--out is required unless --deck-manifest provides an output")
     manifest = json.loads(Path(args.manifest).read_text(encoding="utf-8"))
-    write_pptx(manifest, args.out, args.manifest)
     if args.preview:
-        render_preview(manifest, args.manifest, args.preview)
+        # The CLI's preview is part of this build. A preview error must not
+        # replace the last usable page with a mismatched revision.
+        out, preview = Path(args.out), Path(args.preview)
+        check_page_output_paths([out, preview])
+        out.parent.mkdir(parents=True, exist_ok=True)
+        preview.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix=".page-build-", dir=out.parent) as deck_temporary, \
+                tempfile.TemporaryDirectory(prefix=".page-preview-", dir=preview.parent) as preview_temporary:
+            staged_out = Path(deck_temporary) / "page.pptx"
+            staged_preview = Path(preview_temporary) / preview.name
+            write_pptx(manifest, staged_out, args.manifest)
+            render_preview(manifest, args.manifest, staged_preview)
+            publish_page_outputs([(staged_out, out), (staged_preview, preview)])
+    else:
+        write_pptx(manifest, args.out, args.manifest)
     print(f"Wrote {args.out}")
     if args.preview:
         print(f"Wrote {args.preview}")

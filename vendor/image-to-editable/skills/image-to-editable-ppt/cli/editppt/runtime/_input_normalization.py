@@ -54,8 +54,8 @@ def notes_body_text(root):
     return ""
 
 
-def approved_notes_contract(deck, root):
-    """Load the independent, hash-bound SlideMuse Page Spec note contract."""
+def approved_content_contract(deck, root):
+    """Load the independent, hash-bound SlideMuse Page Spec, not worker text."""
     name = deck.get("slidemuse_content", "slidemuse-page-content.json")
     snapshot = (root / name).resolve()
     if not snapshot.is_relative_to(root.resolve()):
@@ -66,11 +66,20 @@ def approved_notes_contract(deck, root):
     if ("slidemuse_content" in deck
             and hashlib.sha256(data).hexdigest() != deck.get("slidemuse_content_sha256")):
         raise ValueError("Approved content snapshot changed or lacks its recorded hash")
-    slides = json.loads(data)["slides"]
+    content = json.loads(data)
+    slides = content["slides"]
     if len(slides) != int(deck.get("page_count", len(deck.get("pages", [])))):
         raise ValueError("Approved content slide count differs from the rebuild run")
+    return content
+
+
+def approved_notes_contract(deck, root):
+    """Retain the note contract for callers that only assemble notes."""
+    content = approved_content_contract(deck, root)
+    if content is None:
+        return None
     return {index: slide.get("speaker_notes", "").replace("\r\n", "\n").replace("\r", "\n")
-            for index, slide in enumerate(slides, 1)}
+            for index, slide in enumerate(content["slides"], 1)}
 
 
 def copy_input(src, input_dir):

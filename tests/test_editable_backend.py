@@ -40,6 +40,23 @@ def test_complete_sources_and_local_patches_are_verified():
     assert "native-custom-paths-dashes-arrows" in result["features"]
 
 
+def test_source_verification_includes_slidemuse_owned_additions(tmp_path):
+    import hashlib
+
+    vendor = tmp_path / editable_backend.VENDOR
+    vendor.mkdir(parents=True)
+    helper = vendor / "local-helper.py"
+    helper.write_bytes(b"# Synthetic local addition\n")
+    (vendor / "upstream.json").write_text(json.dumps({
+        "repository": "synthetic-upstream", "commit": "synthetic", "license": "MIT", "files": {},
+        "additions": {helper.name: {"sha256": hashlib.sha256(helper.read_bytes()).hexdigest(),
+                                   "reason": "Synthetic SlideMuse-owned source"}}}), encoding="utf-8")
+    assert editable_backend.capabilities(root=tmp_path, verify=True)["source_integrity"] == {
+        "checked": 1, "mismatches": []}
+    helper.write_bytes(b"# Altered local helper\n")
+    assert editable_backend.capabilities(root=tmp_path, verify=True)["source_integrity"]["mismatches"] == [helper.name]
+
+
 def test_offline_unicode_prepare_measures_text_without_using_configured_tokens(tmp_path, monkeypatch):
     source = tmp_path / "中文输入.png"
     synthetic_image(source)

@@ -356,8 +356,44 @@ def validate_targets(spec_path, spec, root):
                     raise ValueError("Protected region outside canvas")
 
 
-def project(spec_path, spec, root, state):
-    """Materialize committed state; rerunning prepare repairs interrupted projections."""
+def projection_inputs(spec_path, spec, state, *, recover=False):
+    """Check every output before a mutation can replace another page's local edits."""
+    observed = {}
+    for slide in spec["slides"]:
+        if slide.get("image_origin"):
+            continue
+        target = relative_file(spec_path.parent, slide["image_file"])
+        if not target.exists():
+            observed[target] = None
+            continue
+        page = state["pages"][slide["id"]]
+        retained = [item["image_sha256"] for item in (page, *reversed(page.get("history", [])))
+                    if item.get("image_snapshot") and item.get("image_sha256")]
+        # After a committed replacement is interrupted, prepare may find the
+        # previous retained image at this path. Its bytes already have a backup.
+        allowed = retained if recover else retained[:1]
+        actual = digest(target.read_bytes()) if target.is_file() else None
+        if actual is None or actual not in allowed:
+            raise ValueError(
+                f"Final image changed outside production: {slide['id']} ({target}). "
+                "Keep the edited file at an independent path, then run prepare to restore a missing "
+                "committed image and use refine to register the correction. No page was overwritten."
+            )
+        observed[target] = actual
+    return observed
+
+
+def unchanged_projections(observed):
+    for target, expected in observed.items():
+        actual = digest(target.read_bytes()) if target.is_file() else None
+        if (target.exists() and not target.is_file()) or actual != expected:
+            raise ValueError(f"Final image changed during production: {target}; retain it before retrying")
+
+
+def project(spec_path, spec, root, state, *, observed=None):
+    """Materialize committed state after checking existing files, including recovery."""
+    if observed is not None:
+        unchanged_projections(observed)
     for slide in spec["slides"]:
         page = state["pages"][slide["id"]]
         if slide.get("image_origin"):
@@ -384,11 +420,13 @@ def project(spec_path, spec, root, state):
     atomic(root / "status.md", ("\n".join(lines) + "\n").encode())
 
 
-def commit(spec_path, spec, root, state):
+def commit(spec_path, spec, root, state, *, observed=None):
     # This atomic state write is the commit point; all outputs are projections.
+    if observed is not None:
+        unchanged_projections(observed)
     state["state_sha256"] = seal({k: v for k, v in state.items() if k != "state_sha256"})
     save(root / "state.json", state)
-    project(spec_path, spec, root, state)
+    project(spec_path, spec, root, state, observed=observed)
 
 
 def validate_generation_record(value, packet, request_hash, source_hash, slide_id, *, legacy_route=None):
@@ -759,6 +797,10 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
         if any(type(v) is not int for v in spec["canvas"].values()):
             raise ValueError("Production canvas needs integer pixel dimensions")
         validate_targets(spec_path, spec, root)
+        # Do this before requests, review files, Page Spec changes or snapshots
+        # are written. A command for s02 must never erase an edit to s01.
+        prior = current(spec_path, spec, root, persist=False)
+        observed = projection_inputs(spec_path, spec, prior, recover=action == "prepare")
         state = current(spec_path, spec, root)
         selected = next((s for s in spec["slides"] if s["id"] == slide_id), None)
         if action not in ("prepare", "status") and selected is None:
@@ -804,7 +846,7 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
             template = review_template(selected, page)
             target = relative_file(spec_path.parent, selected["image_file"])
             if not target.is_file() or digest(target.read_bytes()) != page["image_sha256"]:
-                raise ValueError("Final image changed since composition; register an independent correction with refine, or run prepare to restore the committed image")
+                raise ValueError("Final image changed since composition; retain it at an independent path, then use prepare and refine")
             save(Path(record), template)
         elif action == "accept":
             if record is None:
@@ -813,7 +855,7 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
             accept(spec_path, spec, selected, root, state["pages"][slide_id], Path(record), policy=spec.get("content_policy"))
         elif action not in ("prepare", "status"):
             raise ValueError("Unknown production action")
-        commit(spec_path, spec, root, state)
+        commit(spec_path, spec, root, state, observed=observed)
         return {"state": str(root / "state.json"), "summary": str(root / "status.md"),
                 "pages": {key: {k: v for k, v in page.items() if k != "history"} for key, page in state["pages"].items()},
                 "archived_page_ids": sorted(state["archived_pages"])}

@@ -131,6 +131,56 @@ def generation_helpers():
     return runpy.run_path(str(helper))
 
 
+def retry(deck, slide_id, reason):
+    """Requeue one blocked page without resetting other workers or completed results."""
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValueError("Retry requires the actual reason the blocked page can be attempted again")
+    helpers = generation_helpers()
+    deck = helpers["deck_dir_from_target"](str(deck))
+    with helpers["preparation_lock"](deck):
+        jobs = read_json(deck / "slide_jobs.json")
+        slide = helpers["find_slide"](jobs, slide_id)
+        if slide.get("status") != "blocked":
+            raise ValueError(f"{slide['slide_id']} must be blocked before retry; active or completed pages are retained")
+        if (deck / CONTRACT).is_file():
+            check_contract(deck, jobs)
+        elif jobs.get("slidemuse_content_policy") == "1.0":
+            raise ValueError("Current generation job is missing its content contract")
+        if slide.get("dispatch"):
+            helpers["validate_dispatch_inputs"](deck, slide)
+        job = read_json(inside(deck, slide["job"]))
+        helpers["validate_style_reference"](job.get("style_reference"), job.get("input_images", []))
+        previous = {key: copy.deepcopy(value) for key, value in slide.items() if key != "attempt_history"}
+        files = {}
+        snapshots = {}
+        for name, value in (("job", slide["job"]), ("prompt", (slide.get("dispatch") or {}).get("prompt"))):
+            if value is None:
+                continue
+            raw = inside(deck, value).read_bytes()
+            relative = f".generation-history/attempts/{hashlib.sha256(raw).hexdigest()}.{name}"
+            existing = inside(deck, relative)
+            if existing.exists() and existing.read_bytes() != raw:
+                raise ValueError("Retained retry input changed; preserve it for recovery")
+            files[relative] = raw
+            snapshots[name] = relative
+        attempts = slide.get("attempt_history", [])
+        if not isinstance(attempts, list):
+            raise TypeError("Generation attempt history must be a list")
+        slide["attempt_history"] = [*attempts, {"retried_at": helpers["now_iso"](), "reason": reason.strip(),
+                                                "previous": previous, "snapshots": snapshots}]
+        slide.update(status="pending", dispatch=None, result=None, blocker=None)
+        jobs["run_status"] = "jobs_prepared"
+        helpers["update_jobs_run_status"](jobs)
+        state = read_json(deck / "slide_run_state.json") if (deck / "slide_run_state.json").exists() else {"status": "created", "history": []}
+        state.setdefault("history", []).append({"from": state.get("status"), "to": jobs["run_status"],
+                                                "at": helpers["now_iso"](), "note": f"retry {slide['slide_id']}: {reason.strip()}"})
+        state.update(status=jobs["run_status"], updated_at=helpers["now_iso"]())
+        for name, value in (("slide_jobs.json", jobs), ("slide_run_state.json", state)):
+            files[name] = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        helpers["commit_preparation"](deck, files)
+    return {"slide_id": slide["slide_id"], "status": "pending", "retained_attempts": len(slide["attempt_history"])}
+
+
 def prepared_contract_files(deck, spec, jobs, prepared_files):
     """Build companion bytes before the helper commits any prepared output."""
     if len(jobs["slides"]) != len(spec["slides"]):

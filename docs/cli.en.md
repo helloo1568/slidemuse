@@ -71,14 +71,42 @@ Record failed calls with `produce failure <page-spec> --slide <id> --route host 
 
 ### Local corrections and task recovery (2.29.0)
 
-After an authorized local correction to a retained original or final image, register it with `produce refine <page-spec> --slide <id> --base-image <retained-original-or-final> --source <independent-corrected-image> --operation <description>`, then run a new `review-init` and `accept`. The original call evidence remains bound to the generated original; a separate derivation record tracks the corrected output. Creating a review after an unregistered final-image replacement is rejected. See [page production](../references/page-production.md).
+After an authorized local correction to a retained original or final image, register it with `produce refine <page-spec> --slide <id> --base-image <retained-original-or-final> --source <independent-corrected-image> --operation <description>`, then run a new `review-init` and `accept`. The original call evidence remains bound to the generated original; a separate derivation record tracks the corrected output. An unregistered final-image replacement blocks production writes, including commands for other pages. Move the correction to an independent path, restore the committed image with `prepare`, then register the correction with `refine`. See [page production](../references/page-production.md).
 
 Removed pages retain their production archive. Restoring a stable page ID restores the unchanged state or carries its history into the revised page. Reconstruction `prepare --job-dir` requires a new or empty directory; continue existing runs through their status, result and recovery commands. Invalid `generate prepare --force` inputs leave the previous prompts, jobs and content contract intact.
 
 The LibreOffice backend requires `soffice`, `pdftoppm` and `pdfinfo`. Full and selected rendering include hidden slides and reject a PDF page-count mismatch. Final reconstruction validation checks the actual PPTX body, images and speaker-note relationships; inspect the real rendered pages as well.
+
+`render --overwrite` checks all render and cleanup paths against the input deck, Page Spec and reference images before invoking a renderer. Choose a separate directory when they overlap. Rendering and comparison finish in a temporary directory before publication; rendering, input-validation and publication failures preserve the previous review files. Unrelated files in the review directory remain intact.
 
 ### Preserve the chosen visual style (2.30.0)
 
 After selecting an overview, register a measured complete single-page region with `style-reference <page-spec> --box <x> <y> <width> <height> --output <reference-PNG>`. Relative output paths resolve from the Page Spec directory; use `--single-page` for an explicitly locked independent page. This image is only a visual reference, never a final slide. See [style selection](../references/style-options.md).
 
 The `request_reference` returned by `produce request` and the per-page inputs produced by `generate prepare --page-spec` bind to the same selected visual baseline. Attach the actual image to the image model; a path in prompt text is not an attachment. Structured requests requiring images cannot use text-only `generate image generate`; compatible APIs use `generate image edit --image <actual-reference>`. Review `style_consistency` against the correct reference. Changed, missing or mismatched references block new approval and delivery.
+
+### Retrying a blocked image job
+
+After resolving an actual generation blocker, run:
+
+```sh
+python slidemuse.py generate retry "<deck-directory>" --slide 3 --reason "<actual recovery reason>"
+```
+
+This requeues only the blocked page and retains its previous dispatch, failure and request snapshots. Other completed pages and active workers remain intact; the next dispatch still obeys the concurrency limit. Active or completed pages cannot be requeued with this command.
+
+`generate prepare --force` preserves unchanged completed jobs and archives replaced work before committing new inputs. Changed content requires new review; unchanged content and image bytes retain their approval when only scheduling settings change. In native `--spec` inputs, `approved_style_reference.path` must name a local approved single-page image: preparation binds its actual hash and later gates reject a replaced reference. Save remote style references locally first; preparation does not download them.
+
+### Provider configuration and original assets
+
+Saved image API configuration selects its key, endpoint and model together for both `runtime doctor` and later `generate image` calls. Host environment values cannot replace or fill in fields from another provider. Without a saved provider, environment-only configuration remains supported. Changing a saved endpoint requires its corresponding `--api-key`; rotating a key for the same endpoint remains supported. This does not affect the host agent's native image tools.
+
+Register an original user-supplied image before assigning the page worker:
+
+```sh
+python slidemuse.py rebuild --offline preserve-asset "<run>" --page 1 --source "<original.png>" --asset-id official-logo --note "<actual input source>"
+```
+
+The command retains an independent input copy and hash, copies identical bytes into the page, and returns the Manifest provenance entries. Both page and final validation verify the registered original and the actual asset; a provenance label alone is insufficient. See [editable backend](../references/editable-backend.md).
+
+Single-page builds finish and validate their temporary PPTX before replacing an existing file. Paired PPTX/preview publication rolls back on failure. With `prepare --page-spec`, final validation also compares native text, tables and charts directly with the approved content snapshot. Content selected as `raster` or `either` keeps that choice; `visual_review_required` lists work still requiring an actual visual comparison, and does not certify those pixels.
