@@ -16,6 +16,8 @@ python slidemuse.py generate --help
 
 通过 `fyai-setup` 或 `generate runtime bootstrap` 配置共享 API 环境后，`generate image` 自动使用同一 `CODEX_PPT_HOME/.venv` 解释器；没有共享环境时使用当前已安装生成依赖的解释器。配置诊断与实际调用不会各用一套依赖。
 
+API 配置按服务成组选择：`CODEX_PPT_HOME/.env`（默认 `~/.codex-ppt-skill/.env`）保存了 Key 或服务地址时，诊断和生图优先使用这套配置，不从宿主的 `OPENAI_*` 环境变量补入另一套凭证或地址。未保存服务配置时，仍可只用 `OPENAI_API_KEY`、`OPENAI_BASE_URL` 和 `CODEX_PPT_IMAGE_MODEL` 环境变量；只有模型的配置文件不改变服务选择。保存的 Key 未指定地址表示官方 API，保存的地址缺 Key 则需要补齐后才能调用。`runtime config` 更换已有服务地址（包括 `--clear-base-url` 切回官方 API）时，必须同时传入对应的 `--api-key`；只更新同一服务的 Key 或模型可单独设置。图片命令的显式 `--model` 仍用于本次请求。
+
 **一条任务只用一个事实源。** SlideMuse 主流程用 `page-spec.json` + `slides/NN-*.png` + `build_image_ppt.py`；本后端用已确认大纲 + `prompts/slide_NN.json` + `slide_jobs.json` + `origin_image/slide_NN.png` + `assemble_ppt.py`。任务格式不能互换；`prepare --page-spec` 负责将同一批准内容投影到生成格式，稳定 ID、文字和数据仍保留。S1–S5 的门禁、内容确认和视觉选型两套流程完全相同，本后端不放宽任何门禁，也不替代内容大纲的要点密度要求（见 [content-outline.md](content-outline.md)）。
 
 ## 能力覆盖
@@ -27,6 +29,7 @@ python slidemuse.py generate --help
 | 分派登记与并发额度 | `dispatch` | 需要真实 worker 与提示文件；聊天记录不构成分派 |
 | 结果登记与来源校验 | `result` | 复制选中图片到最终路径，记录后端来源与哈希；拒绝本地绘制类后端 |
 | 阻塞登记 | `blocker` | 已完成页面拒绝改标阻塞 |
+| 单页恢复 | `retry` | 仅重新排队已阻塞页，保留原分派、失败原因和请求快照；其他页及并发限额不变 |
 | 图片版 PPTX 组装 | `assemble` | 按 `slide_NN` 页序充满整页，仅导出合同明确声明的讲稿；不替代真实渲染验收 |
 | 纯色背景去底 | `chroma` | 本地像素处理，需核对 alpha 边缘 |
 | 共享运行环境与 API 配置 | `runtime bootstrap/config/doctor` | 需要联网安装依赖并写用户级 `.env`；只在用户选定 API 后端时使用 |
@@ -57,6 +60,8 @@ python slidemuse.py generate blocker "<work>" --slide 3 --agent-id <真实worker
 python slidemuse.py generate assemble "<base_dir>" "<deck>.pptx"
 ```
 
+临时故障解决后，用 `generate retry "<work>" --slide 3 --reason "<实际恢复原因>"` 将该阻塞页重新排队，再按正常流程分派和登记结果。它不发起生图、不批准图片，也不重置其他页；正在执行或已完成的页不能用此命令重试。先前分派和 blocker 保留在该页的 `attempt_history`，实际提示文件快照保存在 `.generation-history/attempts/`。其他 worker 仍在执行时可重新排队，但后续 dispatch 继续遵守并发限额。
+
 - 每张成品图必须由**已确认的生图后端**产出，并写入 `sample_generation_method` 让子代理沿用同一路径；`result` 会拒绝把 Pillow、SVG、HTML/CSS、python-pptx 或手工拼图登记为成品图。
 - 只有真实 worker 才能 `dispatch`；`status` 的 `dispatchable_slides` 与 `dispatch_slots_available` 决定还能分派几页，慢不代表失联。
 - 每页围绕批准内容（普通内容页默认 3–5 条支撑，例外见 content-density.md）写提示，标题、要点和结论必须出现在图片本身，不得只留在提示词里。
@@ -73,7 +78,9 @@ python slidemuse.py generate assemble "<base_dir>" "<deck>.pptx"
 
 `prepare --spec` 的输入是上游格式的 `deck_spec.json`（字段示例可用 `prepare --write-template <path>` 生成）。它由已确认的大纲填写，不替代 `deck-spec.md`：页面类型与 3–5 条要点仍以内容门禁批准的版本为准。
 
-`prepare` 先完整验证和构造所有页的 prompt、jobs、内容合同及显式讲稿，再在同一任务锁中提交。输入错误不会改动旧文件；提交中断时，下一次 `status`、`prepare`、登记、审阅或组装先恢复上一组完整文件。`--force` 只允许替换没有活动 worker 的任务；仍有 `dispatched` 页时，先登记其结果或明确记录 blocker，避免覆盖正在执行的输入。图片引用中的 URI 原样保留，只有相对本地路径按规格文件目录解析。
+原生 `--spec` 中的 `approved_style_reference.path` 必须指向已确认的本地独立单页图。prepare 会读取实际字节并记录参考图哈希，建立与 `--page-spec` 相同的 `style_reference` 绑定；显式填写的 `sha256` 必须匹配实际文件。参考图被替换或丢失后，分派、结果登记、审阅和组装均拒绝沿用旧记录。远程风格图先按已授权流程保存到本地，再填写路径；prepare 本身不联网下载，也不把未经绑定的 URL 当作已锁定风格。
+
+`prepare` 先完整验证和构造所有页的 prompt、jobs、内容合同及显式讲稿，再在同一任务锁中提交。输入错误不会改动旧文件；提交中断时，下一次 `status`、`prepare`、登记、审阅或组装先恢复上一组完整文件。`--force` 只允许刷新没有活动 worker 的任务；仍有 `dispatched` 页时，先登记其结果或明确记录 blocker，避免覆盖正在执行的输入。请求字节未变且图片与调用记录仍有效的已完成页保持原状态；未变的 blocked 页也保留阻塞，需用 retry 明确恢复。变更或删除页面前，旧任务、提示、调用记录、图片及已有审阅归档到 `.generation-history/preparations/`，删除页的图片随后从当前页面集合移出。内容合同改变时旧审阅保存在该归档中，完成新结果后重新运行 review --init；无关的并发设置变更不会使当前审阅失效。普通素材引用中的 URI 原样保留，相对本地路径按规格文件目录解析；风格基线执行上述本地字节绑定要求。
 
 所有新任务默认空备注；讲稿仅从输入中显式声明的 `speaker_notes` 导出，不自动吸收工作目录遗留的 `speech.md`。Page Spec 的 `canvas` 同时传入任务、提示词与组装，4:3 等画幅不会被提示词固定为 16:9。显式画布要求正整数像素；审阅和组装拒绝任一边小于该画布的原图，既有导入样张也执行相同要求。组装时用 `--aspect-ratio 4:3` 等实际画幅参数，比例不符时拒绝拉伸。
 

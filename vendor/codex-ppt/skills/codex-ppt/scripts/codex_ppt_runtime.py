@@ -24,6 +24,7 @@ import venv
 
 DEFAULT_RUNTIME_HOME = "~/.codex-ppt-skill"
 DEFAULT_MODEL = "gpt-image-2.6"  # SlideMuse adaptation (declared in upstream.json patches)
+DEFAULT_BASE_URL = "https://api.openai.com/v1"
 ENV_FIELDS = ("OPENAI_API_KEY", "OPENAI_BASE_URL", "CODEX_PPT_IMAGE_MODEL")
 
 
@@ -94,7 +95,7 @@ def _write_env_file(path: Path, values: Dict[str, str]) -> None:
     ]
     for key in ENV_FIELDS:
         value = values.get(key, "")
-        if value:
+        if value or (key == "OPENAI_BASE_URL" and key in values):
             lines.append(f"{key}={_quote_env_value(value)}")
     lines.append("")
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -105,10 +106,19 @@ def _write_env_file(path: Path, values: Dict[str, str]) -> None:
 
 
 def _load_env_values(home: Path) -> Dict[str, str]:
-    values = _parse_env_file(_env_path(home))
-    for key in ENV_FIELDS:
-        if os.getenv(key):
-            values[key] = os.environ[key]
+    """Select one provider without mixing its credentials with the host's.
+
+    Saving a key or endpoint selects the shared-runtime provider. Its absent
+    URL means the official default, and an absent key remains missing. When
+    no provider has been saved, environment-only configuration still works.
+    A model-only file can customize that environment provider's model.
+    """
+    saved = _parse_env_file(_env_path(home))
+    if any(key in saved for key in ("OPENAI_API_KEY", "OPENAI_BASE_URL")):
+        return {key: saved[key] for key in ENV_FIELDS if saved.get(key)}
+    values = {key: os.environ[key] for key in ENV_FIELDS if os.getenv(key)}
+    if saved.get("CODEX_PPT_IMAGE_MODEL"):
+        values["CODEX_PPT_IMAGE_MODEL"] = saved["CODEX_PPT_IMAGE_MODEL"]
     return values
 
 
@@ -146,8 +156,20 @@ def _config(args: argparse.Namespace) -> int:
     env_file = _env_path(home)
     values = _parse_env_file(env_file)
 
-    if args.api_key:
-        values["OPENAI_API_KEY"] = args.api_key
+    if args.api_key is not None and not args.api_key.strip():
+        _die("API key must not be empty.")
+
+    current_url = values.get("OPENAI_BASE_URL") or DEFAULT_BASE_URL
+    next_url = (args.base_url.strip() if args.base_url is not None else current_url)
+    if args.clear_base_url or not next_url:
+        next_url = DEFAULT_BASE_URL
+    if (next_url.rstrip("/") != current_url.rstrip("/")
+            and values.get("OPENAI_API_KEY") and args.api_key is None):
+        _die("Changing the API endpoint requires --api-key for that endpoint; "
+             "the saved key will not be reused across providers.")
+
+    if args.api_key is not None:
+        values["OPENAI_API_KEY"] = args.api_key.strip()
 
     if args.base_url is not None:
         values["OPENAI_BASE_URL"] = args.base_url.strip()
@@ -155,7 +177,8 @@ def _config(args: argparse.Namespace) -> int:
         values["CODEX_PPT_IMAGE_MODEL"] = args.model.strip()
 
     if args.clear_base_url:
-        values.pop("OPENAI_BASE_URL", None)
+        # Retain the explicit default selection even before a key is saved.
+        values["OPENAI_BASE_URL"] = ""
 
     _write_env_file(env_file, values)
     print(f"Wrote {env_file}")
@@ -226,7 +249,7 @@ def _doctor(args: argparse.Namespace) -> int:
 
     values = _load_env_values(home)
     api_key = values.get("OPENAI_API_KEY", "")
-    base_url = values.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    base_url = values.get("OPENAI_BASE_URL", DEFAULT_BASE_URL)
     model = values.get("CODEX_PPT_IMAGE_MODEL", DEFAULT_MODEL)
 
     print(f"OPENAI_API_KEY={'set (' + _mask_secret(api_key) + ')' if api_key else '<unset>'}")
@@ -261,8 +284,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
     config = subparsers.add_parser("config", help="Write or update shared .env")
     config.add_argument("--api-key")
-    config.add_argument("--base-url")
-    config.add_argument("--clear-base-url", action="store_true")
+    endpoint = config.add_mutually_exclusive_group()
+    endpoint.add_argument("--base-url")
+    endpoint.add_argument("--clear-base-url", action="store_true")
     config.add_argument("--model")
     config.set_defaults(func=_config)
 

@@ -220,6 +220,8 @@ files:
   - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/__init__.py
   - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/_input_normalization.py
   - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/_page_artifacts.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/approved_content.py
+  - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/original_assets.py
   - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/build_pptx_from_manifest.py
   - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/configure_image_backend.py
   - vendor/image-to-editable/skills/image-to-editable-ppt/cli/editppt/runtime/deck_run_state.py
@@ -331,3 +333,6 @@ files:
   - scripts/style_reference.py
   - tests/test_style_reference.py
   - tests/test_generation_style.py
+  - tests/test_generate_provider_config.py
+  - tests/test_generation_recovery.py
+  - tests/test_rebuild_contract_guards.py

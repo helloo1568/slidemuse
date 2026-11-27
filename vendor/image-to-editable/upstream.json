@@ -61,16 +61,16 @@
       "reason": "Keep the offline fallback diagnostic neutral; do not prompt for external OCR or promise pricing."
     },
     "skills/image-to-editable-ppt/cli/editppt/runtime/build_pptx_from_manifest.py": {
-      "sha256": "db08e989e20dce678dd64555d95d9ec1f5168cf372f0ccf03672b7c4fb4f5d0e",
-      "reason": "Keep cross-platform diagnostic font discovery; preserve empty lines and soft breaks in approved speaker notes and check the independent Page Spec note contract before replacing a deck."
+      "sha256": "00fb19141b7394bdd405f553bcbe571866df2f1709dfd8d64ac95a968f28c2fa",
+      "reason": "Keep cross-platform diagnostic font discovery; preserve empty lines and soft breaks in approved speaker notes and check the independent Page Spec note contract before replacing a deck. Unreleased audit fixes: Build and verify individual PPTX files before replacement; stage and roll back paired page and preview publication."
     },
     "tests/test_slide_layout.py": {
       "sha256": "98cd27d7bf0a1cadc11affc4c199ccb56d68cd40d57506d0c7ede4ec9b84edc4",
       "reason": "Use a Windows scalable font in the same upstream preview assertions and accept the standard fonts-liberation path installed on Linux CI runners."
     },
     "skills/image-to-editable-ppt/cli/editppt/runtime/_input_normalization.py": {
-      "sha256": "25fd1bba9324e36180d71a7caa3d140fe8fdf047881a6e96845c5cb75be8975e",
-      "reason": "Preserve EXIF orientation, apply supported PPTX image crops and aspect ratio, reject unsupported picture transforms or overlays, retain exact speaker-note text, and verify approved Page Spec note contracts. Retain the legacy PPT dpi fix and direct pymupdf import. v2.29.0: Prepare new runs transactionally without overwriting existing tasks, and reject hidden pictures during lightweight extraction."
+      "sha256": "4088151dc8d5b0091d88ebd38c8849014906538a90f9ede3ce5efbefbdbbce48",
+      "reason": "Preserve EXIF orientation, apply supported PPTX image crops and aspect ratio, reject unsupported picture transforms or overlays, retain exact speaker-note text, and verify approved Page Spec note contracts. Retain the legacy PPT dpi fix and direct pymupdf import. v2.29.0: Prepare new runs transactionally without overwriting existing tasks, and reject hidden pictures during lightweight extraction. Unreleased audit fixes: Expose the independently hash-bound approved Page Spec content as well as its speaker notes."
     },
     "skills/image-to-editable-ppt/cli/editppt/runtime/formula_renderer.py": {
       "sha256": "3651679ffe317efb947d762af85f9352fdef734f56c279d7cf2745cfae0f9446",
@@ -97,8 +97,8 @@
       "reason": "Use gpt-image-2.6 as the reconstruction default while preserving explicit user model configuration."
     },
     "skills/image-to-editable-ppt/cli/editppt/runtime/validate_pptx.py": {
-      "sha256": "3f3f84b1feb6aa4df9925d9dda72e0fb6044e57a4574e63911f1bd03e0e9780a",
-      "reason": "Validate exact note-body text and the independent approved Page Spec note contract; missing, altered, or unreadable evidence must not pass final deck validation. v2.29.0: Verify actual slide order/content, object visibility, image bytes and speaker notes through their real relationships."
+      "sha256": "bbcdcdb424bfaf4d5b95baad24417583c3ab246bf89b29253a655e513e2bb539",
+      "reason": "Validate exact note-body text and the independent approved Page Spec note contract; missing, altered, or unreadable evidence must not pass final deck validation. v2.29.0: Verify actual slide order/content, object visibility, image bytes and speaker notes through their real relationships. Unreleased audit fixes: Verify independently registered original image assets and compare final native body, tables and charts with the approved Page Spec."
     },
     "skills/image-to-editable-ppt/references/cli-helper.md": {
       "sha256": "5871a1c400320919c907af097549681b072f0706b244da8994fe902dce58df7c",
@@ -115,6 +115,16 @@
     "tests/test_multi_agent_backend.py": {
       "sha256": "f32db893b3aff913e98be2da42ed8c53e65c097bffc3f68fe85da67aad8c6cba",
       "reason": "v2.29.0: Use semantic recorded-output keys and validated bindings in finalization fixtures."
+    }
+  },
+  "additions": {
+    "skills/image-to-editable-ppt/cli/editppt/runtime/approved_content.py": {
+      "sha256": "14e866f0a1666bf9f8030f8559b6727d0d1de7d9f715e9d250b52e0d704a3843",
+      "reason": "SlideMuse-owned addition: check native text and structured data against approved content without claiming OCR or visual approval."
+    },
+    "skills/image-to-editable-ppt/cli/editppt/runtime/original_assets.py": {
+      "sha256": "30fe60fe7c1e558e9b77a7a8fa5870b59e94bf56ed937de54e449c122ef2e625",
+      "reason": "SlideMuse-owned addition: register original input images and verify byte-preserving reuse by hash."
     }
   }
 }

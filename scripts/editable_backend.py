@@ -22,6 +22,7 @@ SKILL = Path("skills/image-to-editable-ppt")
 MODULES = {"PyMuPDF": "fitz", "Pillow": "PIL", "openai": "openai",
            "PyYAML": "yaml", "numpy": "numpy", "requests": "requests"}
 FEATURES = ["image-pdf-pptx-normalization", "speaker-notes", "offline-text-geometry", "targeted-offline-text-measurements",
+            "registered-original-assets", "approved-native-content-validation",
             "optional-paddle-ocr", "native-table-cell-styles-and-merges",
             "native-custom-paths-dashes-arrows", "background-strategy-and-clean-base-provenance",
             "transparent-and-chroma-asset-sheets", "whole-object-region-splitting",
@@ -54,13 +55,15 @@ def capabilities(root=ROOT, verify=False):
               "scope": "Availability only; network providers and external TeX tools are not exercised."}
     if verify:
         mismatches = []
-        for name, expected in provenance["files"].items():
+        expected_files = {**provenance["files"],
+                          **{name: info["sha256"] for name, info in provenance.get("additions", {}).items()}}
+        for name, expected in expected_files.items():
             expected = provenance.get("patches", {}).get(name, {}).get("sha256", expected)
             path = (vendor / name).resolve()
             if (not path.is_relative_to(vendor.resolve()) or not path.is_file()
                     or content_sha256(path) != expected):
                 mismatches.append(name)
-        result["source_integrity"] = {"checked": len(provenance["files"]), "mismatches": mismatches}
+        result["source_integrity"] = {"checked": len(expected_files), "mismatches": mismatches}
     return result
 
 
@@ -101,6 +104,8 @@ def page_prompt(argv, root=ROOT):
         f"SlideMuse root ({root}) before using the upstream field references below. "
         "Use the host image tool for image edits when it is available; an API backend needs the user's "
         "chosen provider. Do not recreate protected source evidence through image generation. "
+        "Reuse supplied originals through the run owner's preserve-asset registration and its returned "
+        "manifest provenance; never relabel page crops as user-provided or modify input registrations. "
         "The backend preview is diagnostic: render the PPTX in Office before claiming visual acceptance.\n\n"
     )
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -189,6 +194,9 @@ def main(argv=None):
         argv.pop(0)
     if argv[:1] == ["measure-text"]:
         return measure_text(argv[1:])
+    if argv[:1] == ["preserve-asset"]:
+        entry = ROOT / VENDOR / SKILL / "cli/editppt/runtime/original_assets.py"
+        return subprocess.run([sys.executable, str(entry), *argv[1:]], check=False).returncode
     if argv[:1] == ["capabilities"]:
         parser = argparse.ArgumentParser(description="Inspect backend capabilities without reading credentials.")
         parser.add_argument("--verify-source", action="store_true")

@@ -8,12 +8,17 @@ structured deck spec into one self-contained JSON job file per slide.
 from __future__ import annotations
 
 import argparse
+import copy
+import hashlib
+import io
 import json
 import math
 from pathlib import Path
 import re
 import sys
 from typing import Any, Dict, Iterable, List, Optional
+
+from PIL import Image, ImageOps
 
 from slide_run_state import (
     DEFAULT_MAX_CONCURRENT_SLIDES,
@@ -23,6 +28,10 @@ from slide_run_state import (
     preparation_lock,
     read_json,
     sha256_file,
+    update_jobs_run_status,
+    validate_dispatch_inputs,
+    validate_generation_record,
+    sample_method,
     validate_style_reference,
 )
 
@@ -134,6 +143,52 @@ def _sample_generation_method(spec: Dict[str, Any], *, base_dir: Path) -> Option
         if isinstance(method.get(key), str):
             method[key] = _resolve_image_path(method[key], base_dir=base_dir)
     return method
+
+
+def _bind_style_reference(spec: Dict[str, Any], *, base_dir: Path) -> Optional[Dict[str, Any]]:
+    """Bind native deck specifications to the same immutable baseline as Page Spec.
+
+    Preparing a job stays offline. Remote baseline URLs must first be saved as
+    a local, approved single-page image; a path alone cannot bind its pixels.
+    """
+    selected = spec.get("approved_style_reference")
+    reference = spec.get("style_reference")
+    if selected is None:
+        validate_style_reference(reference)
+        return None
+    if not isinstance(selected, dict):
+        raise ValueError("approved_style_reference must be an object when present")
+    selected = dict(selected)
+    value = selected.get("path")
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("approved_style_reference requires the approved single-page image path")
+    candidate = Path(value.strip()).expanduser()
+    if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", value.strip()) and not candidate.is_absolute():
+        raise ValueError("Save the remote approved_style_reference as a local image before prepare; preparation does not download it")
+    path = (base_dir / candidate).resolve() if not candidate.is_absolute() else candidate.resolve()
+    if not path.is_file():
+        raise ValueError(f"Missing approved style reference: {path}")
+    raw = path.read_bytes()
+    actual_hash = hashlib.sha256(raw).hexdigest()
+    if selected.get("sha256") is not None and selected["sha256"] != actual_hash:
+        raise ValueError("Approved style reference SHA-256 differs from its actual image")
+    with Image.open(io.BytesIO(raw)) as opened:
+        opened.verify()
+    with Image.open(io.BytesIO(raw)) as opened:
+        image = ImageOps.exif_transpose(opened)
+        image.load()
+        width, height = image.size
+    selected.update(path=str(path), sha256=actual_hash)
+    if reference is None:
+        style = spec.get("style", {})
+        reference = {"kind": "single-page", "path": str(path), "sha256": actual_hash,
+                     "source_path": str(path), "source_sha256": actual_hash,
+                     "box": [0, 0, width, height], "option": style.get("option"),
+                     "choice": style.get("choice", style.get("name"))}
+        spec["style_reference"] = reference
+    validate_style_reference(reference, [selected])
+    spec["approved_style_reference"] = selected
+    return selected
 
 
 def _method_backend_label(method: Optional[Dict[str, Any]]) -> Optional[str]:
@@ -303,6 +358,84 @@ def _job_images(
     return images
 
 
+def _history_path(deck_dir: Path, value: str) -> Path:
+    path = (deck_dir / value).resolve()
+    if not path.is_relative_to(deck_dir):
+        raise ValueError("Generation history inputs must remain inside the deck")
+    return path
+
+
+def _retain_unchanged_slide(deck_dir: Path, old_jobs: dict, previous: dict, current: dict, raw_job: bytes) -> bool:
+    """Reuse completed work only while its exact request and result remain valid."""
+    if previous.get("status") not in {"pending", "blocked", "recorded", "accepted"}:
+        return False
+    if (current.get("status") == "accepted"
+            and (previous.get("status") != "accepted" or previous.get("result") != current.get("result"))):
+        # Importing an explicitly provided sample changes the page's origin even
+        # when its generated prompt is identical to an earlier queued request.
+        return False
+    if (previous.get("job") != current["job"] or previous.get("out") != current["out"]
+            or previous.get("input_images") != current["input_images"]):
+        return False
+    job_path = _history_path(deck_dir, previous["job"])
+    if not job_path.is_file() or job_path.read_bytes() != raw_job:
+        return False
+    if previous["status"] == "accepted" and previous.get("result") != current.get("result"):
+        return False
+    if previous["status"] in {"recorded", "accepted"}:
+        result = previous.get("result") or {}
+        image = _history_path(deck_dir, previous["out"])
+        if not image.is_file() or sha256_file(image) != result.get("final_image_sha256"):
+            raise ValueError("Completed slide image changed or missing; retain the current deck and recover its recorded image before preparing again")
+        if previous["status"] == "recorded":
+            if old_jobs.get("generation_evidence_policy") != "1.0":
+                return False
+            request_hash = validate_dispatch_inputs(deck_dir, previous)
+            method = sample_method(old_jobs, json.loads(raw_job))
+            validate_generation_record(result.get("generation_record"), slide_id=previous["slide_id"],
+                                       request_sha256=request_hash, source_sha256=sha256_file(image),
+                                       backend=result.get("backend_used"), expected_model=method.get("model"))
+            if result.get("selected_source_sha256") != result.get("final_image_sha256"):
+                raise ValueError("Completed slide differs from its recorded original")
+    return True
+
+
+def _archive_previous_preparation(deck_dir: Path, jobs: dict, files: dict) -> dict:
+    """Retain the old requests, call records, observations and pixels before replacement."""
+    names = {"slide_jobs.json", "slide_run_state.json", "slidemuse-content.json", "content-review.json", "speech.md"}
+    for slide in jobs.get("slides", []):
+        names.update(value for value in (slide.get("job"), slide.get("out"),
+                                        (slide.get("dispatch") or {}).get("prompt")) if isinstance(value, str))
+    retained = {}
+    for name in sorted(names):
+        path = _history_path(deck_dir, name)
+        if not path.exists():
+            continue
+        if not path.is_file():
+            raise ValueError(f"Generation history input is not a file: {name}")
+        retained[path.relative_to(deck_dir).as_posix()] = path.read_bytes()
+    for slide in jobs.get("slides", []):
+        if slide.get("status") in {"recorded", "accepted"}:
+            name = _history_path(deck_dir, slide["out"]).relative_to(deck_dir).as_posix()
+            raw = retained.get(name)
+            if raw is None or hashlib.sha256(raw).hexdigest() != (slide.get("result") or {}).get("final_image_sha256"):
+                raise ValueError("Completed slide image changed or missing; retain the current deck and recover its recorded image before preparing again")
+    # Reviews and notes can change independently of slide_jobs.json. Identify
+    # the complete snapshot so each legitimate observation can be preserved.
+    manifest = [(name, hashlib.sha256(raw).hexdigest()) for name, raw in sorted(retained.items())]
+    identity = hashlib.sha256(json.dumps(manifest, ensure_ascii=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    prefix = f".generation-history/preparations/{identity}"
+    for name, raw in retained.items():
+        destination = f"{prefix}/{name}"
+        existing = _history_path(deck_dir, destination)
+        if existing.exists() and existing.read_bytes() != raw:
+            raise ValueError("Retained generation history changed; preserve it for recovery")
+        files[destination] = raw
+    return {"directory": prefix, "jobs_sha256": hashlib.sha256(retained["slide_jobs.json"]).hexdigest(),
+            "snapshot_sha256": identity, "archived_at": now_iso(),
+            "reason": "replaced preparation; records and original output bytes retained"}
+
+
 def _write_template(path: Path) -> None:
     template = {
         "deck_name": "example-deck",
@@ -388,7 +521,7 @@ def main(argv=None, companion=None) -> int:
         default=None,
         help=f"Maximum slide subagents to dispatch at once. Defaults to {DEFAULT_MAX_CONCURRENT_SLIDES}.",
     )
-    parser.add_argument("--force", action="store_true", help="Overwrite existing prompt files.")
+    parser.add_argument("--force", action="store_true", help="Refresh inactive jobs; preserve unchanged results and archive replaced work.")
     args = parser.parse_args(argv)
 
     if args.write_template:
@@ -432,13 +565,10 @@ def _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion):
     old_jobs = read_json(out_dir / "slide_jobs.json", default={})
     if any(page.get("status") == "dispatched" for page in old_jobs.get("slides", [])):
         _die("Cannot prepare while slide workers are dispatched; record or block their results first.")
+    old_slides = {entry["slide_id"]: entry for entry in old_jobs.get("slides", [])}
+    replaced_slides = set(old_slides)
 
-    global_style_reference = spec.get("approved_style_reference")
-    if global_style_reference is not None and not isinstance(global_style_reference, dict):
-        _die("approved_style_reference must be an object when present.")
-    if global_style_reference and isinstance(global_style_reference.get("path"), str):
-        global_style_reference = dict(global_style_reference)
-        global_style_reference["path"] = _resolve_image_path(global_style_reference["path"], base_dir=spec_dir)
+    global_style_reference = _bind_style_reference(spec, base_dir=spec_dir)
     style_reference = spec.get("style_reference")
     validate_style_reference(style_reference)
 
@@ -497,7 +627,8 @@ def _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion):
         prompt_path = prompts_dir / f"slide_{number:02d}.json"
         if prompt_path.exists() and not args.force:
             _die(f"Slide job file already exists: {prompt_path} (use --force)")
-        prepared_files[rel_to_deck(out_dir, prompt_path)] = (json.dumps(job, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        raw_job = (json.dumps(job, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        prepared_files[rel_to_deck(out_dir, prompt_path)] = raw_job
         slide_id = f"slide_{number:02d}"
         final_image = out_dir / "origin_image" / f"{slide_id}.png"
         sample_approved = bool(slide.get("sample_approved") or slide.get("approved_sample"))
@@ -513,8 +644,7 @@ def _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion):
             sample_result = {"final_image": rel_to_deck(out_dir, final_image),
                              "final_image_sha256": sample_hash, "selected_source_sha256": sample_hash,
                              "accepted_sample": True, "source_kind": "provided", "source_ref": origin["source_ref"]}
-        slide_job_entries.append(
-            {
+        entry = {
                 "slide_id": slide_id,
                 "number": number,
                 "title": slide.get("title", f"Slide {number}"),
@@ -527,7 +657,11 @@ def _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion):
                 "result": sample_result,
                 "blocker": None,
             }
-        )
+        previous = old_slides.get(slide_id)
+        if previous and _retain_unchanged_slide(out_dir, old_jobs, previous, entry, raw_job):
+            entry = copy.deepcopy(previous)
+            replaced_slides.discard(slide_id)
+        slide_job_entries.append(entry)
 
     slide_jobs = {
         "run_status": "jobs_prepared",
@@ -543,11 +677,50 @@ def _prepare_locked(args, spec, spec_dir, slides, numbered_slides, companion):
     }
     if companion is not None:
         prepared_files.update(companion(out_dir, spec, slide_jobs, prepared_files))
+    history = copy.deepcopy(old_jobs.get("preparation_history", []))
+    if not isinstance(history, list):
+        raise ValueError("Generation preparation history must be a list")
+    changed_files = any((out_dir / name).is_file() and (out_dir / name).read_bytes() != raw
+                        for name, raw in prepared_files.items())
+    if old_jobs and (replaced_slides or changed_files):
+        history.append(_archive_previous_preparation(out_dir, old_jobs, prepared_files))
+        previous_contract = out_dir / "slidemuse-content.json"
+        if ("slidemuse-content.json" in prepared_files and previous_contract.is_file()
+                and previous_contract.read_bytes() != prepared_files["slidemuse-content.json"]
+                and (out_dir / "content-review.json").exists()):
+            # Its exact observations remain in the archived preparation. A new
+            # contract must not inherit approval or block review --init forever.
+            prepared_files["content-review.json"] = None
+        # Removed pages must not remain as extra final images in the new deck.
+        current_ids = {entry["slide_id"] for entry in slide_job_entries}
+        current_paths = {entry[key] for entry in slide_job_entries for key in ("out", "job")}
+        input_paths = set()
+        for entry in slide_job_entries:
+            for image in entry["input_images"]:
+                value = image.get("path")
+                if isinstance(value, str) and Path(value).is_absolute():
+                    input_paths.add(Path(value).resolve())
+        if style_reference is not None:
+            input_paths.update(Path(style_reference[key]).resolve() for key in ("path", "source_path"))
+        for slide_id in set(old_slides) - current_ids:
+            for key in ("out", "job"):
+                name = old_slides[slide_id].get(key)
+                if isinstance(name, str) and name not in current_paths:
+                    expected = f"origin_image/{slide_id}.png" if key == "out" else f"prompts/{slide_id}.json"
+                    if name != expected:
+                        raise ValueError("Removed page uses a custom managed path; retain and reconcile it before preparing again")
+                    if _history_path(out_dir, name) in input_paths:
+                        raise ValueError("Removed page is still an input reference; save that reference under an independent path before preparing again")
+                    prepared_files[name] = None
+    if history:
+        slide_jobs["preparation_history"] = history
+    update_jobs_run_status(slide_jobs)
     state = read_json(out_dir / "slide_run_state.json", default={"status": "created", "history": []})
-    if state.get("status") != "jobs_prepared":
-        state.setdefault("history", []).append({"from": state.get("status"), "to": "jobs_prepared",
+    status = slide_jobs["run_status"]
+    if state.get("status") != status:
+        state.setdefault("history", []).append({"from": state.get("status"), "to": status,
                                                 "at": now_iso(), "note": "prepared slide prompt jobs"})
-    state.update(status="jobs_prepared", updated_at=now_iso())
+    state.update(status=status, updated_at=now_iso())
     for name, value in (("slide_jobs.json", slide_jobs), ("slide_run_state.json", state)):
         prepared_files[name] = (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
     (out_dir / "origin_image").mkdir(parents=True, exist_ok=True)

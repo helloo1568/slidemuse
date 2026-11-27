@@ -61,14 +61,22 @@ python slidemuse.py doctor --require-renderer --backend powerpoint
 
 ### 局部修正与任务恢复（2.29.0）
 
-在已记录的原件或成品上完成获授权的局部修正后，使用 `produce refine <page-spec> --slide <id> --base-image <已保留的原件或成品> --source <独立修正图> --operation <处理说明>` 登记派生成品，再重新执行 `review-init` 和 `accept`。原始调用证据保持绑定原图；修正结果另存处理记录，不把本地修改伪报成新生图。直接替换成品后创建审阅会被拒绝，使用 `refine` 登记实际修改。详见[图片制作](../references/page-production.md)。
+在已记录的原件或成品上完成获授权的局部修正后，使用 `produce refine <page-spec> --slide <id> --base-image <已保留的原件或成品> --source <独立修正图> --operation <处理说明>` 登记派生成品，再重新执行 `review-init` 和 `accept`。原始调用证据保持绑定原图；修正结果另存处理记录，不把本地修改伪报成新生图。直接替换成品会阻止制作写入，包括其他页面的命令；先把修改图移到独立路径，再用 `prepare` 恢复已提交成品、`refine` 登记实际修改。详见[图片制作](../references/page-production.md)。
 
 删除页面后再次恢复同一页 ID 时，制作状态从保留的归档恢复或沿用历史。重建 `prepare --job-dir` 要求新建或空目录；已有任务使用其状态、结果登记和恢复命令继续处理。生图 `prepare --force` 的输入错误不会部分覆盖旧提示、任务或内容合同。
 
 LibreOffice 后端需要 `soffice`、`pdftoppm` 和 `pdfinfo`。整套与指定页渲染保留隐藏页，PDF 总页数不符时停止。最终重建验证会检查实际 PPTX 的正文、图片与备注关联；仍需查看真实渲染结果。
+
+`render --overwrite` 会在调用渲染器前，核对所有输出和旧预览清理路径是否与输入 PPTX、Page Spec 或参考图重叠；重叠时须使用独立预览目录。渲染、对照图和报告先在临时目录完整生成，再发布结果。渲染、输入校验或发布失败时保留已有预览；预览目录中的其他文件继续保留。
 
 ### 保持所选风格（2.30.0）
 
 选定总览后，用 `style-reference <page-spec> --box <x> <y> <width> <height> --output <参考PNG>` 登记其中一个实测完整单页。相对输出路径按 Page Spec 目录解析；`--single-page` 用于明确锁定的独立单页。该图只用于视觉参考，不是正式成品，详见[风格选型](../references/style-options.md)。
 
 `produce request` 的 `request_reference` 和 `generate prepare --page-spec` 的逐页图片输入均绑定同一选型。调用图像模型时必须真正附图；带图片要求的结构化请求不能用纯文本 `generate image generate`，支持参考图的 API 使用 `generate image edit --image <实际参考>`。正式页审阅包含 `style_consistency`，必须实际对照正确参考，修改、缺失或错用参考会阻止新审阅及交付。
+
+### 恢复阻塞的单页生图任务
+
+临时故障解决后，运行 `generate retry <任务目录> --slide <页码> --reason <实际恢复原因>`，仅将该阻塞页重新排队，随后重新 dispatch。原分派、失败原因和请求快照保留，其他已完成页及活动 worker 不变，并发限额仍然生效。
+
+`generate prepare --force` 保留请求及结果校验仍有效的未变页面，替换的旧任务、原图和审阅先归档；内容改变后重新审阅，仅修改并发设置不使未变图片的审阅失效。原生 `--spec` 的 `approved_style_reference.path` 必须是已确认的本地独立单页图，prepare 绑定实际哈希，后续门禁拒绝已替换的参考图。远程风格图先保存为本地文件，prepare 不负责下载。详见[完整图片生成后端](../references/generate-backend.md)。

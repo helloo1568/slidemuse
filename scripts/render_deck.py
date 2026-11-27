@@ -175,6 +175,58 @@ def build_review(images: list[Path], output: Path, references: list[Path] | None
     return report
 
 
+def review_names(output: Path, count: int) -> set[str]:
+    names = {"review.png", "render-report.json"}
+    names.update(f"{n:03d}{suffix}" for n in range(1, count + 1) for suffix in (".png", ".layout.json"))
+    if output.is_dir():
+        names.update(path.name for path in output.iterdir()
+                     if re.fullmatch(r"\d{3,}\.(?:png|layout\.json)", path.name))
+    return names
+
+
+def check_review_targets(output: Path, names: set[str], inputs: list[Path]) -> None:
+    """Protect inputs against every write and stale-render deletion, before rendering."""
+    for name in names:
+        target = output / name
+        if any(target.resolve() == source or (target.exists() and target.samefile(source)) for source in inputs):
+            raise ValueError(f"Render output overlaps an input: {target}; choose a separate review directory")
+        if target.exists() and not target.is_file():
+            raise ValueError(f"Review output path is not a file: {target}")
+
+
+def publish_review(staged: Path, output: Path, names: set[str]) -> None:
+    """Publish a complete review, rolling back file replacement errors."""
+    output.mkdir(parents=True, exist_ok=True)
+    backup = Path(tempfile.mkdtemp(prefix=f".{output.name}-previous-", dir=output.parent))
+    moved = []
+    published = []
+    try:
+        for name in sorted(names):
+            target = output / name
+            if target.exists() or target.is_symlink():
+                os.replace(target, backup / name)
+                moved.append(name)
+        for name in sorted(names):
+            source = staged / name
+            if source.is_file():
+                os.replace(source, output / name)
+                published.append(name)
+    except BaseException as error:
+        try:
+            for name in reversed(published):
+                (output / name).unlink()
+            for name in reversed(moved):
+                os.replace(backup / name, output / name)
+        except OSError as restore_error:
+            # Keep the backup outside the temporary render directory if even
+            # rollback is blocked (for example by permissions or a full disk).
+            raise RuntimeError(f"Review publication failed; previous files remain in {backup}: {restore_error}") from error
+        shutil.rmtree(backup)
+        raise
+    else:
+        shutil.rmtree(backup)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("deck", type=Path)
@@ -196,34 +248,47 @@ def main() -> None:
     if not count:
         parser.error("PPTX has no slides")
     height = round(args.width * presentation.slide_height / presentation.slide_width)
-    if output.exists() and (not output.is_dir() or any(output.iterdir())) and not args.overwrite:
+    if output.exists() and not output.is_dir():
+        parser.error("output must be a directory")
+    if output.exists() and any(output.iterdir()) and not args.overwrite:
         parser.error("output directory is not empty; pass --overwrite to replace its review files")
-    output.mkdir(parents=True, exist_ok=True)
-    # Measurements belong to the render that created them. A successful render
-    # without COM measurements must not inherit an older deck's bounds.
-    for pattern in ("[0-9][0-9][0-9].png", "[0-9][0-9][0-9].layout.json"):
-        for path in output.glob(pattern):
-            path.unlink()
+    spec_path = args.page_spec.resolve() if args.page_spec else None
+    references = reference_files(spec_path, count) if spec_path else None
+    inputs = list(dict.fromkeys([deck, *([spec_path] if spec_path else []), *(references or [])]))
+    names = review_names(output, count)
+    try:
+        check_review_targets(output, names, inputs)
+    except ValueError as error:
+        parser.error(str(error))
+    input_hashes = {path: sha256(path) for path in inputs}
     backends = [args.backend] if args.backend != "auto" else (["powerpoint", "libreoffice"] if os.name == "nt" else ["libreoffice"])
     errors = []
-    with rendering_options(timeout=args.timeout, retries=args.retries, measure_text=args.measure_text):
-        backend = _render_cli(backends, deck, output, args, height, count, errors)
-    images = [output / f"{index:03d}.png" for index in range(1, count + 1)]
-    if any(not path.is_file() for path in images):
-        raise SystemExit("Renderer output is incomplete")
-    references = reference_files(args.page_spec.resolve(), count) if args.page_spec else None
-    slides = build_review(images, output, references)
-    from measured_layout import findings
-    from render_environment import fingerprint, font_preflight
-    fonts = font_preflight(presentation, backend)
-    report = {"deck": str(deck), "deck_sha256": sha256(deck), "backend": backend,
-              "environment": fingerprint(), "font_preflight": fonts,
-              "measured_layout": [item for n in range(1, count + 1) if (output / f"{n:03d}.layout.json").is_file()
-                                  for item in findings(read_json(output / f"{n:03d}.layout.json"), f"s{n:02d}")],
-              "page_spec_sha256": sha256(args.page_spec.resolve()) if args.page_spec else None,
-              "slides": slides, "review_sheet": str(output / "review.png"),
-              "note": "Pixel differences are diagnostic only; inspect typography, clipping, content and composition manually."}
-    (output / "render-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=f".{output.name}-render-", dir=output.parent) as directory:
+        staged = Path(directory)
+        with rendering_options(timeout=args.timeout, retries=args.retries, measure_text=args.measure_text):
+            backend = _render_cli(backends, deck, staged, args, height, count, errors)
+        images = [staged / f"{index:03d}.png" for index in range(1, count + 1)]
+        if any(not path.is_file() for path in images):
+            raise SystemExit("Renderer output is incomplete")
+        slides = build_review(images, staged, references)
+        for slide in slides:
+            slide["rendered"] = str(output / f"{slide['slide']:03d}.png")
+        from measured_layout import findings
+        from render_environment import fingerprint, font_preflight
+        fonts = font_preflight(presentation, backend)
+        report = {"deck": str(deck), "deck_sha256": input_hashes[deck], "backend": backend,
+                  "environment": fingerprint(), "font_preflight": fonts,
+                  "measured_layout": [item for n in range(1, count + 1) if (staged / f"{n:03d}.layout.json").is_file()
+                                      for item in findings(read_json(staged / f"{n:03d}.layout.json"), f"s{n:02d}")],
+                  "page_spec_sha256": input_hashes[spec_path] if spec_path else None,
+                  "slides": slides, "review_sheet": str(output / "review.png"),
+                  "note": "Pixel differences are diagnostic only; inspect typography, clipping, content and composition manually."}
+        (staged / "render-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        if any(sha256(path) != expected for path, expected in input_hashes.items()):
+            raise ValueError("Render input changed during rendering; previous review files were retained")
+        check_review_targets(output, names, inputs)
+        publish_review(staged, output, names)
     print(json.dumps({"backend": backend, "slides": count, "review": str(output / "review.png"), "font_preflight": fonts}, ensure_ascii=False))
 
 

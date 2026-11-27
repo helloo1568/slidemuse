@@ -20,7 +20,7 @@ VENDOR = Path("vendor/codex-ppt")
 SKILL = Path("skills/codex-ppt")
 MODULES = {"python-pptx": "pptx", "Pillow": "PIL", "openai": "openai", "filelock": "filelock"}
 FEATURES = ["outline-driven-slide-jobs", "per-slide-prompt-preparation",
-            "slide-dispatch-and-result-state", "slide-blocker-recording",
+            "slide-dispatch-and-result-state", "slide-blocker-recording", "blocked-slide-retry-with-history",
             "image-deck-assembly", "speech-md-to-slide-notes", "slide-status-summary",
             "shared-runtime-venv-and-env-configuration", "optional-api-image-generation",
             "optional-chroma-key-matte-removal"]
@@ -121,7 +121,7 @@ def capabilities(root=ROOT, verify=False):
                     for name, module in MODULES.items()}
     result = {"backend": "codex-ppt", "upstream": provenance["repository"],
               "commit": provenance["commit"], "license": provenance["license"],
-              "commands": sorted(SCRIPTS), "features": FEATURES, "dependencies": dependencies,
+              "commands": sorted([*SCRIPTS, "review", "retry"]), "features": FEATURES, "dependencies": dependencies,
               "dependencies_ready": all(dependencies.values()),
               "scope": "Availability only; the host agent generates slide images and no network provider is exercised."}
     if verify:
@@ -187,8 +187,9 @@ def image_runtime_python(env):
 def run_backend(argv, root=ROOT, offline=False):
     name = argv[0] if argv else ""
     if name in ("", "--help", "-h"):
-        print("SlideMuse generate: " + ", ".join([*sorted(SCRIPTS), "review", "capabilities", "fyai-setup"]))
+        print("SlideMuse generate: " + ", ".join([*sorted(SCRIPTS), "review", "retry", "capabilities", "fyai-setup"]))
         print("prepare --spec <deck.json> OR --page-spec <approved.json> --out-dir <deck>; review <deck> [--init]")
+        print("retry <deck> --slide ID --reason TEXT: requeue one blocked page and retain its previous attempt.")
         print("fyai-setup --api-key <key> [--base-url URL] [--model NAME]: one-step API image backend setup.")
         return 0
     if name == "review":
@@ -202,10 +203,19 @@ def run_backend(argv, root=ROOT, offline=False):
         result = review(args.deck.resolve(), record.resolve(), args.init)
         print(json.dumps(result, ensure_ascii=True, indent=2))
         return 0 if result["status"] in ("pass", "awaiting_review") else 1
+    if name == "retry":
+        from generation_delivery import retry
+        parser = argparse.ArgumentParser(description="Retry one blocked page, retaining its prior attempt and other completed pages.")
+        parser.add_argument("deck", type=Path)
+        parser.add_argument("--slide", required=True)
+        parser.add_argument("--reason", required=True)
+        args = parser.parse_args(argv[1:])
+        print(json.dumps(retry(args.deck, args.slide, args.reason), ensure_ascii=True, indent=2))
+        return 0
     if name == "fyai-setup":
         return fyai_setup(argv[1:], root=root, offline=offline)
     if name not in SCRIPTS:
-        print(f"SlideMuse: choose one of: {', '.join([*sorted(SCRIPTS), 'fyai-setup'])}", file=sys.stderr)
+        print(f"SlideMuse: choose one of: {', '.join([*sorted(SCRIPTS), 'review', 'retry', 'fyai-setup'])}", file=sys.stderr)
         return 2
     if offline and name in ("runtime", "image"):
         # The shared runtime creates a venv, writes user-level credentials and can probe an API.

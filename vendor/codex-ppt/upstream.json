@@ -50,12 +50,12 @@
   },
   "patches": {
     "skills/codex-ppt/scripts/image_gen.py": {
-      "sha256": "4394dd9570d9c0726a9944695621c7d731e17922752a4ed3665d7928a3bbe5aa",
-      "reason": "SlideMuse: default/recommended model 2.6 with existing legacy option checks; preflight all output paths before API calls and fully decode complete image responses before writing. Original upstream hash retained in files. v2.29.0: Validate explicit requested dimensions against decoded image pixels before changing output files. v2.30.0: Reject image-bearing structured jobs sent as text-only requests and verify actual edit attachments against required reference hashes. The attachment guard also covers inline structured JSON and legacy hashed style anchors."
+      "sha256": "fbd984be51ea62deb69e18560591e92d8f5a5cbbff6374b6bdee5601d3542b38",
+      "reason": "SlideMuse: default/recommended model 2.6 with existing legacy option checks; preflight all output paths before API calls and fully decode complete image responses before writing. Original upstream hash retained in files. v2.29.0: Validate explicit requested dimensions against decoded image pixels before changing output files. v2.30.0: Reject image-bearing structured jobs sent as text-only requests and verify actual edit attachments against required reference hashes. The attachment guard also covers inline structured JSON and legacy hashed style anchors. Unreleased audit fixes: Use the same provider selection as doctor and clear inherited fields from another provider."
     },
     "skills/codex-ppt/scripts/codex_ppt_runtime.py": {
-      "sha256": "fab9b971779ec4260be445559e6ee83843439968504edb48a84ff9aa4622c3b4",
-      "reason": "SlideMuse: default model gpt-image-2.6 to match image_gen."
+      "sha256": "ddd43e920b193aa5ed844f7ce58d0d7b7eca53f3b63548cd7828dd784787c135",
+      "reason": "SlideMuse: default model gpt-image-2.6 to match image_gen. Unreleased audit fixes: Select provider credentials, endpoint and model as one saved configuration; require a matching key when switching endpoints."
     },
     "tests/test_image_gen_models.py": {
       "sha256": "db834fb24099af8bc0610ef866403751367a31c858791e20cbb30548c6927fe5",
@@ -66,8 +66,8 @@
       "reason": "SlideMuse: align the adapter fallback model with the configured 2.6 default without removing operation routing. Original upstream hash retained in files. v2.29.0: Preserve accepted prediction IDs and completed images across polling and download retries."
     },
     "skills/codex-ppt/scripts/prepare_slide_prompts.py": {
-      "sha256": "acd91083c50d166fc8567865c6d5fe664c79559cae654ef748c7213b9a9fe54c",
-      "reason": "SlideMuse: preserve explicit canvas dimensions/aspect; require declared, hashed provided origins for reused samples and generation evidence for new jobs. Original upstream hash retained in files. v2.29.0: Validate all prompts and companion content before a journaled group commit, preserving active workers and previous files on failure. v2.30.0: Keep the selected single-page style baseline first in every generation job and bind source/reference identities."
+      "sha256": "a12567cc72324818c8d89fdeb6027e80cca4fe102fe5b406c178d8a304819905",
+      "reason": "SlideMuse: preserve explicit canvas dimensions/aspect; require declared, hashed provided origins for reused samples and generation evidence for new jobs. Original upstream hash retained in files. v2.29.0: Validate all prompts and companion content before a journaled group commit, preserving active workers and previous files on failure. v2.30.0: Keep the selected single-page style baseline first in every generation job and bind source/reference identities. Unreleased audit fixes: Hash native-spec approved style references; preserve unchanged completed work and archive replaced requests, observations and original images before forced preparation."
     },
     "skills/codex-ppt/scripts/record_slide_dispatch.py": {
       "sha256": "76eec1fa6659de8b226a37c56836ce92c40b4cd8fae978e4b5454ba6eae75ed6",
@@ -78,8 +78,8 @@
       "reason": "SlideMuse: bind actual call records to the canonical page job, original image, slide and backend; also recheck the separately dispatched worker handoff before recording new generation results. Original upstream hash retained in files. v2.29.0: Validate the approved sample model and report only verified method fields while committing job/run status under one lock."
     },
     "skills/codex-ppt/scripts/slide_run_state.py": {
-      "sha256": "5d34a8abbd9fdcbeb02469513c46420bd690cbc73cf40991a4bdd84860a205c0",
-      "reason": "SlideMuse: validate the shared seven-field actual generation call-record contract and independently verify canonical job/custom handoff hashes without claiming provider authentication. Original upstream hash retained in files. v2.29.0: Add recoverable file-group preparation transactions, shared state locking and explicit approved-model validation. v2.30.0: Recheck style baseline and source hashes through dispatch, result, review and assembly."
+      "sha256": "7b5eca0ebbeb3f43eb588bd9979cd48811e0a020ed46f69bbd13eb6eaffc1d8e",
+      "reason": "SlideMuse: validate the shared seven-field actual generation call-record contract and independently verify canonical job/custom handoff hashes without claiming provider authentication. Original upstream hash retained in files. v2.29.0: Add recoverable file-group preparation transactions, shared state locking and explicit approved-model validation. v2.30.0: Recheck style baseline and source hashes through dispatch, result, review and assembly. Unreleased audit fixes: Support recoverable removal of replaced review files and removed-page outputs in preparation transactions."
     },
     "skills/codex-ppt/SKILL.md": {
       "sha256": "53898fa0113d1c3aaf233dfd7e7d8adf75800b14083d053c61ffdd4117771e8d",
