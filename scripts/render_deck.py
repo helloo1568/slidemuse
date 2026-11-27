@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render every PPTX slide and create a review sheet with optional source comparison."""
+"""Render a PPTX and create a review sheet with optional source comparison."""
 from __future__ import annotations
 
 import argparse
@@ -139,13 +139,14 @@ def reference_files(spec_path: Path, count: int) -> list[Path]:
     return result
 
 
-def build_review(images: list[Path], output: Path, references: list[Path] | None) -> list[dict]:
+def build_review(images: list[Path], output: Path, references: list[Path] | None,
+                 slide_numbers: list[int] | None = None) -> list[dict]:
     with Image.open(images[0]) as first:
         thumb_w = max(1, min(640, round(960 * first.width / first.height)))
         thumb_h = max(1, min(960, round(thumb_w * first.height / first.width)))
     rows = []
     report = []
-    for index, path in enumerate(images, 1):
+    for index, path in zip(slide_numbers or range(1, len(images) + 1), images):
         with Image.open(path) as opened:
             rendered = ImageOps.pad(opened.convert("RGB"), (thumb_w, thumb_h), method=Image.Resampling.LANCZOS, color="white")
             original_size = list(opened.size)
@@ -180,6 +181,7 @@ def main() -> None:
     parser.add_argument("deck", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("--page-spec", type=Path, help="Approved images for a visual comparison sheet")
+    parser.add_argument("--slides", nargs="+", type=int, help="One-based slide numbers for spot-checking; default: all slides")
     parser.add_argument("--backend", choices=("auto", "powerpoint", "libreoffice"), default="auto")
     parser.add_argument("--width", type=int, default=1600)
     parser.add_argument("--overwrite", action="store_true")
@@ -195,6 +197,10 @@ def main() -> None:
     count = len(presentation.slides)
     if not count:
         parser.error("PPTX has no slides")
+    if args.slides and (len(set(args.slides)) != len(args.slides) or any(not 1 <= n <= count for n in args.slides)):
+        parser.error("selected slide numbers must be unique and inside the deck")
+    numbers = sorted(args.slides) if args.slides else list(range(1, count + 1))
+    references = reference_files(args.page_spec.resolve(), count) if args.page_spec else None
     height = round(args.width * presentation.slide_height / presentation.slide_width)
     if output.exists() and (not output.is_dir() or any(output.iterdir())) and not args.overwrite:
         parser.error("output directory is not empty; pass --overwrite to replace its review files")
@@ -207,12 +213,17 @@ def main() -> None:
     backends = [args.backend] if args.backend != "auto" else (["powerpoint", "libreoffice"] if os.name == "nt" else ["libreoffice"])
     errors = []
     with rendering_options(timeout=args.timeout, retries=args.retries, measure_text=args.measure_text):
-        backend = _render_cli(backends, deck, output, args, height, count, errors)
-    images = [output / f"{index:03d}.png" for index in range(1, count + 1)]
+        if args.slides:
+            with tempfile.TemporaryDirectory(prefix=".render-", dir=output) as staging:
+                backend = render_selected(deck, Path(staging), args.width, args.backend, numbers)
+                for path in Path(staging).iterdir():
+                    path.replace(output / path.name)
+        else:
+            backend = _render_cli(backends, deck, output, args, height, count, errors)
+    images = [output / f"{index:03d}.png" for index in numbers]
     if any(not path.is_file() for path in images):
         raise SystemExit("Renderer output is incomplete")
-    references = reference_files(args.page_spec.resolve(), count) if args.page_spec else None
-    slides = build_review(images, output, references)
+    slides = build_review(images, output, references, numbers)
     from measured_layout import findings
     from render_environment import fingerprint, font_preflight
     fonts = font_preflight(presentation, backend)
@@ -221,10 +232,10 @@ def main() -> None:
               "measured_layout": [item for n in range(1, count + 1) if (output / f"{n:03d}.layout.json").is_file()
                                   for item in findings(read_json(output / f"{n:03d}.layout.json"), f"s{n:02d}")],
               "page_spec_sha256": sha256(args.page_spec.resolve()) if args.page_spec else None,
-              "slides": slides, "review_sheet": str(output / "review.png"),
+              "slides": slides, "deck_slide_count": count, "review_sheet": str(output / "review.png"),
               "note": "Pixel differences are diagnostic only; inspect typography, clipping, content and composition manually."}
     (output / "render-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"backend": backend, "slides": count, "review": str(output / "review.png"), "font_preflight": fonts}, ensure_ascii=False))
+    print(json.dumps({"backend": backend, "slides": len(slides), "review": str(output / "review.png"), "font_preflight": fonts}, ensure_ascii=False))
 
 
 def _render_cli(backends, deck, output, args, height, count, errors):

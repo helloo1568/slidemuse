@@ -125,24 +125,28 @@ Send the actual slide-by-slide copy, diagrams, and key numbers in the conversati
 ### Style and image production
 
 Show four distinct style samples, normally one image per option. The preview compares palette, typography, materials, and graphic language; it need not follow a grid or slide aspect ratio or reproduce the final text.
-Generate each option once, then use `build_style_overview.py` to label the preview with its fixed number and name. Present the four labeled images in numeric order. When the user points to an attachment, match the attachment to its option. Save the selected number, name, and preview together in the Page Spec. See [style previews](../references/style-options.md) (Chinese).
+Generate each option once. Use `style-overview` to label each card and arrange the four in one 2×2 comparison. WorkBuddy can open the accompanying HTML preview. When the user points to an attachment, match it to its option and save the individual card with its number and name in the Page Spec. See [style previews](../references/style-options.md) (Chinese).
 
 Register the chosen standalone visual sample or one measured contiguous region from a larger overview with `style-reference`. Attach the actual reference to every final-page image call, and complete `style_consistency` by comparing against the selected visual baseline. Do not attach the full overview or enlarge a preview crop into a delivered slide. Keeping only a style name or written description is not enough to preserve the chosen design.
 
 For content policy 1.1, literal slide checks cover the title, explicit text elements, and required visible values. Keep provenance in the Page Spec and review how the visuals convey the recorded reasoning separately.
 If text is still incorrect after two attempts, generate a text-free page retaining all subjects and graphics, then overlay accurate text. Subject removal belongs to Step 3.
 Existing slide images or scanned PDF pages can enter Step 3 directly when reconstruction is the stated goal. Ordinary edits to an already-editable PPTX are outside this workflow.
+
+Rebuild one representative content slide using source-image coordinates and render it in a presentation application to check columns, cards, charts, and type size. Then compare each slide with its source and repair any layout drift before delivery. See [reconstruction and layering](../references/reconstruction.md#合成检查).
+
 Follow-up edits to this skill's existing Scene continue in S6. Save the baseline version and authorized differences, invalidate affected images, and use the [change and recovery rules](../references/workflow-updates.md) to avoid repeatedly asking about known differences from historical images.
 
 ## Commands and contract
 
 - validate_page_spec.py: validate content approval, ordered pages, stable IDs, geometry hints, unresolved items, unique image paths, and approved image delivery/aspect ratios.
+- build_style_overview.py: label style cards, combine four options into a PNG and optional HTML, or arrange a legacy 3×2 overview.
 - build_editable_ppt.py: validate a scene and compile native objects.
 - audit_editability.py: inspect PPTX and optionally compare it with a scene; --strict fails on warnings.
 - extract_assets.py: crop known regions, apply supplied masks, record coordinates and hashes.
 - build_image_ppt.py: assemble only the approved images listed in Page Spec, preserving its page order and aspect ratio; legacy directory sorting remains supported.
 - overlay_text.py: existing deterministic raster text overlay.
-- render_deck.py: render every PPTX slide, write a review sheet, and optionally compare with approved Page Spec images.
+- render_deck.py: render a PPTX, optionally spot-check selected slide numbers, and compare with approved Page Spec images.
 - audit_page_content.py: compare a hash-bound visual transcription with confirmed text and required visible values.
 - plan_deck_update.py: snapshot approved inputs and plan which slides to reuse, review or regenerate after edits.
 - evaluate_delivery.py: combine current PPTX content observations, rendered-slide review, and optional Scene editability checks into a hash-bound scorecard.

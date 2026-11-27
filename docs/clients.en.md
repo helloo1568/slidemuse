@@ -42,7 +42,9 @@ After installation, run the installed `slidemuse.py doctor --json` from a separa
 
 To upgrade, first download and extract the intended new version, then run the same installation command from that source directory. The installer copies its own source tree; it does not fetch a newer GitHub version first. Reinstalling an old download installs the old version again. It prepares and validates a staged version before activation, preserving or restoring the previous install on failure. Other skill directories stay independent.
 
-## WorkBuddy: the final slides differ from the chosen style
+## WorkBuddy preview and style troubleshooting
+
+If style selection only shows PNG attachment cards, follow the [style preview instructions](../references/style-options.md) to create a 2×2 HTML comparison. Pass its path first to `present_files` and check `previewed` in the result.
 
 Ask WorkBuddy for the absolute path of the `SKILL.md` it actually read for the task, then run `python "<actual-skill-directory>/slidemuse.py" --version` from that installation. The downloaded filename alone does not establish the loaded version. `doctor --json` also reports `skill_root` and `skill_version`. The standard installer uses `~/.workbuddy/skills/slidemuse/`; other imports must be checked at their actual loaded path.
 

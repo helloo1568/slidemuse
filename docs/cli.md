@@ -20,6 +20,7 @@ python slidemuse.py doctor
 | `check task/job.json task-output` | `scripts/run_deck.py --check` | 只读预检 |
 | `run task/job.json task-output` | `scripts/run_deck.py` | 编译、渲染、评分或接续任务 |
 | `render deck.pptx previews` | `scripts/render_deck.py` | 生成真实渲染预览 |
+| `style-overview --compare 01.png 02.png 03.png 04.png comparison.png --html` | `scripts/build_style_overview.py` | 按原编号合成四张标注图，附离线 HTML 预览 |
 | `validate page-spec.json --strict` | `scripts/validate_page_spec.py` | 验证规格 |
 | `style-reference page-spec.json --box x y w h --output styles/reference.png` | `scripts/style_reference.py` | 从所选图登记风格参考与来源绑定 |
 | `produce prepare page-spec.json` | `scripts/page_production.py` | [图片制作与恢复](../references/page-production.md)：宿主原图归档、精确证据合成、逐页审阅和坐标修改 |
@@ -31,6 +32,8 @@ python slidemuse.py doctor
 为表内命令添加 `python slidemuse.py` 前缀。各命令的参数原样交给对应脚本，`<命令> --help` 展示其原有帮助。其他高级工具仍可直接运行 `scripts/*.py`；安装版直接调用脚本时，使用 `.skill-python` 所记录的解释器或当前安装目录下的 `.venv` Python。
 
 流水线原有退出码保持不变：0 表示本次命令成功（也可能只是保存了请求阶段），1 表示检查失败或输入阻塞，3 表示等待审阅。参数错误通常返回 2。`check` 只读，不会创建工作目录或批准素材；`run` 的 `--stop-after`、`--status` 等选项仍由原脚本解释。内容确认、风格选择和逐页视觉检查仍按 Skill 契约执行。
+
+`style-overview --compare` 接收四张已用 `--option` 和 `--name` 标注的 PNG。WorkBuddy 用 `--html` 生成可打开的预览页。`render deck.pptx previews --page-spec page-spec.json --slides 3 5 11` 只渲染指定的原始页码，并与对应原图并排。整套交付时省略 `--slides`。
 
 ## 排查环境
 

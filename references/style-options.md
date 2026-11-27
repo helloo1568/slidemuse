@@ -13,8 +13,16 @@
 - 每套一次生图，一次输出一张风格预览；四套正常共四次。不要逐页生成高清图，也不要默认“先长图、再生图改排版”。
 - 单套有瑕疵时继续生成其余方案，只处理有问题的编号。画幅有偏差但视觉方向清楚的图可标为“风格参考”，选中后以正式代表页校准。
 - 生成前分配固定的 01–04 和简短名称。重试沿用原编号和名称。保留生图原件，最终用标有编号、名称的图供用户选择。
-- 在一条消息按编号放置四张图或具名链接，每套配一句特点。生图工具提前显示的顺序可能不同。用户以附件选款时锁定该图，数字有歧义时结合图和名称确认。选定后在 `style.option`、`style.choice` 和 `reference_images` 记录编号、名称及所选预览图。
+- 用 `style-overview --compare` 将四张已标号的图按 01–04 排成 2×2。在同一条消息给出一份对比预览，并列四个编号、名称和各自的一句特点。生图返回次序和附件卡片次序都可能变化，按图上的编号选。若支持聊天内嵌图，直接展示 PNG。
+- WorkBuddy 使用下方命令加 `--html`。把返回的 `html_preview` 绝对路径放在 `present_files.files` 第一项，把 PNG 放在第二项作为备用入口。`previewed` 非空表示工具已打开预览入口；若为空或失败，提供一张 PNG 对比卡并说明点开即可看四套。Agent 自己的读图结果也不计作用户侧展示。
+- 用户以附件选款时锁定该图，数字有歧义时结合图和名称确认。选定后在 `style.option`、`style.choice` 和 `reference_images` 记录编号、名称及所选单套预览图。
 - 风格选定后才进入逐页高清制作。
+
+```sh
+python slidemuse.py style-overview --compare styles/01.png styles/02.png styles/03.png styles/04.png styles/compare-4-styles.png --html
+```
+
+这里的 `01.png` 等为 `--option` 和 `--name` 已标注的图。PNG 和 HTML 复用已有图像，合成过程不调用生图。HTML 内嵌 PNG，可离线打开。后续 `style-reference` 仍用选中的独立图。
 
 ## 从选中图保留真实视觉参考
 

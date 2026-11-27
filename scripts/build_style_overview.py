@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Arrange a 3x2 slide preview or label an existing overview without regenerating it."""
+"""Label a style card, compare four style cards, or arrange a 3x2 slide preview."""
 
 from __future__ import annotations
 
 import argparse
+import base64
+import html
+import io
 import json
 import math
 from pathlib import Path
@@ -61,6 +64,60 @@ def label_overview(source: Path, output: Path, option: int, name: str, *,
     return {"output": str(output), "option": option, "label": label,
             "pixels": [width, height], "source_pixels": source_pixels,
             "preview_box": [x, y, preview.width, preview.height], "image_generation_calls": 0}
+
+
+def compare_styles(sources: list[Path], output: Path, overwrite: bool = False, *, html_preview: bool = False) -> dict:
+    if len(sources) != 4:
+        raise ValueError("Provide four labeled style cards, one for each option 01–04")
+    output = output.resolve()
+    preview = output.with_suffix(".html")
+    if html_preview and preview.exists() and not overwrite:
+        raise ValueError("HTML preview exists; choose a new filename or use --overwrite")
+    cards = {}
+    for source in sources:
+        source = source.resolve()
+        check_output(source, output, overwrite)
+        if html_preview and preview.resolve() == source:
+            raise ValueError("HTML preview must not overwrite a source image")
+        with Image.open(source) as opened:
+            option = opened.info.get("slidemuse_style_option")
+            name = opened.info.get("slidemuse_style_name", "").strip()
+            if option not in {"1", "2", "3", "4"} or option in cards or not name:
+                raise ValueError(f"Expected one labeled style card per option 01–04: {source.name}")
+            card = ImageOps.exif_transpose(opened).convert("RGBA")
+        card.thumbnail((960, 540), Image.Resampling.LANCZOS)
+        cards[option] = (source, name, card)
+
+    tile_w = max(card.width for _, _, card in cards.values())
+    tile_h = max(card.height for _, _, card in cards.values())
+    gap = 16
+    canvas = Image.new("RGB", (2 * tile_w + gap, 2 * tile_h + gap), "#BBC5D0")
+    options = []
+    for index, (option, (source, name, card)) in enumerate(sorted(cards.items())):
+        row, column = divmod(index, 2)
+        x = column * (tile_w + gap)
+        y = row * (tile_h + gap)
+        canvas.paste("#EBEDF0", (x, y, x + tile_w, y + tile_h))
+        canvas.paste(card, (x + (tile_w - card.width) // 2, y + (tile_h - card.height) // 2), card)
+        options.append({"option": int(option), "name": name, "source": str(source)})
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    png = io.BytesIO()
+    canvas.save(png, format="PNG")
+    output.write_bytes(png.getvalue())
+    result = {"output": str(output), "pixels": list(canvas.size), "options": options, "image_generation_calls": 0}
+    if html_preview:
+        labels = html.escape(" / ".join(f"{item['option']:02d} · {item['name']}" for item in options), quote=True)
+        encoded = base64.b64encode(png.getbuffer()).decode("ascii")
+        preview.write_text(
+            '<!doctype html>\n<html><head><meta charset="utf-8"><meta name="viewport" '
+            'content="width=device-width,initial-scale=1"><title>SlideMuse</title>'
+            '<style>body{margin:0;background:#ebedf0}img{display:block;margin:auto;max-width:100%;'
+            'max-height:100vh;width:auto;height:auto}</style></head><body>'
+            f'<img alt="{labels}" src="data:image/png;base64,{encoded}"></body></html>\n', encoding="utf-8"
+        )
+        result["html_preview"] = str(preview)
+    return result
 
 
 def build_overview(spec_path: Path, output: Path, overwrite: bool = False) -> dict:
@@ -154,21 +211,32 @@ def build_overview(spec_path: Path, output: Path, overwrite: bool = False) -> di
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("source", type=Path, help="Layout JSON, or an existing overview image with --option and --name")
+    parser.add_argument("source", nargs="+", type=Path, help="Layout JSON, one image to label, or four labeled cards")
     parser.add_argument("output", type=Path)
+    parser.add_argument("--compare", action="store_true", help="Arrange four labeled style cards by option in a 2x2 PNG")
+    parser.add_argument("--html", action="store_true", help="With --compare, also make a self-contained HTML preview")
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--option", type=int, choices=range(1, 5), help="Stable number of an existing style preview")
     parser.add_argument("--name", help="Short name printed next to --option")
     parser.add_argument("--font", help="Font file for the option label; layout JSON uses its own font field")
     parser.add_argument("--width", type=int, help="Labeled output canvas width; 3840 for 4K (no source upscaling)")
-    args = parser.parse_args()
-    if (args.option is None) != (args.name is None) or ((args.font or args.width is not None) and args.option is None):
+    args = parser.parse_intermixed_args()
+    if args.compare:
+        if any(value is not None for value in (args.option, args.name, args.font, args.width)):
+            parser.error("--compare uses existing labels; omit labeling options")
+    elif args.html:
+        parser.error("--html requires --compare")
+    elif len(args.source) != 1:
+        parser.error("provide one source unless using --compare")
+    elif (args.option is None) != (args.name is None) or ((args.font or args.width is not None) and args.option is None):
         parser.error("labeling requires both --option and --name")
     try:
-        if args.option is None:
-            result = build_overview(args.source, args.output, args.overwrite)
+        if args.compare:
+            result = compare_styles(args.source, args.output, args.overwrite, html_preview=args.html)
+        elif args.option is None:
+            result = build_overview(args.source[0], args.output, args.overwrite)
         else:
-            result = label_overview(args.source, args.output, args.option, args.name,
+            result = label_overview(args.source[0], args.output, args.option, args.name,
                                     font_path=args.font, overwrite=args.overwrite,
                                     width=args.width if args.width is not None else 1600)
     except (TypeError, ValueError, OSError) as error:

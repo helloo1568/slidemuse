@@ -130,12 +130,13 @@ Step 3  Page Spec + 页面图片 → scene.json → 原生可编辑 PPTX → 结
 ### 风格与图片制作
 
 四套风格预览默认每套一张独立风格卡，只比较配色、字体、材质和图形语言。不要求固定比例、网格或完整文案。
-每套一次生图，用 `build_style_overview.py` 把固定编号和名称标在预览图上，按编号一并展示。生图返回顺序可能变动，用户用图指定时以该图为准。所选图随编号和名称记入 Page Spec，详见[风格预览](../references/style-options.md)。
+每套一次生图，用 `style-overview` 标出固定编号和名称，再排成一张 2×2 对比图。WorkBuddy 可同时生成 HTML 并打开预览面板。用户用图指定时以该图为准，所选独立图随编号和名称记入 Page Spec。见[风格预览](../references/style-options.md)。
 
 选定后用 `style-reference` 登记所选独立风格卡或从多画面中实测裁出一个风格区域作为视觉输入；正式每页实际附图，并对照选中方案完成 `style_consistency` 审阅。完整六宫格不传给单页生成，单页参考也不能放大当作成品。不能只留下风格名称或纯文字描述再重新设计。
 
 文字连续两次不准确时，生成保留全部人物、产品和图形的无字页面，再叠加准确文字；主体拆分留到 Step 3。
 如果输入本身就是页面图片或扫描版 PDF，且目标是还原可编辑 PPTX，可以直接从 Step 3 开始。已有可编辑 PPTX 的普通修改不使用本技能重做。
+先按原图坐标还原一页代表内容页，再用实际 PPTX 渲染校准分栏、卡片、图表和字号。之后逐页并排核对，修完走样的页再交付。见[重建与分层](../references/reconstruction.md#合成检查)。
 本技能已交付 Scene 的后续修改按[变更与恢复规则](../references/workflow-updates.md)继续 S6：保存基准版本、记录已授权差异，使受影响图片失效，避免旧基准触发重复确认。
 
 ## 工具
@@ -143,13 +144,13 @@ Step 3  Page Spec + 页面图片 → scene.json → 原生可编辑 PPTX → 结
 | 脚本 | 作用 |
 |---|---|
 | scripts/validate_page_spec.py | 验证内容确认、连续页序、稳定 ID、位置提示、图片路径唯一性及交付状态/画幅 |
-| scripts/build_style_overview.py | 把已有页面排成 16:9、3×2 预览，或给现有总览加方案编号和名称 |
+| scripts/build_style_overview.py | 标注风格预览、合成四套对比图及 HTML，也可重排旧版 3×2 总览 |
 | scripts/build_editable_ppt.py | 从 scene.json 构建原生对象并原子替换输出 |
 | scripts/audit_editability.py | 复查导出的 PPTX，可选与 scene 比较，导出报告 |
 | scripts/extract_assets.py | 根据已知 bbox 和可选灰度遮罩裁剪素材 |
 | scripts/build_image_ppt.py | 按 Page Spec 的批准图片清单、页序与比例导出；兼容目录自然排序模式 |
 | scripts/overlay_text.py | 兼容旧版：将准确文字栅格叠加到背景 |
-| scripts/render_deck.py | 渲染全部 PPTX 页面，输出逐页 PNG、总览图和可选基准对照报告 |
+| scripts/render_deck.py | 渲染 PPTX，可按原页码抽查，输出逐页 PNG、总览图和基准对照报告 |
 | scripts/audit_page_content.py | 把看图或 OCR 的观察记录与 Page Spec 的准确文字、必现数字比对，并检查图片哈希 |
 | scripts/plan_deck_update.py | 修改前保存批准版本，修改后列出可复用、需复查和需重做的页面 |
 | scripts/evaluate_delivery.py | 汇总当前 PPTX 的内容、逐页视觉复核与可选 Scene 可编辑性审查，生成哈希绑定评分卡 |

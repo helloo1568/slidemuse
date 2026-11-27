@@ -73,6 +73,38 @@ def test_render_deck_writes_every_slide_and_comparison(tmp_path, monkeypatch):
     assert all((tmp_path / "review" / f"{index:03d}.png").is_file() for index in (1, 2))
 
 
+def test_cli_selected_comparison_uses_original_slide_numbers(tmp_path, monkeypatch):
+    deck = tmp_path / "deck.pptx"
+    prs = Presentation()
+    for _ in range(3):
+        prs.slides.add_slide(prs.slide_layouts[6])
+    prs.save(deck)
+    sources = []
+    for index, color in enumerate(("red", "green", "blue"), 1):
+        path = tmp_path / f"source-{index}.png"
+        Image.new("RGB", (640, 480), color).save(path)
+        sources.append(path)
+    spec = tmp_path / "page-spec.json"
+    spec.write_text(json.dumps({"slides": [{"id": path.stem, "image_status": "approved", "image_file": path.name}
+                                           for path in sources]}), encoding="utf-8")
+
+    def render(_deck, output, width, height, slides):
+        assert slides == [1, 3]
+        for number in slides:
+            Image.new("RGB", (width, height), "white").save(output / f"{number:03d}.png")
+
+    output = tmp_path / "review"
+    monkeypatch.setattr(render_deck, "render_powerpoint", render)
+    monkeypatch.setattr(sys, "argv", ["render_deck.py", str(deck), str(output), "--backend", "powerpoint",
+                                      "--page-spec", str(spec), "--slides", "3", "1"])
+    render_deck.main()
+    report = json.loads((output / "render-report.json").read_text(encoding="utf-8"))
+    assert report["deck_slide_count"] == 3
+    assert [(slide["slide"], Path(slide["reference"]).name) for slide in report["slides"]] == [
+        (1, "source-1.png"), (3, "source-3.png")]
+    assert not (output / "002.png").exists()
+
+
 def test_selected_render_keeps_original_index_and_checks_dimensions(tmp_path, monkeypatch):
     deck = tmp_path / "deck.pptx"
     presentation = Presentation()
