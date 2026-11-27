@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bind an explicitly selected single-page style reference to its source pixels."""
+"""Bind an explicitly selected style sample to its source pixels."""
 from __future__ import annotations
 
 import argparse
@@ -18,7 +18,7 @@ from record_work import locked_log
 DECLARATION_FIELDS = {"version", "kind", "source", "source_sha256", "box", "image", "image_sha256"}
 SELECTIONS = {"selected", "delegated"}
 GUIDANCE = ("Run slidemuse.py style-reference <page-spec.json> --box X Y W H "
-            "--output styles/reference.png using the measured bounds of one complete slide in the selected preview")
+            "--output styles/reference.png using one measured, contiguous style area in the selected preview, or use --style-sample for a standalone card")
 
 
 def digest(data):
@@ -73,17 +73,16 @@ def reference_pixels(source, box, kind):
     if x < 0 or y < 0 or width <= 0 or height <= 0 or x + width > source.width or y + height > source.height:
         raise ValueError("Style reference box must stay inside the EXIF-oriented source image")
     full = [0, 0, source.width, source.height]
-    if kind == "single-page":
+    if kind in {"single-page", "style-sample"}:
         if list(box) != full:
-            raise ValueError("A single-page style reference must preserve the entire source without cropping")
+            raise ValueError("A standalone style reference must preserve the entire source without cropping")
     elif kind == "preview-crop":
         if list(box) == full:
-            raise ValueError("Do not use the entire overview as a preview-crop; select one complete slide")
-        # Thumbnail dimensions can differ by one pixel after raster rounding.
-        if width < 16 or height < 9 or abs(width - height * 16 / 9) > 16 / 9 + 1e-6:
-            raise ValueError("Preview crop must cover one complete 16:9 slide; measure its bounds without resizing")
+            raise ValueError("Do not use the entire overview as a preview-crop; select one contiguous visual sample")
+        if min(width, height) < 9:
+            raise ValueError("Preview crop is too small to carry useful visual style")
     else:
-        raise ValueError("Style reference kind must be preview-crop or single-page")
+        raise ValueError("Style reference kind must be preview-crop, style-sample or single-page")
     return source.crop((x, y, x + width, y + height))
 
 
@@ -112,12 +111,14 @@ def resolve_reference(spec, base, required=False):
     declaration = style["generation_reference"]
     if not isinstance(declaration, dict) or set(declaration) != DECLARATION_FIELDS:
         raise ValueError("Style generation_reference must contain exactly version, kind, source, source_sha256, box, image and image_sha256")
-    if declaration["version"] != "1.0" or declaration["kind"] not in {"preview-crop", "single-page"}:
+    if declaration["version"] != "1.0" or declaration["kind"] not in {"preview-crop", "style-sample", "single-page"}:
         raise ValueError("Unsupported style generation_reference version or kind")
     if decision not in {*SELECTIONS, "locked-reference"}:
         raise ValueError("A generation reference requires a selected, delegated or locked-reference style")
     if declaration["kind"] == "single-page" and decision != "locked-reference":
         raise ValueError("Use preview-crop for selected/delegated overviews; single-page requires locked-reference")
+    if declaration["kind"] == "style-sample" and decision not in SELECTIONS:
+        raise ValueError("A standalone style-sample must be a selected or delegated option")
     for field in ("source_sha256", "image_sha256"):
         if not isinstance(declaration[field], str) or not re.fullmatch(r"[0-9a-f]{64}", declaration[field]):
             raise ValueError(f"Style generation_reference {field} must be a SHA256 hash")
@@ -151,7 +152,7 @@ def report(reference, spec_path):
             "scope": "Visual style reference only; this crop is not a generated or final delivery slide."}
 
 
-def create_reference(spec_path, output, box=None, single_page=False):
+def create_reference(spec_path, output, box=None, single_page=False, *, style_sample=False):
     """Create a lossless reference and register it under the production transaction lock."""
     # Local imports avoid a cycle: Page Spec validation also checks this declaration.
     from page_production import workspace
@@ -165,9 +166,9 @@ def create_reference(spec_path, output, box=None, single_page=False):
     if (not target.is_relative_to(base) or target.suffix.lower() != ".png"
             or requested.is_symlink() or target.is_relative_to(workspace(spec_path).resolve())):
         raise ValueError("Output must be an independent PNG inside the Page Spec directory, outside managed production state")
-    if single_page and box is not None:
-        raise ValueError("Use either --box or --single-page, not both")
-    with locked_log(workspace(spec_path) / "transaction"):
+    if sum((box is not None, single_page, style_sample)) > 1:
+        raise ValueError("Use only one of --box, --style-sample or --single-page")
+    with locked_log(workspace(spec_path) / "transaction", wait_seconds=15):
         original = spec_path.read_bytes()
         spec = json.loads(original.decode("utf-8-sig"))
         style = spec["style"]
@@ -177,8 +178,10 @@ def create_reference(spec_path, output, box=None, single_page=False):
         if single_page and decision != "locked-reference":
             raise ValueError("--single-page requires an explicitly locked-reference style")
         source_name, source_path, source_raw, source = selected_source(style, base)
-        kind = "single-page" if single_page else "preview-crop"
-        if single_page:
+        if style_sample and decision not in SELECTIONS:
+            raise ValueError("--style-sample requires a selected or delegated standalone style card")
+        kind = "single-page" if single_page else "style-sample" if style_sample else "preview-crop"
+        if single_page or style_sample:
             box = [0, 0, *source.size]
         elif box is None:
             raise ValueError(GUIDANCE + "; an explicitly locked single page may use --single-page")
@@ -264,12 +267,13 @@ def main():
     parser.add_argument("page_spec", type=Path)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--box", nargs=4, type=int, metavar=("X", "Y", "WIDTH", "HEIGHT"),
-                      help="Measured bounds of one complete 16:9 slide in the selected overview; never guessed")
+                      help="Measured bounds of one style area (any aspect ratio); never attach the full overview")
     mode.add_argument("--single-page", action="store_true", help="Keep an explicitly locked full single-page reference")
+    mode.add_argument("--style-sample", action="store_true", help="Keep a selected standalone style card; never use on a multi-page overview")
     parser.add_argument("--output", required=True, type=Path, help="New PNG path, relative to the Page Spec directory")
     args = parser.parse_args()
     try:
-        result = create_reference(args.page_spec, args.output, args.box, args.single_page)
+        result = create_reference(args.page_spec, args.output, args.box, args.single_page, style_sample=args.style_sample)
     except (ValueError, TypeError, KeyError, OSError) as error:
         parser.exit(2, f"style-reference: {error}\n")
     print(json.dumps(result, ensure_ascii=True, indent=2))

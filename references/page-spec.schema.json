@@ -58,7 +58,7 @@
           "required": ["version", "kind", "source", "source_sha256", "box", "image", "image_sha256"],
           "properties": {
             "version": {"const": "1.0"},
-            "kind": {"enum": ["preview-crop", "single-page"]},
+            "kind": {"enum": ["preview-crop", "style-sample", "single-page"]},
             "source": {"type": "string", "minLength": 1},
             "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
             "box": {

@@ -24,7 +24,11 @@ def sha256(path: Path) -> str:
 
 def normalized_numbers(value: str) -> str:
     # NFKC covers fullwidth/small signs, but does not map the mathematical minus.
-    return unicodedata.normalize("NFKC", value).replace("\u2212", "-")
+    normalized = unicodedata.normalize("NFKC", value)
+    # Rendering may detach a signed number. Only join horizontal space
+    # after explicit arithmetic signs; plain hyphens may be date ranges.
+    normalized = re.sub(r"(?<![A-Za-z0-9])([−+])[ \t]+(?=\d)", r"\1", normalized)
+    return normalized.replace("\u2212", "-")
 
 
 def compact(value: str) -> str:

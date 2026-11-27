@@ -248,3 +248,30 @@ def test_terminated_process_releases_workspace_lock_and_resumes_saved_build(pipe
     resumed = run_deck.run(job, work)
     assert resumed["stages"]["build"] == "reused"
     assert resumed["status"] == "awaiting_review"
+
+
+def test_auto_chart_geometry_stays_pending_then_archives_if_source_changes(pipeline_case):
+    import audit_chart_geometry
+    config_path, work, *_ = pipeline_case
+    spec_path = config_path.parent / "page-spec.json"
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
+    spec["slides"][0]["elements"].append({
+        "id": "bar", "kind": "chart", "role": "figure", "native_intent": "native",
+        "source_ref": "test fixture", "confirmation_status": "confirmed",
+        "data": {"chart_type": "bar", "categories": ["Other", "Main"],
+                 "series": [{"name": "Sales", "values": [1, 100]}]},
+    })
+    save(spec_path, spec)
+    path = run_deck.default_chart_observations(spec_path, spec, work)
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    assert audit_chart_geometry.audit(spec_path, path)["status"] == "incomplete"
+    doc["charts"][0].update(status="complete", axis=[{"value": 0, "pixel": 10}, {"value": 100, "pixel": 110}])
+    for bar, end in zip(doc["charts"][0]["bars"], (15, 110)):
+        bar.update(start=10, end=end)
+    save(path, doc)
+    assert audit_chart_geometry.audit(spec_path, path)["status"] == "fail"
+    original = path.read_bytes()
+    assert run_deck.default_chart_observations(spec_path, spec, work).read_bytes() == original
+    Image.new("RGB", (160, 90), "navy").save(spec_path.parent / spec["slides"][0]["image_file"])
+    assert run_deck.default_chart_observations(spec_path, spec, work) == path
+    assert audit_chart_geometry.audit(spec_path, path)["status"] == "incomplete"

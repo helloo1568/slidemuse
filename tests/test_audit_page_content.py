@@ -101,3 +101,12 @@ def test_negative_signs_keep_their_numeric_meaning(tmp_path, minus):
         [e["text"] for e in slide["elements"] if e["kind"] == "text"] + [f"增长{minus}5%超出预期"]))
     result = audit_page_content.audit(path, [slide], observations)
     assert not result["pass"] and result["issues"] == 1
+
+
+def test_renderer_spacing_keeps_the_sign_without_turning_ranges_into_negatives():
+    match = audit_page_content.text_present
+    assert match("同比 −6.9%", "同比 − 6.9%")
+    assert match("同比 +3.2%", "同比 + 3.2%")
+    assert not match("同比 −6.9%", "同比 6.9%")
+    assert not match("同比 −6.9%", "同比 − 16.9%")
+    assert audit_page_content.numbers("2019 - 2020") == ["2019", "2020"]

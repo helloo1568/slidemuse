@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import hashlib
 import json
 import math
 import os
+import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,20 +44,34 @@ def read_events(path):
 
 
 @contextmanager
-def locked_log(path):
+def locked_log(path, *, wait_seconds=0):
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.with_suffix(path.suffix + ".lock").open("a+b") as stream:
-        stream.seek(0)
-        if not stream.read(1):
+        # A Windows byte-range lock can prohibit reading the locked byte.
+        # Test file length without reading it, then acquire before mutation.
+        if stream.seek(0, os.SEEK_END) == 0:
             stream.write(b"0")
             stream.flush()
         stream.seek(0)
         if os.name == "nt":
             import msvcrt
-            msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+            acquire = lambda: msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
         else:
             import fcntl
-            fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            acquire = lambda: fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        deadline = time.monotonic() + wait_seconds
+        while True:
+            try:
+                acquire()
+                break
+            except OSError as error:
+                if error.errno not in (errno.EACCES, errno.EAGAIN, errno.EDEADLK) or not wait_seconds:
+                    raise
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("Production workspace is busy; wait for the current local operation and retry") from error
+                time.sleep(min(0.05, remaining))
+                stream.seek(0)
         try:
             yield
         finally:

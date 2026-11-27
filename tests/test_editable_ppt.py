@@ -551,3 +551,25 @@ def test_invalid_native_chart_settings_are_rejected(scene_file, change):
     scene["slides"][0]["elements"][-1].update(change)
     with pytest.raises(ValueError):
         validate_scene(scene, scene_file.parent)
+
+
+def test_dense_table_caps_vertical_padding_without_changing_grid_or_horizontal_padding(tmp_path):
+    from pptx.util import Pt
+    scene_path = tmp_path / "tight-rows.json"
+    output = tmp_path / "table.pptx"
+    scene = {"version": "1.0", "canvas": {"width": 1280, "height": 720, "width_inches": 13.333333},
+             "slides": [{"id": "s01", "elements": [{
+                 "id": "t", "type": "table", "x": 64, "y": 270, "w": 827, "h": 296,
+                 "rows": [["地区", "2020"]] + [[str(n), str(n + 1)] for n in range(5)],
+                 "font_size": 17, "margin": 9, "header": True,
+             }]}]}
+    scene_path.write_text(json.dumps(scene), encoding="utf-8")
+    build_deck(scene_path, output)
+    table = Presentation(output).slides[0].shapes[0].table
+    assert abs(sum(row.height for row in table.rows) - Pt(222)) < 10
+    for row in table.rows:
+        for cell in row.cells:
+            assert cell.margin_left == cell.margin_right == Pt(9)
+            assert 0 < cell.margin_top == cell.margin_bottom < Pt(9)
+            assert 2 * cell.margin_top + Pt(17 * 1.3) <= row.height
+    assert not audit(output, scene_path)["errors"]

@@ -180,6 +180,7 @@ def add_element(shapes, e, base, sx, sy):
         for row, height in zip(table.rows, heights):
             row.height = height
         covered = merge_owners(e)
+        spans = {(span["row"], span["col"]): span["row_span"] for span in e.get("merges", [])}
         for span in e.get("merges", []):
             r, c = span["row"], span["col"]
             table.cell(r, c).merge(table.cell(r + span["row_span"] - 1, c + span["col_span"] - 1))
@@ -209,9 +210,17 @@ def add_element(shapes, e, base, sx, sy):
                     "top": MSO_ANCHOR.TOP, "middle": MSO_ANCHOR.MIDDLE,
                     "bottom": MSO_ANCHOR.BOTTOM,
                 }[style.get("valign", "top")]
-                for attr in ("margin_left", "margin_right", "margin_top", "margin_bottom"):
-                    setattr(cell, attr, Pt(style["margin"]))
+                # Vertical padding is a preference, not a reason for Office to
+                # silently enlarge a constrained row and overlap adjacent objects.
+                # Reserve breathing room for the font without changing horizontal padding.
+                span_height = sum(heights[r:r + spans.get((r, c), 1)])
+                line_floor = Pt(style.get("font_size", 20) * max(1.30, style.get("line_spacing", 1.1) + 0.20)
+                                * (value.count("\n") + 1))
+                pad_y = min(Pt(style["margin"]), max(0, (span_height - line_floor) // 2))
+                cell.margin_left = cell.margin_right = Pt(style["margin"])
+                cell.margin_top = cell.margin_bottom = pad_y
                 text_frame(cell.text_frame, value, style)
+                cell.text_frame.margin_top = cell.text_frame.margin_bottom = pad_y
     elif kind == "chart":
         data = CategoryChartData()
         data.categories = e["categories"]
