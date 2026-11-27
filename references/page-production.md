@@ -2,6 +2,8 @@
 
 S5 中已确认的 Page Spec 是页面文字、数据、素材和最终坐标的唯一来源。`produce` 补齐宿主生图与现有 `run` 交付流水线之间的原图登记、证据合成和逐页审阅；它不调用生图，也不填通过记录。
 
+新增页面传给 `compose --source` 的原图必须来自真实生图调用；保留工具/后端、模型（未暴露则注明）、实际调用证据与原图。不得将 SVG、HTML、Python、程序化 PPTX 或其截图登记为模型生成原图。允许以真实生成的完整主视觉为基础局部修正文字、精确数据图表及证据素材。`produce` 的格式、哈希与审阅检查不认证生图来源；缺少真实调用证据时不得批准或作为新生图成品组装。
+
 ```sh
 python slidemuse.py produce prepare work/page-spec.json
 python slidemuse.py produce compose work/page-spec.json --slide s01 --source work/raw/01.png
