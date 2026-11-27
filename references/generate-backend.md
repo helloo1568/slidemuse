@@ -31,6 +31,8 @@ python slidemuse.py generate --help
 
 ## 逐页任务、分派与登记
 
+- 主流程和完整后端均执行 SKILL.md 的禁止静默降级规则。生图失败时登记阻塞，不得用程序化整页排版补缺；局部精确图表、文字修正和证据合成仅可在真实生图原件基础上执行。保留调用证据与原件，登记来源不能代替真实模型调用。
+
 ```sh
 python slidemuse.py generate prepare --spec "<work>/deck_spec.json" --out-dir "<work>"
 python slidemuse.py generate status "<work>" --json
