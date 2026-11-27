@@ -17,7 +17,7 @@ Provide the source to begin. The agent can read it before recommending a length.
 - Native text, shapes, arrows, nested groups, tables and charts with embedded workbooks.
 - Deterministic asset extraction from supplied bounding boxes and optional masks.
 - An editability audit that checks exported objects, image geometry/crops, and nested group transforms against the scene.
-- GPT Image 2.5 guidance for Flare exploration and Sunburst reference editing.
+- GPT Image 2.6 guidance for style exploration, final slide generation and precision reference editing.
 - Existing image-only export and raster text overlay commands remain available.
 
 See the [official image guide](https://developers.openai.com/api/docs/guides/image-generation).
@@ -79,7 +79,7 @@ After installation, say "Use the slidemuse skill". Codex accepts `$slidemuse`, C
 
 | Environment | Image backend | Notes |
 |---|---|---|
-| Codex (recommended) | Codex image generation; prefer GPT Image 2.5 when selectable | Flare for exploration, Sunburst for final and precision editing |
+| Codex (recommended) | Codex image generation; prefer GPT Image 2.6 when selectable | For exploration, final slides and precision editing |
 | Other agents | That agent's own native or connected image generation/editing capability | Keep the same state machine, prompts, and acceptance checks |
 | Python only | No end-to-end image generation | Local scripts only assemble, overlay text, compile scenes, crop assets, and audit |
 
