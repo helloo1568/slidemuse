@@ -54,8 +54,8 @@
       "reason": "SlideMuse: default/recommended model 2.6 with existing legacy option checks; preflight all output paths before API calls and fully decode complete image responses before writing. Original upstream hash retained in files."
     },
     "skills/codex-ppt/scripts/codex_ppt_runtime.py": {
-      "sha256": "fab9b971779ec4260be445559e6ee83843439968504edb48a84ff9aa4622c3b4",
-      "reason": "SlideMuse: default model gpt-image-2.6 to match image_gen."
+      "sha256": "ff1b5d86de4421fe5cee13b66e02623a6ce35452f4aaf893a469d32d34f3decf",
+      "reason": "SlideMuse: default model gpt-image-2.6 to match image_gen; read secrets via stdin instead of child command-line arguments."
     },
     "tests/test_image_gen_models.py": {
       "sha256": "db834fb24099af8bc0610ef866403751367a31c858791e20cbb30548c6927fe5",
@@ -66,8 +66,8 @@
       "reason": "SlideMuse: align the adapter fallback model with the configured 2.6 default without removing operation routing. Original upstream hash retained in files."
     },
     "skills/codex-ppt/scripts/prepare_slide_prompts.py": {
-      "sha256": "6b17b5817f37f8bd8e00e4aa73629179a036c7ddf3ffa0cd9c0b47bc89ccb024",
-      "reason": "SlideMuse: preserve explicit canvas dimensions/aspect; require declared, hashed provided origins for reused samples and generation evidence for new jobs. Original upstream hash retained in files."
+      "sha256": "0f8d144a49bedc7a8ba7bfc883952aeaa722b7dd0049ed89a2319e54040d4151",
+      "reason": "SlideMuse: preserve source path resolution on read-only inputs and explicit canvas dimensions/aspect; require declared, hashed provided origins for reused samples and generation evidence for new jobs. Original upstream hash retained in files."
     },
     "skills/codex-ppt/scripts/record_slide_dispatch.py": {
       "sha256": "078a9846166bfe2a9e5da0bf4e3131ce0b2f5530d37c88a8860668078c4ddad4",

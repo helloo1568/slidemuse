@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import getpass
 import hashlib
 import importlib.util
 import json
@@ -61,27 +62,17 @@ def prepare(argv, script, env):
     spec = from_page_spec(args.page_spec.resolve()) if args.page_spec else read_json(args.spec)
     spec = prepare_spec(spec)
     source_path = (args.page_spec or args.spec).resolve()
-    def resolve_images(value):
-        if isinstance(value, dict):
-            for key, item in value.items():
-                if key == "path" and isinstance(item, str):
-                    value[key] = str((source_path.parent / item).resolve())
-                else:
-                    resolve_images(item)
-        elif isinstance(value, list):
-            for item in value:
-                resolve_images(item)
-    for slide in spec["slides"]:
-        resolve_images(slide.get("required_images", []))
-    resolve_images(spec.get("approved_style_reference", {}))
-    # Original relative paths in Markdown image references must keep their base.
-    # Stage beside the source, so the vendored helper resolves every path as before.
-    fd, temporary = tempfile.mkstemp(prefix=".slidemuse-generation-", suffix=".json", dir=source_path.parent)
+    if any(value.split("=", 1)[0] == "--source-dir" for value in extra):
+        raise ValueError("--source-dir is reserved for the original deck spec directory")
+    # Do not write into the input directory. Keep the original base when the
+    # vendored parser resolves relative assets, Markdown references and URLs.
+    fd, temporary = tempfile.mkstemp(prefix="slidemuse-generation-", suffix=".json")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
             json.dump(spec, stream, ensure_ascii=False)
         result = subprocess.run([sys.executable, str(script), "--spec", temporary,
-                                 "--out-dir", str(args.out_dir), *extra], env=env, check=False).returncode
+                                 "--out-dir", str(args.out_dir), *extra, "--source-dir", str(source_path.parent)],
+                                env=env, check=False).returncode
     finally:
         Path(temporary).unlink(missing_ok=True)
     if result == 0:
@@ -139,8 +130,7 @@ def fyai_setup(argv, root=ROOT, offline=False):
         return 2
     parser = argparse.ArgumentParser(
         description="Configure the API image backend in one step (defaults to sponsor FengYun AI).")
-    parser.add_argument("--api-key", required=True,
-                        help="Provider API key; stored in the user-level .env, never printed.")
+    parser.add_argument("--api-key", help="Legacy argument; prefer the hidden local terminal prompt.")
     parser.add_argument("--base-url", default=FYAI_DEFAULT_BASE_URL,
                         help="OpenAI-compatible base URL ending at /v1.")
     parser.add_argument("--model", default=FYAI_DEFAULT_MODEL, help="Image model name.")
@@ -149,16 +139,24 @@ def fyai_setup(argv, root=ROOT, offline=False):
     if not runtime.is_file():
         print("SlideMuse: packaged image-generation backend is missing; reinstall the skill.", file=sys.stderr)
         return 2
+    key = args.api_key
+    if key is None:
+        if not sys.stdin.isatty():
+            parser.error("Run fyai-setup in your own interactive terminal to enter the key privately.")
+        key = getpass.getpass("Provider API key (input hidden): ")
+    if not key.strip() or "\n" in key or "\r" in key:
+        parser.error("Provide a non-empty API key on a single line.")
     env = os.environ.copy()
     env["PYTHONUTF8"] = "1"
     steps = [
         ("bootstrap", ["bootstrap"]),
-        ("config", ["config", "--api-key", args.api_key, "--base-url", args.base_url, "--model", args.model]),
+        ("config", ["config", "--api-key-stdin", "--base-url", args.base_url, "--model", args.model]),
         ("doctor", ["doctor", "--check-api"]),
     ]
     for label, step in steps:
         print(f"SlideMuse fyai-setup: {label}...", flush=True)
-        completed = subprocess.run([sys.executable, str(runtime), *step], env=env, check=False)
+        stdin = {"input": key.encode("utf-8") + b"\n"} if label == "config" else {}
+        completed = subprocess.run([sys.executable, str(runtime), *step], env=env, check=False, **stdin)
         if completed.returncode != 0:
             print(f"SlideMuse fyai-setup: {label} failed (exit {completed.returncode}); stopped.", file=sys.stderr)
             return completed.returncode
@@ -180,7 +178,7 @@ def run_backend(argv, root=ROOT, offline=False):
     if name in ("", "--help", "-h"):
         print("SlideMuse generate: " + ", ".join([*sorted(SCRIPTS), "review", "capabilities", "fyai-setup"]))
         print("prepare --spec <deck.json> OR --page-spec <approved.json> --out-dir <deck>; review <deck> [--init]")
-        print("fyai-setup --api-key <key> [--base-url URL] [--model NAME]: one-step API image backend setup.")
+        print("fyai-setup [--base-url URL] [--model NAME]: enter the key in a private terminal prompt.")
         return 0
     if name == "review":
         from generation_delivery import REVIEW, review

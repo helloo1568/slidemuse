@@ -8,6 +8,7 @@ import os
 import platform
 import re
 import shutil
+import subprocess
 from pathlib import Path
 
 _HASHES = {}
@@ -88,3 +89,48 @@ def environment_key(snapshot, backend):
     names = ("powerpoint", "powershell") if backend == "powerpoint" else ("libreoffice", "pdftoppm")
     value = {**snapshot, "binaries": {name: snapshot["binaries"].get(name) for name in names}}
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def installed_font_families():
+    """Return the active Fontconfig family names (including localized aliases)."""
+    if os.name == "nt" or not (tool := shutil.which("fc-list")):
+        return None
+    try:
+        result = subprocess.run([tool, "--format", "%{family}\n"], capture_output=True,
+                                encoding="utf-8", errors="replace", timeout=10, check=True)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    families = {name.strip().casefold() for row in result.stdout.splitlines()
+                for name in row.split(",") if name.strip()}
+    return families or None
+
+
+def font_preflight(presentation, backend):
+    """Find explicitly declared font families absent from this render host.
+
+    Inventory absence is a substitution risk, not proof of what the renderer
+    selected. Unresolved theme fonts and missing characters are not measured.
+    """
+    inventory = installed_font_families() if backend == "libreoffice" else None
+    if inventory is None:
+        return {"status": "unverified", "pages": [],
+                "scope": "No local Fontconfig inventory for this renderer."}
+    from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+    def fonts(shapes):
+        for shape in shapes:
+            if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+                yield from fonts(shape.shapes)
+            else:
+                for name in shape._element.xpath(".//a:latin/@typeface | .//a:ea/@typeface | .//a:cs/@typeface"):
+                    if name.strip() and not name.startswith("+"):
+                        yield name.strip()
+
+    pages = []
+    for index, slide in enumerate(presentation.slides, 1):
+        missing = sorted({name for name in fonts(slide.shapes) if name.casefold() not in inventory},
+                         key=lambda name: (name.casefold(), name))
+        if missing:
+            pages.append({"slide": index, "missing_families": missing})
+    return {"status": "warning" if pages else "no_missing_explicit_families", "pages": pages,
+            "scope": "Explicit shape fonts only; substitution, theme fonts, chart fonts, and glyph coverage require visual review."}

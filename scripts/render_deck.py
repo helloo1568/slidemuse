@@ -200,16 +200,17 @@ def main() -> None:
     references = reference_files(args.page_spec.resolve(), count) if args.page_spec else None
     slides = build_review(images, output, references)
     from measured_layout import findings
-    from render_environment import fingerprint
+    from render_environment import fingerprint, font_preflight
+    fonts = font_preflight(presentation, backend)
     report = {"deck": str(deck), "deck_sha256": sha256(deck), "backend": backend,
-              "environment": fingerprint(),
+              "environment": fingerprint(), "font_preflight": fonts,
               "measured_layout": [item for n in range(1, count + 1) if (output / f"{n:03d}.layout.json").is_file()
                                   for item in findings(read_json(output / f"{n:03d}.layout.json"), f"s{n:02d}")],
               "page_spec_sha256": sha256(args.page_spec.resolve()) if args.page_spec else None,
               "slides": slides, "review_sheet": str(output / "review.png"),
               "note": "Pixel differences are diagnostic only; inspect typography, clipping, content and composition manually."}
     (output / "render-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(json.dumps({"backend": backend, "slides": count, "review": str(output / "review.png")}, ensure_ascii=False))
+    print(json.dumps({"backend": backend, "slides": count, "review": str(output / "review.png"), "font_preflight": fonts}, ensure_ascii=False))
 
 
 def _render_cli(backends, deck, output, args, height, count, errors):

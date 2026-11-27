@@ -370,6 +370,7 @@ def _write_template(path: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--spec", help="Deck spec JSON file.")
+    parser.add_argument("--source-dir", type=Path, help="Original asset base when the deck spec was staged.")
     parser.add_argument("--out-dir", help="Deck project directory.")
     parser.add_argument("--write-template", help="Write an example deck spec JSON and exit.")
     parser.add_argument(
@@ -394,7 +395,7 @@ def main() -> int:
 
     spec_path = Path(args.spec)
     spec = _read_json(spec_path)
-    spec_dir = spec_path.resolve().parent
+    spec_dir = args.source_dir.resolve() if args.source_dir is not None else spec_path.resolve().parent
     slides = spec.get("slides")
     if not isinstance(slides, list) or not slides:
         _die("Deck spec must include a non-empty slides array.")

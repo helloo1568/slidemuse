@@ -66,6 +66,16 @@ python slidemuse.py rebuild run finalize work/rebuild
 
 字段按需读取[Manifest 协议](../vendor/image-to-editable/skills/image-to-editable-ppt/references/manifest-schema.md)，对象决策读[页面重建树](../vendor/image-to-editable/skills/image-to-editable-ppt/references/page-decision-tree.md)，详细参数读[CLI 参考](../vendor/image-to-editable/skills/image-to-editable-ppt/references/cli-helper.md)。这些参考中的裸 `editppt` 命令均替换为 `python <skill-dir>/slidemuse.py rebuild`。上游要求所有前景都经生图提取的做法，不覆盖本技能受保护证据和现有透明原始素材的保留规则。
 
+## 按区域测量文字
+
+如果已有确认内容、知道文字的位置，但整页 `hints` 把照片高光当文字或漏掉文字，可直接圈定可见标题、正文、图注等代表区域。用归一化后的源图坐标（左上角 x/y 与宽高 w/h），区域内只放目标文字并留出适当背景，排除旁边的插图、坐标线和边框：
+
+```sh
+python slidemuse.py rebuild --offline measure-text source.png --region title 70 235 890 179 --region label 70 415 500 120
+```
+
+该命令复用上游局部墨迹算法，输出原图坐标下的墨迹框、字形高度、行数、明暗极性和候选字号（按 `--slide-width-inches` 换算，默认 13.333333）。它不联网、不识字、不改图，不自动写 Scene，不证明辨认到了目标；低对比或空白区域不报字号。将同层字号作为起点，选正确字体后导出并实渲染，核对实际行距、字宽与基线。不要把紧贴笔画的墨迹框直接当 PowerPoint 文本容器，也不要用候选字号覆盖已核验的布局。
+
 ## 素材、公式与服务
 
 ```sh

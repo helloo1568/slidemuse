@@ -112,3 +112,23 @@ def test_overwrite_does_not_reuse_old_powerpoint_measurements(tmp_path, monkeypa
     assert report["deck_sha256"] == render_deck.sha256(deck)
     assert report["measured_layout"] == []
     assert not (output / "001.layout.json").exists()
+
+
+def test_font_preflight_reports_missing_east_asian_family_per_slide(monkeypatch):
+    import render_environment
+    from build_editable_ppt import east_asian_font
+    from pptx.util import Inches
+
+    deck = Presentation()
+    for family in ("宋体", "noto serif cjk sc"):
+        slide = deck.slides.add_slide(deck.slide_layouts[6])
+        frame = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(2), Inches(1)).text_frame
+        run = frame.paragraphs[0].add_run()
+        run.text = "中文"
+        east_asian_font(run.font, family)
+        run.font.name = "+mn-lt"  # An inherited Latin font does not mask the explicit East Asian request.
+    monkeypatch.setattr(render_environment, "installed_font_families", lambda: {"noto serif cjk sc"})
+    result = render_environment.font_preflight(deck, "libreoffice")
+    assert result["status"] == "warning"
+    assert result["pages"] == [{"slide": 1, "missing_families": ["宋体"]}]
+    assert render_environment.font_preflight(deck, "powerpoint")["status"] == "unverified"

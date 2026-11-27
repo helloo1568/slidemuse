@@ -1,7 +1,11 @@
 """Shared, round-trip verifiable native chart appearance settings."""
 
 from pptx.dml.color import RGBColor
-from pptx.enum.chart import XL_LABEL_POSITION, XL_TICK_LABEL_POSITION
+from pptx.enum.chart import (
+    XL_LABEL_POSITION,
+    XL_LEGEND_POSITION,
+    XL_TICK_LABEL_POSITION,
+)
 from pptx.oxml.xmlchemy import OxmlElement
 from pptx.util import Pt
 
@@ -14,6 +18,18 @@ LABEL_POSITIONS = {
     "below": XL_LABEL_POSITION.BELOW,
     "best_fit": XL_LABEL_POSITION.BEST_FIT,
 }
+
+
+LEGEND_POSITIONS = {
+    "top": XL_LEGEND_POSITION.TOP,
+    "bottom": XL_LEGEND_POSITION.BOTTOM,
+    "left": XL_LEGEND_POSITION.LEFT,
+    "right": XL_LEGEND_POSITION.RIGHT,
+}
+
+
+def legend_color(spec):
+    return spec.get("legend_color", spec.get("tick_label_color"))
 
 
 def set_value(parent, tag, value):
@@ -33,6 +49,11 @@ def xml_value(parent, tag):
 
 
 def apply_style(chart, spec):
+    if chart.has_legend:
+        if "legend_position" in spec:
+            chart.legend.position = LEGEND_POSITIONS[spec["legend_position"]]
+        if color := legend_color(spec):
+            chart.legend.font.color.rgb = RGBColor.from_string(color[1:])
     plot = chart.plots[0]
     if spec.get("data_labels"):
         if "data_label_position" in spec:
@@ -40,6 +61,8 @@ def apply_style(chart, spec):
         if "data_label_font_size" in spec:
             plot.data_labels.font.size = Pt(spec["data_label_font_size"])
     if spec["chart_type"] not in ("pie", "doughnut"):
+        if "value_axis_major_unit" in spec:
+            chart.value_axis.major_unit = spec["value_axis_major_unit"]
         for name, axis in (("category", chart.category_axis), ("value", chart.value_axis)):
             if name + "_axis_visible" in spec:
                 visible = spec[name + "_axis_visible"]
@@ -87,6 +110,19 @@ def apply_style(chart, spec):
 def style_errors(chart, spec):
     """Read exported objects independently; never reapply styles while auditing."""
     errors = []
+    expects_legend = spec.get("legend", len(spec["series"]) > 1)
+    if chart.has_legend != expects_legend:
+        errors.append("legend visibility")
+    if chart.has_legend and expects_legend:
+        if "legend_position" in spec and chart.legend.position != LEGEND_POSITIONS[spec["legend_position"]]:
+            errors.append("legend position")
+        if expected := legend_color(spec):
+            try:
+                actual = "#" + str(chart.legend.font.color.rgb)
+            except (AttributeError, ValueError):
+                actual = None
+            if actual != expected.upper():
+                errors.append("legend color")
     plot = chart.plots[0]
     if spec.get("data_labels"):
         if "data_label_position" in spec and plot.data_labels.position != LABEL_POSITIONS[spec["data_label_position"]]:
@@ -94,6 +130,8 @@ def style_errors(chart, spec):
         if "data_label_font_size" in spec and plot.data_labels.font.size != Pt(spec["data_label_font_size"]):
             errors.append("data label font size")
     if spec["chart_type"] not in ("pie", "doughnut"):
+        if "value_axis_major_unit" in spec and chart.value_axis.major_unit != spec["value_axis_major_unit"]:
+            errors.append("value axis major unit")
         for name, axis in (("category", chart.category_axis), ("value", chart.value_axis)):
             key = name + "_axis_visible"
             if key in spec and (axis.visible != spec[key] or (

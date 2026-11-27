@@ -146,8 +146,12 @@ def _config(args: argparse.Namespace) -> int:
     env_file = _env_path(home)
     values = _parse_env_file(env_file)
 
-    if args.api_key:
-        values["OPENAI_API_KEY"] = args.api_key
+    api_key = sys.stdin.readline().rstrip("\r\n") if args.api_key_stdin else args.api_key
+    if args.api_key_stdin and not api_key.strip():
+        print("Missing API key on stdin.", file=sys.stderr)
+        return 2
+    if api_key:
+        values["OPENAI_API_KEY"] = api_key
 
     if args.base_url is not None:
         values["OPENAI_BASE_URL"] = args.base_url.strip()
@@ -260,7 +264,9 @@ def _build_parser() -> argparse.ArgumentParser:
     bootstrap.set_defaults(func=_bootstrap)
 
     config = subparsers.add_parser("config", help="Write or update shared .env")
-    config.add_argument("--api-key")
+    api_key = config.add_mutually_exclusive_group()
+    api_key.add_argument("--api-key")
+    api_key.add_argument("--api-key-stdin", action="store_true")
     config.add_argument("--base-url")
     config.add_argument("--clear-base-url", action="store_true")
     config.add_argument("--model")

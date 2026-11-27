@@ -294,10 +294,14 @@ def test_single_page_requests_isolate_preview_and_anchor_after_review(production
     packet = json.loads((workspace(path) / page["request_snapshot"]).read_text(encoding="utf-8"))
     assert "reference_images" not in packet["style"]["tokens"]
     assert "request_reference" not in page
+    assert "current page role" in packet["instructions"]
+    assert "not as a repeated composition" in packet["instructions"]
     assert packet["slide"]["id"] == "s01" and "slides" not in packet
     compose_fixture(path, slide_id="s01", source=source)
     record = tmp_path / "anchor-review.json"
     fixture_review(path, "s01", record)
+    template = json.loads(record.read_text(encoding="utf-8"))
+    assert set(template["design_review_guidance"]) == {"density", "visual_relationships"}
     execute(path, "accept", slide_id="s01", record=record)
     state = execute(path, "request", slide_id="s02", route="isolated-worker")
     page = state["pages"]["s02"]
@@ -470,3 +474,28 @@ def test_export_checks_for_input_changes_after_embedding(production, tmp_path, m
     with pytest.raises(ValueError, match="Approved image or review changed"):
         build_image_ppt.build_deck(args)
     assert not args.output.exists()
+
+
+def test_editable_revision_uses_only_approved_historical_image(production, tmp_path):
+    from page_production import approved_image_hashes
+
+    path, source = production
+    for slide_id in ("s01", "s02"):
+        compose_fixture(path, slide_id=slide_id, source=source)
+        record = tmp_path / f"{slide_id}-review.json"
+        fixture_review(path, slide_id, record)
+        execute(path, "accept", slide_id=slide_id, record=record)
+    spec = json.loads(path.read_text(encoding="utf-8"))
+    approved_image_hashes(path, spec)
+    slide = spec["slides"][0]
+    slide.update(title="Revised for editable only", image_status="revision")
+    approved_image_hashes(path, spec, allow_revision=True)
+    with pytest.raises(ValueError, match="Missing current production approval for s01"):
+        approved_image_hashes(path, spec)
+    path_image = tmp_path / slide["image_file"]
+    with Image.open(path_image) as image:
+        edited = image.copy()
+    edited.putpixel((0, 0), (12, 34, 56))
+    edited.save(path_image)
+    with pytest.raises(ValueError, match="approved historical image"):
+        approved_image_hashes(path, spec, allow_revision=True)

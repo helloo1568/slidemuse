@@ -95,6 +95,9 @@ def generation_input(spec, slide):
         "Never output a contact sheet, thumbnails, multiple slides, or a preview grid. "
         "Use only this page packet and its explicitly selected single-page style anchor; ignore prior preview instructions. "
         "Preserve the confirmed style and visible text. "
+        "Use the anchor for palette, typography and visual treatment, not as a repeated composition. "
+        "Compose for the current page role and give its main message or evidence clear visual priority. "
+        "Use imagery to reinforce the message, not to fill a fixed panel on every slide. "
         "Use the exact visible text list for wording. Express semantic fields through the approved text and graphics. "
         "Keep recorded sources and speaker notes off the slide. "
         "Leave every preserve_asset.region blank for later local placement of the original evidence; "
@@ -366,21 +369,46 @@ def source_evidence(root, page, slide, raw, record):
     raise ValueError("New generated originals require --generation-record with actual call evidence and a prepared request")
 
 
-def approved_image_hashes(spec_path, spec):
+def approved_image_hashes(spec_path, spec, *, allow_revision=False):
     """Read-only export gate for current production and explicitly provided images."""
     root = workspace(spec_path)
     managed = (root / "state.json").is_file()
+    if root.exists() and not managed:
+        raise ValueError("Production approval state is missing; recover the production directory before exporting")
     required = managed or spec.get("content_policy") == WORKFLOW_POLICY
     state = current(spec_path, spec, root, persist=False) if managed else None
     hashes = {}
     for slide in spec["slides"]:
+        origin = slide.get("image_origin")
+        # Older standalone Scenes may bind a legacy spec for content/notes only,
+        # with no source images. Keep that valid without bypassing current provenance.
+        if allow_revision and not required and not origin:
+            continue
         target = relative_file(spec_path.parent, slide["image_file"])
         actual = digest(target.read_bytes())
-        origin = slide.get("image_origin")
         if origin:
             provided_image(spec_path, slide, state["pages"][slide["id"]] if state else {})
         elif required:
             page = state["pages"][slide["id"]] if state else {}
+            if allow_revision and slide["image_status"] == "revision":
+                for older in (page, *reversed(page.get("history", []))):
+                    if (older.get("status") != "approved" or older.get("image_sha256") != actual
+                            or not older.get("image_snapshot") or not older.get("review_snapshot")):
+                        continue
+                    verified_generation(root, older, slide["id"])
+                    snapshot = relative_file(root, older["image_snapshot"])
+                    review_path = relative_file(root, older["review_snapshot"])
+                    if digest(snapshot.read_bytes()) != actual or digest(review_path.read_bytes()) != review_path.name[:64]:
+                        raise ValueError(f"Approved historical image or review changed for {slide['id']}")
+                    review = read_json(review_path)
+                    if (review.get("image_sha256") != actual or review.get("id") != slide["id"]
+                            or review.get("contract_sha256") != older["contract_sha256"]):
+                        raise ValueError(f"Approved historical review differs for {slide['id']}")
+                    break
+                else:
+                    raise ValueError(f"Production reference for {slide['id']} does not match an approved historical image")
+                hashes[slide["id"]] = actual
+                continue
             if page.get("status") != "approved" or not page.get("review_snapshot"):
                 raise ValueError(f"Missing current production approval for {slide['id']}; existing user images need an explicit image_origin")
             verified_generation(root, page, slide["id"])
@@ -458,6 +486,10 @@ def review_template(slide, page):
     return {"version": "1.0", "id": slide["id"], "contract_sha256": page["contract_sha256"],
             "image_sha256": page["image_sha256"], "reviewer": "", "observed_text": "",
             "viewed_pixels": None, "checks": {name: {"status": "pending", "notes": "", "targets": []} for name in CHECKS},
+            "design_review_guidance": {
+                "density": "At presentation scale, identify what the audience should notice first and any area that feels cramped or empty without purpose.",
+                "visual_relationships": "Check that imagery supports the message and that this page role has an appropriate composition instead of repeating the full style anchor.",
+            },
             "protected_regions": page.get("protected_regions", []),
             "scope": "Actual visual observations and source comparison; hash/text matches do not prove truth or independence."}
 

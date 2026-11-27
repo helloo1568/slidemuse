@@ -125,3 +125,15 @@ def test_labels_bind_stable_numbers_without_cropping_the_overview(tmp_path):
     assert source.read_bytes() == original
     with pytest.raises(ValueError, match="not overwrite"):
         label_overview(source, source, 2, "Architecture", overwrite=True)
+
+
+def test_label_option_supports_explicit_4k_canvas_and_discloses_source_resolution(tmp_path):
+    source = tmp_path / "source.png"
+    Image.new("RGB", (2000, 1125), "navy").save(source)
+    result = label_overview(source, tmp_path / "labeled.png", 1, "Editorial", width=3840)
+    assert result["source_pixels"] == [2000, 1125]
+    assert result["pixels"] == [3840, 2160]
+    assert result["preview_box"][2:] == [2000, 1125]  # Never manufacture source detail.
+    with Image.open(result["output"]) as image:
+        assert image.size == (3840, 2160)
+        assert image.info["slidemuse_style_option"] == "1"

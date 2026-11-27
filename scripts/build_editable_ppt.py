@@ -226,6 +226,8 @@ def add_element(shapes, e, base, sx, sy):
         if chart.has_legend:
             chart.legend.position = XL_LEGEND_POSITION.BOTTOM
             chart.legend.include_in_layout = False
+            east_asian_font(chart.legend.font, e.get("font", "Arial"))
+            chart.legend.font.size = Pt(e.get("font_size", 14))
         plot = chart.plots[0]
         plot.has_data_labels = e.get("data_labels", False)
         if plot.has_data_labels:
@@ -279,8 +281,11 @@ def build_deck(scene_path: Path, output: Path, page_spec_path: Path | None = Non
         raise ValueError("Output must have .pptx extension")
     scene, warnings = load_scene(scene_path)
     if page_spec_path:
+        from page_production import approved_image_hashes
         from validate_page_spec import load_page_spec
+
         spec, _ = load_page_spec(page_spec_path)
+        approved_image_hashes(page_spec_path, spec, allow_revision=True)
         if errors := check_scene_notes(spec, scene):
             raise ValueError("; ".join(errors))
     canvas = scene["canvas"]

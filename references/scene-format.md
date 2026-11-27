@@ -86,6 +86,8 @@ pie/doughnut 只接受单组非负且总和大于 0 的数据。原生图表包�
 
 |设置|范围与用途|
 |---|---|
+|`value_axis_major_unit`|有轴图表的主刻度间隔，正数；用于沿用参考图的刻度密度|
+|`legend_color`、`legend_position`|可见图例的文字颜色和位置（`top`、`bottom`、`left`、`right`）；未指定颜色时沿用已声明的 `tick_label_color`|
 |`data_label_position`|`outside_end`、`inside_end`、`center`、`above`、`below`、`best_fit`；需 `data_labels: true`，按图型选择并实际渲染检查|
 |`data_label_font_size`|正数 pt；需启用数据标签|
 |`category_axis_visible`、`value_axis_visible`|有轴图表的轴/刻度标签可见性|
@@ -106,3 +108,7 @@ pie/doughnut 只接受单组非负且总和大于 0 的数据。原生图表包�
 audit 的 --strict 将所有警告视为失败，适合无复杂栅格/低置信度项的用例。
 使用背景图片的合法案例仍可能产生警告；记录人工判断，不要改小 bbox 来规避检查。
 审查包括图片的 contain/cover/stretch 实际位置、尺寸、裁切与翻转，以及嵌套组合的父子坐标变换和旋转。它仍只对照 Scene 声明的对象，不能证明 Page Spec 到 Scene 无遗漏或视觉完全一致。
+
+### 跨设备字体核对
+
+原生文字保持可编辑，但 PPTX 声明的字体不等于另一台电脑实际使用的字体。LibreOffice 在有 Fontconfig 的环境下会在 `render-report.json` 的 `font_preflight` 中按页标出未找到的显式字体。出现警告时，安装原字体，或在 Scene 中显式改用风格相近且目标电脑也有的字体（例如中文宋体可试 `Noto Serif CJK SC`），重新编译并对照原图检查字形、换行、行距和边界。不会自动替换，也不能只凭没有警告来判定视觉通过；PowerPoint 请在实际交付环境复核。

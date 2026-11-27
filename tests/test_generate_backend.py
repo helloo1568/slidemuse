@@ -228,15 +228,20 @@ def test_fyai_setup_runs_three_steps_without_printing_key(monkeypatch, capsys):
     class Completed:
         returncode = 0
 
-    def fake_run(cmd, env=None, check=False):
-        calls.append(cmd)
+    def fake_run(cmd, env=None, check=False, input=None):
+        calls.append((cmd, input))
         return Completed()
 
     monkeypatch.setattr(generate_backend.subprocess, "run", fake_run)
-    assert generate_backend.fyai_setup(["--api-key", "SECRET-KEY-123"]) == 0
-    assert [cmd[2] for cmd in calls] == ["bootstrap", "config", "doctor"]
-    assert "SECRET-KEY-123" in calls[1]
-    assert "--base-url" in calls[1] and "https://fyai.uk/v1" in calls[1]
+    monkeypatch.setattr(generate_backend.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(generate_backend.getpass, "getpass", lambda _: "SECRET-KEY-123")
+    assert generate_backend.fyai_setup([]) == 0
+    assert [cmd[2] for cmd, _ in calls] == ["bootstrap", "config", "doctor"]
+    cmd, stdin = calls[1]
+    assert "--api-key-stdin" in cmd and stdin == b"SECRET-KEY-123\n"
+    assert all("SECRET-KEY-123" not in part for c, _ in calls for part in c)
+    assert calls[0][1] is None and calls[2][1] is None
+    assert "--base-url" in cmd and "https://fyai.uk/v1" in cmd
     assert "SECRET-KEY-123" not in capsys.readouterr().out
 
 
@@ -247,7 +252,7 @@ def test_fyai_setup_stops_at_first_failed_step(monkeypatch):
         def __init__(self, returncode):
             self.returncode = returncode
 
-    def fake_run(cmd, env=None, check=False):
+    def fake_run(cmd, env=None, check=False, input=None):
         calls.append(cmd[2])
         return Completed(1 if cmd[2] == "config" else 0)
 
@@ -273,3 +278,32 @@ def test_offline_blocks_image_api_and_direct_route_is_single_request(monkeypatch
     monkeypatch.setattr(generate_backend.subprocess, "run", fake_run)
     assert generate_backend.run_backend(["image", "generate", "--prompt-file", "one-page.json", "--n", "1"]) == 0
     assert calls[0][-6:] == ["image_gen.py", "generate", "--prompt-file", "one-page.json", "--n", "1"] or calls[0][-5:] == ["generate", "--prompt-file", "one-page.json", "--n", "1"]
+
+
+def test_prepare_leaves_input_directory_untouched_and_preserves_asset_paths(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    data = deck_spec()
+    data["approved_style_reference"] = {"path": "https://example.test/style.png"}
+    data["slides"][0]["required_images"] = [
+        {"path": "relative.png", "role": "figure"},
+        "strict input asset: ![map](other.png)",
+    ]
+    data["sample_generation_method"] = {"approved_sample_path": "sample.png"}
+    spec = source / "deck.json"
+    spec.write_text(json.dumps(data), encoding="utf-8")
+    target = tmp_path / "output"
+    if os.name != "nt":
+        source.chmod(0o555)
+    try:
+        result = invoke("--offline", "prepare", "--spec", spec, "--out-dir", target)
+    finally:
+        if os.name != "nt":
+            source.chmod(0o755)
+    assert result.returncode == 0, result.stderr
+    assert list(source.iterdir()) == [spec]
+    job = json.loads((target / "prompts/slide_01.json").read_text(encoding="utf-8"))
+    assert {x["path"] for x in job["input_images"]} == {
+        "https://example.test/style.png", str(source / "relative.png"), str(source / "other.png"),
+    }
+    assert job["sample_generation_method"]["approved_sample_path"] == str(source / "sample.png")

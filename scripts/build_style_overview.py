@@ -26,25 +26,30 @@ def check_output(source: Path, output: Path, overwrite: bool) -> None:
 
 
 def label_overview(source: Path, output: Path, option: int, name: str, *,
-                   font_path: str | None = None, overwrite: bool = False) -> dict:
+                   font_path: str | None = None, overwrite: bool = False, width: int = 1600) -> dict:
     """Put a stable option label outside an intact, proportionally scaled preview."""
     source, output = source.resolve(), output.resolve()
     check_output(source, output, overwrite)
     if type(option) is not int or not 1 <= option <= 4 or not name.strip() or len(name.splitlines()) != 1:
         raise ValueError("Provide an option from 1 to 4 and a one-line name")
     label = f"{option:02d} · {name.strip()}"
-    width, height = 1600, 900
-    margin, header = 32, 65
-    with Image.open(source) as image:
-        preview = ImageOps.contain(ImageOps.exif_transpose(image).convert("RGBA"),
-                                  (width - 2 * margin, height - header - margin), Image.Resampling.LANCZOS)
+    if type(width) is not int or not 960 <= width <= 4096 or width % 16:
+        raise ValueError("Label canvas width must be a multiple of 16 between 960 and 4096")
+    height = width * 9 // 16
+    scale = width / 1600
+    margin, header = round(32 * scale), round(65 * scale)
+    with Image.open(source) as opened:
+        image = ImageOps.exif_transpose(opened).convert("RGBA")
+        source_pixels = list(image.size)
+        preview = ImageOps.contain(image, (min(image.width, width - 2 * margin),
+                                            min(image.height, height - header - margin)), Image.Resampling.LANCZOS)
 
     canvas = Image.new("RGB", (width, height), "#EBEDF0")
     draw = ImageDraw.Draw(canvas)
-    font = load_font(30, [font_path, *FONT_CANDIDATES])
+    font = load_font(round(30 * scale), [font_path, *FONT_CANDIDATES])
     if draw.textlength(label, font=font) > width - 2 * margin:
         raise ValueError("Overview label is too wide; shorten the option name")
-    draw.text((margin, 16), label, font=font, fill="#263444")
+    draw.text((margin, round(16 * scale)), label, font=font, fill="#263444")
     x = (width - preview.width) // 2
     y = header + (height - header - margin - preview.height) // 2
     canvas.paste(preview, (x, y), preview)
@@ -54,6 +59,7 @@ def label_overview(source: Path, output: Path, option: int, name: str, *,
     output.parent.mkdir(parents=True, exist_ok=True)
     canvas.save(output, pnginfo=metadata)
     return {"output": str(output), "option": option, "label": label,
+            "pixels": [width, height], "source_pixels": source_pixels,
             "preview_box": [x, y, preview.width, preview.height], "image_generation_calls": 0}
 
 
@@ -154,15 +160,17 @@ def main():
     parser.add_argument("--option", type=int, choices=range(1, 5), help="Stable number of an existing style preview")
     parser.add_argument("--name", help="Short name printed next to --option")
     parser.add_argument("--font", help="Font file for the option label; layout JSON uses its own font field")
+    parser.add_argument("--width", type=int, help="Labeled output canvas width; 3840 for 4K (no source upscaling)")
     args = parser.parse_args()
-    if (args.option is None) != (args.name is None) or (args.font and args.option is None):
+    if (args.option is None) != (args.name is None) or ((args.font or args.width is not None) and args.option is None):
         parser.error("labeling requires both --option and --name")
     try:
         if args.option is None:
             result = build_overview(args.source, args.output, args.overwrite)
         else:
             result = label_overview(args.source, args.output, args.option, args.name,
-                                    font_path=args.font, overwrite=args.overwrite)
+                                    font_path=args.font, overwrite=args.overwrite,
+                                    width=args.width if args.width is not None else 1600)
     except (TypeError, ValueError, OSError) as error:
         parser.exit(2, f"build_style_overview: {error}\n")
     print(json.dumps(result, ensure_ascii=True, indent=2))

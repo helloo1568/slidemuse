@@ -56,6 +56,10 @@
     "tests/test_table_validation.py": "e1dc12b4802d166f3c619b9683f0ca2d49b5e297bc8b8b2421e28c9817d8fea0"
   },
   "patches": {
+    "skills/image-to-editable-ppt/cli/editppt/runtime/deck_text_hints.py": {
+      "sha256": "830b7c505b8f918dd9b049907b93aa32f50906c4789cecbc4e7db13e42f9efd2",
+      "reason": "Keep the offline fallback diagnostic neutral; do not prompt for external OCR or promise pricing."
+    },
     "skills/image-to-editable-ppt/cli/editppt/runtime/build_pptx_from_manifest.py": {
       "sha256": "db08e989e20dce678dd64555d95d9ec1f5168cf372f0ccf03672b7c4fb4f5d0e",
       "reason": "Keep cross-platform diagnostic font discovery; preserve empty lines and soft breaks in approved speaker notes and check the independent Page Spec note contract before replacing a deck."

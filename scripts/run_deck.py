@@ -27,8 +27,10 @@ from deck_diagnostics import (
 )
 from evaluate_delivery import evaluate, review_template, verified_visual_review
 from json_io import read_json
+from page_production import approved_image_hashes
+from pptx import Presentation
 from render_deck import build_review, reference_files, render_selected, sha256
-from render_environment import environment_key, fingerprint
+from render_environment import environment_key, fingerprint, font_preflight
 from render_process import rendering_options, validate_options
 from scene import load_scene, walk
 from speaker_notes import check_scene_notes
@@ -93,6 +95,8 @@ def load_inputs(config_path, work):
     if config["mode"] == "image" and scene_path is not None:
         raise ValueError("Image mode must not declare an editable Scene")
     spec, _ = load_page_spec(spec_path, strict=True, require_images=config["mode"] == "image")
+    if config["mode"] == "editable":
+        approved_image_hashes(spec_path, spec, allow_revision=True)
     references = reference_files(spec_path, len(spec["slides"]))
     scene = load_scene(scene_path)[0] if scene_path else None
     if scene and (errors := check_scene_notes(spec, scene)):
@@ -432,6 +436,15 @@ def run(config_path, work, stop_after=None, refresh_render=False):
                       "environment": inputs["environment"],
                       "page_spec_sha256": sha256(inputs["spec_path"]),
                       "slides": build_review(images, work, inputs["references"]), "review_sheet": str(work / "review.png")}
+            if config["mode"] == "editable":
+                fonts = font_preflight(Presentation(deck), backend)
+                report["font_preflight"] = fonts
+                result["font_preflight"] = fonts
+                for item in fonts["pages"]:
+                    index = item["slide"]
+                    result["actions"].append(action(
+                        "font_substitution_risk", "缺少指定字体，可能被替代。请安装原字体或在 Scene 中选用同风格字体后重渲染。",
+                        slide_id=ids[index - 1], page_number=index, detail=", ".join(item["missing_families"])))
             from measured_layout import findings
             measured = []
             for sid in ids:
@@ -450,7 +463,7 @@ def run(config_path, work, stop_after=None, refresh_render=False):
             write(work / "render-report.json", report)
             result["review_sheet"] = str(work / "review.png")
             for item in result['actions']:
-                if item['kind'] in ('text_overflow', 'measured_layout'):
+                if item['kind'] in ('text_overflow', 'measured_layout', 'font_substitution_risk'):
                     page = report['slides'][item['page_number'] - 1]
                     item.update(rendered=page['rendered'], reference=page['reference'])
             state.update(spec=inputs["spec"], render=report, review_keys=page_keys)
@@ -473,7 +486,7 @@ def run(config_path, work, stop_after=None, refresh_render=False):
             # Existing current-hash visual review is the gate for layout. Keep
             # estimates in the report, but do not ask again after genuine review.
             pending_layout = set(scorecard['visual']['pending'] + scorecard['visual']['failed'])
-            result['actions'] = [item for item in result['actions'] if item['kind'] not in ('text_overflow', 'measured_layout') or item['slide_id'] in pending_layout]
+            result['actions'] = [item for item in result['actions'] if item['kind'] not in ('text_overflow', 'measured_layout', 'font_substitution_risk') or item['slide_id'] in pending_layout]
             page_by_id = {s["id"]: n for n, s in enumerate(inputs["spec"]["slides"], 1)}
             def review_action(kind, sid, message, file):
                 item = action(kind, message, file=file, slide_id=sid, page_number=page_by_id[sid])

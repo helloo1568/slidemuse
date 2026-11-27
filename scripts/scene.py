@@ -116,6 +116,7 @@ def validate_scene(scene: dict, base: Path) -> list[str]:
                 axis_options = (
                     "value_axis_min",
                     "value_axis_max",
+                    "value_axis_major_unit",
                     "major_gridlines",
                     "major_gridline_color",
                     "tick_label_color",
@@ -137,6 +138,8 @@ def validate_scene(scene: dict, base: Path) -> list[str]:
                     )
                 if e.get("major_gridlines") is False and "major_gridline_color" in e:
                     raise ValueError(f"Hidden chart gridlines cannot have a color: {label}")
+                if any(key in e for key in ("legend_color", "legend_position")) and not e.get("legend", len(e["series"]) > 1):
+                    raise ValueError(f"Chart legend styling requires a visible legend: {label}")
                 if "data_label_color" in e and not e.get("data_labels", False):
                     raise ValueError(f"Chart data label color requires data_labels: {label}")
                 if any(key in e for key in ("data_label_position", "data_label_font_size")) and not e.get("data_labels", False):
