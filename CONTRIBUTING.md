@@ -48,6 +48,10 @@ python scripts/validate_page_spec.py examples/page-spec.example.json --strict
 
 流程变更应明确说明对内容确认、风格选择、图片生成、可编辑还原及已有文件兼容性的影响。结构测试不能替代实际渲染检查。
 
+### 正式发布
+
+普通修改可以直接合并到 main，由 CI 检查，无需每次都增加版本号。正式发布时在同一次提交中同步更新 `manifest.yaml`、`SKILL.md`、中英文 README 版本徽章及 `CHANGELOG.md`；main 的清单版本变更会自动触发 Release。只修改清单其他字段不会发布。也可从 main 手动运行 Release 重试未发布版本；已经发布的版本不得覆盖或改变其打包内容。
+
 ## English
 
 Contributions to prompts, documentation, Page Spec / Scene contracts, exporters, tests, and authorized showcase images are welcome.
@@ -57,6 +61,7 @@ Contributions to prompts, documentation, Page Spec / Scene contracts, exporters,
 - **Changes:** fork from `main`, keep the scope focused, and update both language versions and the changelog where relevant. Match validation to the change: inspect copy/links/previews for documentation; exercise authorization and handoffs for workflow changes; run installer/CLI/package tests for packaging; run affected tests and actual renders for output changes. Run the full checks for releases or broad changes, adding vendor regressions for affected backends. Check historical records when hashing changes. Stop once the relevant checks pass unless new evidence justifies more testing.
 - **Quality claims:** compare old and new versions on fixed materials under the same rubric, keeping failures and repairs. Test counts and sample reproduction do not demonstrate generation quality.
 - **Pull requests:** explain the problem, resulting behavior, and validation. Include previews for visual changes and note compatibility implications for workflow changes.
+- **Releases:** ordinary changes run CI without requiring a version bump. For a release, update the manifest version, SKILL.md, both README version badges and CHANGELOG.md in one commit on main. A changed manifest version triggers publishing; unchanged versions are skipped on pushes. Manually run Release on main to retry an unpublished version; published package contents remain immutable.
 - **Shared files:** exclude credentials, private documents, and content you do not have permission to publish. Structural tests do not replace rendered visual inspection.
 
 By contributing, you agree that your contributions are provided under the repository's [MIT License](LICENSE).
