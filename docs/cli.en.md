@@ -20,6 +20,7 @@ The launcher prefers `.venv/Scripts/python.exe` on Windows or `.venv/bin/python`
 | `check task/job.json task-output` | `scripts/run_deck.py --check` | Read-only preflight |
 | `run task/job.json task-output` | `scripts/run_deck.py` | Build, render, evaluate or resume |
 | `render deck.pptx previews` | `scripts/render_deck.py` | Render an actual PPTX |
+| `style-overview --compare 01.png 02.png 03.png 04.png comparison.png --html` | `scripts/build_style_overview.py` | Combine four numbered style cards with an offline HTML preview |
 | `validate page-spec.json --strict` | `scripts/validate_page_spec.py` | Validate specifications |
 | `style-reference page-spec.json --box x y w h --output styles/reference.png` | `scripts/style_reference.py` | Register a style reference bound to the selected source |
 | `produce prepare page-spec.json` | `scripts/page_production.py` | [Resume image production](../references/page-production.md): original snapshots, protected evidence composition, bound reviews and region updates |
@@ -31,6 +32,8 @@ The launcher prefers `.venv/Scripts/python.exe` on Windows or `.venv/bin/python`
 Prefix each command with `python slidemuse.py`. Arguments pass through unchanged, and `<command> --help` displays the original tool's help. Advanced tools remain available as `scripts/*.py`; use the installed `.venv` interpreter or the path recorded in `.skill-python` for direct invocation.
 
 Pipeline exit codes are preserved: 0 means the requested command succeeded, possibly only saving a requested stage; 1 means failed checks or blocked input; 3 means review is pending. Invalid arguments normally return 2. `check` is read-only and never creates a workspace or approves assets. Options such as `run --stop-after` and `run --status` remain controlled by the original script. Content approval, style selection and visual review follow the existing Skill contract.
+
+`style-overview --compare` takes four PNGs labeled with `--option` and `--name`. Add `--html` for a preview that WorkBuddy can open. `render deck.pptx previews --page-spec page-spec.json --slides 3 5 11` renders the specified original slide numbers beside their source images. Omit `--slides` for final review of the deck.
 
 ## Diagnose the environment
 

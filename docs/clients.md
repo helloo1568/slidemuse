@@ -42,7 +42,9 @@ Trae / Qoder 国内版与国际版的目录区分也可参照 [Skills CLI 的客
 
 升级时先下载并解压所需的新版本，再从新源码目录执行同一条安装命令。安装器复制的是自身目录中的源码，不会先从 GitHub 拉取新版；从旧下载目录重装仍是旧版。它先在暂存目录复制、安装并校验，再切换新版本；失败会保留或恢复原安装。其他技能目录保持独立。
 
-## WorkBuddy：最终页面与所选风格不同
+## WorkBuddy 预览与样式排查
+
+如果选型时只看到 PNG 附件卡片，按[风格预览](../references/style-options.md)生成一份 2×2 HTML 对比预览，将 HTML 路径作为 `present_files` 的第一项，并查看返回的 `previewed`。
 
 先让 WorkBuddy 报告本任务实际读取的 `SKILL.md` 绝对路径，再对同一目录运行 `python "<实际技能目录>/slidemuse.py" --version`；不要用下载文件名推断实际加载版本。`doctor --json` 的 `skill_root` 和 `skill_version` 也可用于核对。标准安装目标是 `~/.workbuddy/skills/slidemuse/`，其他导入方式以实际读取位置为准。
 

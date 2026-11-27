@@ -99,7 +99,7 @@ python slidemuse.py rebuild formula render-latex work/rebuild/pages/page_001 --t
 python slidemuse.py render <实际最终PPTX路径> work/office-review
 ```
 
-实际核对文字、表格、曲线、素材、页序和备注，再抽查编辑；结构通过不等于视觉通过。交付最终 PPTX、输入/页映射、已有 Page Spec/内容契约、逐页 Manifest、引用素材、任务记录、验证报告和真实渲染预览；原生数据图表仍交付 Scene。说明公式/图像的编辑边界及低置信度项。完整接入不表示每张复杂图片都能无损还原。
+有 Page Spec 时给 `render` 加 `--page-spec` 生成同页对照。按[重建与分层](reconstruction.md#合成检查)先校准代表页，再逐页核对实际渲染的文字、版式、表格、曲线、素材、页序和备注。交付最终 PPTX、输入/页映射、已有 Page Spec/内容契约、逐页 Manifest、引用素材、任务记录、验证报告和真实渲染预览；原生数据图表仍交付 Scene。说明公式/图像的编辑边界及低置信度项。
 
 ## 同一批准内容的传递
 

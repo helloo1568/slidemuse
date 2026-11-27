@@ -54,7 +54,7 @@ description: 将书籍、PDF、论文、报告或文字制作成视觉统一的�
 
 ## 2. 风格和图片版
 
-读取 [Prompt 1B / 2](references/prompts.md)与[风格预览](references/style-options.md)。默认给四套轻量的风格样图，每套用一张图展示配色、字体气质、背景和图形语言。预览只用来选风格：不要求六宫格、完整文案、准确数据或 16:9。每套一次生图，按固定编号 01–04 和名称展示；不因比例或网格瑕疵重生。已有明确选择、跳过或代选授权按原决定执行。
+读取 [Prompt 1B / 2](references/prompts.md)与[风格预览](references/style-options.md)。默认给四套轻量的风格样图，每套用一张图展示配色、字体气质、背景和图形语言。预览只用来选风格：不要求六宫格、完整文案、准确数据或 16:9。每套一次生图，按固定编号 01–04 和名称生成一张 2×2 对比图。用宿主实际支持的方式展示，WorkBuddy 按风格预览说明打开 HTML 预览。已有明确选择、跳过或代选授权按原决定执行。
 
 内容与风格确定后，按 [Page Spec](references/page-spec.md) 创建 `page-spec.json`。新材料任务用 `content_policy: "1.1"`，将实际大纲定位、获授权的内容版本及风格决定分别记录。准确上屏文案写入文字元素，来源留在工作记录。待确认状态记录在 `deck-spec.md`，`content_approved: true` 只用于获授权版本。
 
@@ -87,6 +87,8 @@ python "<skill-dir>/slidemuse.py" render "<work>/output/image-deck.pptx" "<work>
 
 以 Page Spec 为语义来源、已批准页面为视觉基准。已知文字、数据、来源记录与稳定 ID 直接复用，不重新 OCR 或改写；只核验未确定项。用户已授权的差异记录后采用，不当作新冲突反复询问。
 
+按[逐页重建与对照检查](references/reconstruction.md)先重建并实渲染一页有卡片、分栏或图表的代表内容页。以原图坐标放置对象，布局对照通过后再继续其余页。每页必须通过版式对照和对象检查，才可作为完成版交付。
+
 文字、简单形状、表格和有可靠数据的图表用原生对象；照片、人物及复杂插画用可独立移动的图片。从背景移除原生化文字和已拆主体，避免重影。整页截图不能充当可编辑底图。合并单元格和不等行高见[表格适配](references/upstream-editable.md)。
 
 ```sh
@@ -95,7 +97,7 @@ python "<skill-dir>/slidemuse.py" audit "<work>/output/editable.pptx" --scene "<
 python "<skill-dir>/slidemuse.py" render "<work>/output/editable.pptx" "<work>/output/editable-review" --page-spec "<work>/page-spec.json"
 ```
 
-查看实际渲染，核对原生对象、文字、图表和背景；抽查用户需要的编辑操作。数据修改时同步相关占比、差额、结论和讲稿，[数据依赖](references/data-bindings.md)可辅助；依赖未声明时仍需实际核对。局部修改复用有效页面，保留原版与失败记录。讲稿需求见[演讲备注](references/speaker-notes.md)。
+逐页查看 `review.png` 的基准图和实际渲染，抽查用户需要的编辑操作。数据修改时同步相关占比、差额、结论和讲稿，[数据依赖](references/data-bindings.md)可辅助；依赖未声明时仍需实际核对。局部修改复用有效页面，保留原版与失败记录。讲稿需求见[演讲备注](references/speaker-notes.md)。
 
 ## 检查与交付
 

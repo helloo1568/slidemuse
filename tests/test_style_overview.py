@@ -1,7 +1,9 @@
+import base64
 import json
+import re
 
 import pytest
-from build_style_overview import build_overview, label_overview
+from build_style_overview import build_overview, compare_styles, label_overview
 from PIL import Image, ImageChops
 
 
@@ -137,3 +139,32 @@ def test_label_option_supports_explicit_4k_canvas_and_discloses_source_resolutio
     with Image.open(result["output"]) as image:
         assert image.size == (3840, 2160)
         assert image.info["slidemuse_style_option"] == "1"
+
+
+def test_compare_orders_cards_by_option_and_embeds_identical_png_in_html(tmp_path):
+    names = ["深蓝", "纸本 & 档案", "绛红", "冷灰"]
+    colors = [(13, 44, 111), (247, 242, 231), (149, 49, 60), (135, 136, 138)]
+    sources = []
+    for option, (name, color) in enumerate(zip(names, colors), 1):
+        source = tmp_path / f"source-{option}.png"
+        Image.new("RGB", (600, 400) if option % 2 else (500, 700), color).save(source)
+        labeled = tmp_path / f"card-{option}.png"
+        label_overview(source, labeled, option, name)
+        sources.append(labeled)
+
+    output = tmp_path / "compare-4-styles.png"
+    result = compare_styles(sources[::-1], output, html_preview=True)
+    assert [(item["option"], item["name"]) for item in result["options"]] == list(enumerate(names, 1))
+    assert result["image_generation_calls"] == 0
+    with Image.open(output) as comparison:
+        assert comparison.size == (1936, 1096)
+        centers = [(480, 270), (1456, 270), (480, 826), (1456, 826)]
+        assert [comparison.getpixel(center) for center in centers] == colors
+    html = output.with_suffix(".html").read_text(encoding="utf-8")
+    assert "纸本 &amp; 档案" in html
+    assert base64.b64decode(re.search(r'data:image/png;base64,([^"]+)', html)[1]) == output.read_bytes()
+
+    with pytest.raises(ValueError, match="one labeled style card"):
+        compare_styles([*sources[:3], sources[0]], tmp_path / "duplicate.png")
+    with pytest.raises(ValueError, match="must not overwrite"):
+        compare_styles(sources, sources[1], overwrite=True)
