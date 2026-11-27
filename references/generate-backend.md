@@ -31,6 +31,17 @@ python slidemuse.py generate --help
 
 ## 逐页任务、分派与登记
 
+正式制作优先先验收一个独立高清代表页。子代理仅接收当前页独立提示、已锁定视觉规范和已验收的单页参考；不要将选型六宫格或其他风格作为正式生图输入。新 Page Spec 转换为完整后端时不会把选择总览转发为参考图。实际独立分派才能记录 worker；无法隔离时不要声称已使用子代理。同类失败连续两次更换真实方式或阻塞，主流程可用 `produce failure` 执行门禁。
+
+用户已明确授权并配置兼容 API 后，可通过现有图像客户端发送独立单张请求（不隐式切换服务；`--offline` 禁止）：
+
+```sh
+python slidemuse.py generate image generate --prompt-file "<request_snapshot 的实际路径>" --n 1 --no-augment --size 2560x1440 --out "<raw-page.png>"
+python slidemuse.py generate image edit --prompt-file "<request_snapshot 的实际路径>" --image "<request_reference 的实际路径>" --n 1 --no-augment --size 2560x1440 --out "<raw-page.png>"
+```
+
+无锚点用 generate，有锚点且服务支持参考图时用 edit；实际尺寸和模型依所选后端支持设置。不要同时运行两条命令。命令只生成文件，仍须实际逐页验收、记录结果；无法调用时报告真实错误。
+
 - 主流程和完整后端均执行 SKILL.md 的禁止静默降级规则。生图失败时登记阻塞，不得用程序化整页排版补缺；局部精确图表、文字修正和证据合成仅可在真实生图原件基础上执行。保留调用证据与原件，登记来源不能代替真实模型调用。
 
 ```sh

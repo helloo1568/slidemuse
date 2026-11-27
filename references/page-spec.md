@@ -12,6 +12,8 @@
 
 ## 生命周期
 
+正式逐页生成使用 `produce request` 单页包；`reference_images` 的选型图留在 Page Spec 中用于授权与校验，不能当成正式单页生图参考。先验收独立代表页作为锚点；后续请求只携带当前页与独立锚点。
+
 1. Step 1 内容确认后，把页序、标题、核心结论、准确文字/数据和来源写入 `deck-spec.md`。
 2. 风格锁定后进入 S5，将已确认内容与 `style` 一起写入 Page Spec，再运行验证器；不得提前写入虚假的风格授权。
 3. Step 2 每完成一页，记录最终 `image_file`、`image_status`、实际提示词和更新后的布局提示。
@@ -36,7 +38,7 @@
 - `native_intent` 表示 Step 3 期望的输出：`native`、`raster` 或 `either`。
 - `bbox_hint` 是 `[x, y, w, h]` 的整页画布坐标提示；它可以在图片页验收后更新，但不能冒充最终 Scene 坐标。
 - `separate_asset: true` 表示该视觉对象在可编辑版中需要独立移动或替换。
-- `slides[].speaker_notes` 保存已确定的可选讲稿，允许明确空字符串，缺失表示未声明；`notes` 工作记录不会自动导出。讲稿不参与图片提示/必现文字，但写入图片版 PPTX，重建时沿用到 Scene；见[讲稿保留](speaker-notes.md)。
+- `slides[].speaker_notes` 保存已确定的可选讲稿，允许明确空字符串，新材料 1.1 缺失或空字符串均按空备注验收；旧规格缺失仍表示未声明。只有用户要求讲稿或授权保留既有讲稿才填入非空值；`notes` 工作记录不会自动导出。讲稿不参与图片提示/必现文字，但写入图片版 PPTX，重建时沿用到 Scene；见[讲稿保留](speaker-notes.md)。
 
 ## 验证
 

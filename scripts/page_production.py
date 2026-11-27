@@ -21,6 +21,8 @@ from record_work import locked_log
 from validate_page_spec import load_page_spec
 
 CHECKS = ("semantic_coverage", "source_accuracy", "readability", "density", "visual_relationships")
+ROUTES = ("host", "fresh-host", "isolated-worker", "isolated-api")
+FAILURE_KINDS = ("multi-page", "style-drift", "text", "chart", "tool-error", "other")
 
 
 def digest(data):
@@ -81,17 +83,24 @@ def fingerprint(spec, slide, base):
 
 
 def generation_input(spec, slide):
-    content = {k: v for k, v in slide.items() if k not in {"image_status", "source_refs", "speaker_notes", "notes"}}
+    content = {k: v for k, v in slide.items() if k not in {"image_status", "image_file", "source_refs", "speaker_notes", "notes", "generation_prompt"}}
+    style = copy.deepcopy(spec["style"])
+    style.pop("authorization", None)
+    # Preview references stay in Page Spec for selection and integrity, not in the generation packet.
+    style.get("tokens", {}).pop("reference_images", None)
     content["elements"] = prompt_elements(slide["elements"])
     return {"instructions": (
-        "Use the actual host image tool under its tool rules. Preserve the confirmed style and visible text. "
+        "Generate ONE independent full-canvas slide using the actual authorized image model. "
+        "Never output a contact sheet, thumbnails, multiple slides, or a preview grid. "
+        "Use only this page packet and its explicitly selected single-page style anchor; ignore prior preview instructions. "
+        "Preserve the confirmed style and visible text. "
         "Use the exact visible text list for wording. Express semantic fields through the approved text and graphics. "
         "Keep recorded sources and speaker notes off the slide. "
         "Leave every preserve_asset.region blank for later local placement of the original evidence; "
         "do not redraw evidence, move its region or place other text there. Current canvas, visible text and "
-        "preserve_asset.region override any older coordinates or wording in generation_prompt and bbox_hint. "
+        "preserve_asset.region override any older coordinates or wording in bbox_hint. "
         "Return the independent generated original."),
-        "canvas": spec["canvas"], "style": {k: v for k, v in spec["style"].items() if k != "authorization"}, "slide": content,
+        "canvas": spec["canvas"], "style": style, "slide": content,
         "protected_regions": [{"element_id": e["id"], "region": e["preserve_asset"]["region"]}
                               for e in slide["elements"] if "preserve_asset" in e],
         "required_visible_text": visible_text(slide, policy=spec.get("content_policy"))}
@@ -114,7 +123,8 @@ def current(spec_path, spec, root, *, persist=True):
         old = state["pages"].get(slide["id"], {})
         if old.get("contract_sha256") == contract:
             for name, hash_name in (("image_snapshot", "image_sha256"), ("source_snapshot", "source_sha256"),
-                                    ("review_snapshot", None), ("intent_snapshot", None), ("prompt_snapshot", None)):
+                                    ("review_snapshot", None), ("intent_snapshot", None), ("prompt_snapshot", None),
+                                    ("request_snapshot", None)):
                 if name in old:
                     stored = relative_file(root, old[name])
                     expected = old[hash_name] if hash_name else stored.name[:64]
@@ -125,10 +135,55 @@ def current(spec_path, spec, root, *, persist=True):
             snapshot = store(root, encoded({"canvas": spec["canvas"], "style": spec["style"], "slide": slide}), ".json") if persist else None
             pages[slide["id"]] = {"contract_sha256": contract, "intent_snapshot": snapshot,
                                   "status": "pending", "history": [*old.get("history", []), *([{k: v for k, v in old.items() if k != "history"}] if old else [])]}
-        if persist and "prompt_snapshot" not in pages[slide["id"]]:
+        if persist:
             pages[slide["id"]]["prompt_snapshot"] = store(root, encoded(generation_input(spec, slide)), ".prompt.json")
     state["pages"] = pages
     return state
+
+
+def route_blocked(page, route):
+    failures = [f for f in page.get("generation_failures", []) if f["route"] == route]
+    return len(failures) >= 2 and failures[-1]["kind"] == failures[-2]["kind"]
+
+
+def request_page(spec, slide, root, state, route):
+    if route not in ROUTES:
+        raise ValueError("Choose a real generation route")
+    page = state["pages"][slide["id"]]
+    if page["status"] == "approved":
+        raise ValueError("Page is already approved; revise its contract before regeneration")
+    if route_blocked(page, route):
+        raise ValueError("Two repeated failures on this route; change isolation method or report blocked")
+    packet = generation_input(spec, slide)
+    # Only reviewed full-page originals/projections can anchor the next page.
+    candidates = [s for s in spec["slides"] if s["id"] != slide["id"]
+                  and state["pages"][s["id"]]["status"] == "approved"]
+    candidates.sort(key=lambda s: (s.get("role") == "cover", s["page_number"]))
+    page.pop("request_reference", None)
+    if candidates:
+        anchor = candidates[0]
+        approved = state["pages"][anchor["id"]]
+        reference = relative_file(root, approved["image_snapshot"])
+        if digest(reference.read_bytes()) != approved["image_sha256"]:
+            raise ValueError("Approved style anchor changed")
+        page["request_reference"] = str(reference)
+        packet["style_anchor"] = {"slide_id": anchor["id"], "use": "Style only; never reproduce the anchor's text or layout"}
+    page["request_snapshot"] = store(root, encoded(packet), ".request.json")
+    page["request_route"] = route
+
+
+def record_failure(page, route, kind, evidence):
+    if route not in ROUTES or kind not in FAILURE_KINDS or not isinstance(evidence, str) or not evidence.strip():
+        raise ValueError("Provide route, failure kind and actual call/result evidence")
+    if page.get("request_route") != route or not page.get("request_snapshot"):
+        raise ValueError("Prepare the independent request before recording a failed call")
+    failures = page.setdefault("generation_failures", [])
+    if route_blocked(page, route):
+        raise ValueError("Route already blocked; change isolation method")
+    if any(f["evidence"] == evidence for f in failures):
+        raise ValueError("Failure evidence already recorded")
+    failures.append({"route": route, "kind": kind, "evidence": evidence,
+                     "request_snapshot": page["request_snapshot"]})
 
 
 def validate_targets(spec_path, spec, root):
@@ -268,7 +323,8 @@ def accept(spec_path, slide, root, page, record, *, policy=None):
     page["status"] = "approved"
 
 
-def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=False, record=None, element_id=None, region=None):
+def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=False, record=None, element_id=None, region=None,
+            route=None, failure_kind=None, evidence=None):
     spec_path = Path(spec_path).resolve()
     root = workspace(spec_path)
     if action == "status":
@@ -302,6 +358,10 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
             save(spec_path, changed)
             spec = changed
             state = current(spec_path, spec, root)
+        elif action == "request":
+            request_page(spec, selected, root, state, route)
+        elif action == "failure":
+            record_failure(state["pages"][slide_id], route, failure_kind, evidence)
         elif action == "compose":
             if source is None:
                 raise ValueError("compose requires --source")
@@ -325,9 +385,12 @@ def execute(spec_path, action, *, slide_id=None, source=None, allow_upscale=Fals
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("prepare", "status", "compose", "review-init", "accept", "region"))
+    parser.add_argument("action", choices=("prepare", "status", "request", "failure", "compose", "review-init", "accept", "region"))
     parser.add_argument("page_spec", type=Path)
     parser.add_argument("--slide")
+    parser.add_argument("--route", choices=ROUTES)
+    parser.add_argument("--failure-kind", choices=FAILURE_KINDS)
+    parser.add_argument("--evidence", help="Actual failed tool call or result evidence; never fabricate")
     parser.add_argument("--source", type=Path)
     parser.add_argument("--allow-upscale", action="store_true")
     parser.add_argument("--record", type=Path)
@@ -336,7 +399,8 @@ def main():
     args = parser.parse_args()
     try:
         result = execute(args.page_spec, args.action, slide_id=args.slide, source=args.source,
-                         allow_upscale=args.allow_upscale, record=args.record, element_id=args.element, region=args.region)
+                         allow_upscale=args.allow_upscale, record=args.record, element_id=args.element, region=args.region,
+                         route=args.route, failure_kind=args.failure_kind, evidence=args.evidence)
     except (ValueError, OSError) as error:
         parser.exit(2, f"produce: {error}\n")
     print(json.dumps(result, ensure_ascii=True, indent=2))

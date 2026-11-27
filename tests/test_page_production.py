@@ -258,3 +258,44 @@ def test_semantics_can_be_encoded_by_a_chart_without_forcing_repeated_bullets():
     slide["display"]["coverage"].pop()
     with pytest.raises(ValueError, match="every semantic"):
         validate_content(slide, required=True)
+
+def test_single_page_requests_isolate_preview_and_anchor_after_review(production, tmp_path):
+    path, source = production
+    spec = json.loads(path.read_text(encoding="utf-8"))
+    preview = tmp_path / "overview.png"
+    Image.new("RGB", (1600, 900)).save(preview)
+    spec["style"]["tokens"] = {"palette": {"background": "#FFFFFF", "text": "#222222", "primary": "#334455", "accent": "#667788"},
+                               "typography": {"heading_font": "Arial", "body_font": "Arial", "heading_size": 36, "body_size": 20},
+                               "layout": {"grid": "single page", "margin_px": 40, "spacing_px": 12},
+                               "image_treatment": "ink", "reference_images": [preview.name]}
+    spec["slides"][1]["generation_prompt"] = "OLD PREVIEW INSTRUCTION"
+    write(path, spec)
+    state = execute(path, "request", slide_id="s01", route="host")
+    page = state["pages"]["s01"]
+    packet = json.loads((workspace(path) / page["request_snapshot"]).read_text(encoding="utf-8"))
+    assert "reference_images" not in packet["style"]["tokens"]
+    assert "request_reference" not in page
+    assert packet["slide"]["id"] == "s01" and "slides" not in packet
+    execute(path, "compose", slide_id="s01", source=source)
+    record = tmp_path / "anchor-review.json"
+    fixture_review(path, "s01", record)
+    execute(path, "accept", slide_id="s01", record=record)
+    state = execute(path, "request", slide_id="s02", route="isolated-worker")
+    page = state["pages"]["s02"]
+    packet = json.loads((workspace(path) / page["request_snapshot"]).read_text(encoding="utf-8"))
+    assert packet["style_anchor"]["slide_id"] == "s01"
+    assert Path(page["request_reference"]).is_file()
+    assert "OLD PREVIEW INSTRUCTION" not in json.dumps(packet)
+    assert preview.name not in json.dumps(packet)
+
+
+def test_duplicate_failure_fuses_route_and_requires_new_route(production):
+    path, _ = production
+    for evidence in ("call-1", "call-2"):
+        execute(path, "request", slide_id="s01", route="host")
+        execute(path, "failure", slide_id="s01", route="host", failure_kind="multi-page", evidence=evidence)
+    with pytest.raises(ValueError, match="Two repeated failures"):
+        execute(path, "request", slide_id="s01", route="host")
+    result = execute(path, "request", slide_id="s01", route="isolated-api")
+    assert result["pages"]["s01"]["request_route"] == "isolated-api"
+    assert len(result["pages"]["s01"]["generation_failures"]) == 2

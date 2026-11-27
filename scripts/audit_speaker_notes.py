@@ -20,13 +20,14 @@ def sha256(path: Path) -> str:
 def audit(spec_path: Path, deck_path: Path, scene_path: Path | None = None) -> dict:
     spec, _ = load_page_spec(spec_path)
     presentation = Presentation(deck_path)
-    errors = check_notes(presentation, spec["slides"])
+    default_empty = spec.get("content_policy") == "1.1"
+    errors = check_notes(presentation, spec["slides"], default_empty=default_empty)
     if scene_path:
         scene, _ = load_scene(scene_path)
         errors.extend(check_scene_notes(spec, scene))
         errors.extend(check_notes(presentation, scene["slides"], scene=True))
     declared = [slide["id"] for slide in spec["slides"] if "speaker_notes" in slide]
-    return {"status": "fail" if errors else "pass" if declared else "not_declared",
+    return {"status": "fail" if errors else "pass" if declared or default_empty else "not_declared",
             "page_spec_sha256": sha256(spec_path), "deck_sha256": sha256(deck_path),
             "scene_sha256": sha256(scene_path) if scene_path else None,
             "declared_slide_ids": declared, "errors": errors,

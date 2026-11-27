@@ -49,3 +49,7 @@ python slidemuse.py doctor --require-renderer --backend powerpoint
 ### 2.21.0 content and delivery checks
 
 `validate <page-spec> --content --strict` checks current role-aware content. `generate prepare --page-spec <page-spec> --out-dir <deck>` carries the same approved content to generation; `generate review <deck> --init` creates pending observations, and `generate review <deck>` verifies the completed record before guarded assembly. `rebuild --offline prepare --page-spec <page-spec> --job-dir <run>` carries approved text/data into rebuilding prompts. See [content-density.md](../references/content-density.md).
+
+### Isolated generation (2.27.0)
+
+`produce request <page-spec> --slide <id> --route host` writes an independent one-page request, with an approved full-page anchor when available. Record actual failed calls with `produce failure <page-spec> --slide <id> --route host --failure-kind multi-page --evidence <actual-result-id>`. Two consecutive same-kind failures on that route block further requests. Use a real alternative or report blocked. `generate image generate/edit` uses an authorized configured API for independent requests; `--offline` rejects it. See [page production](../references/page-production.md).

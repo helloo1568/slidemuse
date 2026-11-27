@@ -20,14 +20,14 @@ def read_notes(slide) -> str:
     return canonical_notes(frame.text) if frame is not None else ""
 
 
-def check_notes(presentation, slides: list[dict], *, scene: bool = False) -> list[str]:
+def check_notes(presentation, slides: list[dict], *, scene: bool = False, default_empty: bool = False) -> list[str]:
     errors = []
     if len(presentation.slides) != len(slides):
         errors.append("Slide count differs from speaker-note source")
     for index, (actual, expected) in enumerate(zip(presentation.slides, slides), 1):
-        if not scene and "speaker_notes" not in expected:
+        if not scene and "speaker_notes" not in expected and not default_empty:
             continue  # Legacy Page Specs did not declare exportable speaker notes.
-        wanted = scene_notes(expected) if scene else canonical_notes(expected["speaker_notes"])
+        wanted = scene_notes(expected) if scene else canonical_notes(expected.get("speaker_notes", ""))
         if read_notes(actual) != wanted:
             errors.append(f"Slide {index}/{expected['id']}: speaker notes differ from source")
     return errors
@@ -39,6 +39,8 @@ def check_scene_notes(spec: dict, scene: dict) -> list[str]:
         errors.append("Scene slide IDs/order differ from Page Spec")
         return errors
     for expected, actual in zip(spec["slides"], scene["slides"]):
+        if spec.get("content_policy") == "1.1" and "speaker_notes" not in expected and scene_notes(actual):
+            errors.append(f"{expected['id']}: Unexpected Scene speaker_notes; new Page Specs default to empty")
         if "speaker_notes" in expected and (
             "speaker_notes" not in actual or canonical_notes(expected["speaker_notes"]) != scene_notes(actual)
         ):

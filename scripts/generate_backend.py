@@ -31,6 +31,7 @@ SCRIPTS = {
     "assemble": "scripts/assemble_ppt.py",
     "chroma": "scripts/remove_chroma_key.py",
     "runtime": "scripts/codex_ppt_runtime.py",
+    "image": "scripts/image_gen.py",
 }
 FYAI_DEFAULT_BASE_URL = "https://fyai.uk/v1"
 FYAI_DEFAULT_MODEL = "gpt-image-2.6"
@@ -188,10 +189,12 @@ def run_backend(argv, root=ROOT, offline=False):
     if name not in SCRIPTS:
         print(f"SlideMuse: choose one of: {', '.join([*sorted(SCRIPTS), 'fyai-setup'])}", file=sys.stderr)
         return 2
-    if offline and name == "runtime":
+    if offline and name in ("runtime", "image"):
         # The shared runtime creates a venv, writes user-level credentials and can probe an API.
         print("SlideMuse: --offline does not support the networked runtime commands.", file=sys.stderr)
         return 2
+    if name == "image" and (len(argv) < 2 or argv[1] not in ("generate", "edit", "--help", "-h")):
+        raise ValueError("Use image generate or image edit for one independent image request")
     script = root / VENDOR / SKILL / SCRIPTS[name]
     if not script.is_file():
         print("SlideMuse: packaged image-generation backend is missing; reinstall the skill.", file=sys.stderr)

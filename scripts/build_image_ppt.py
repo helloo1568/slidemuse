@@ -165,7 +165,7 @@ def build_deck(args: argparse.Namespace) -> dict[str, object]:
             add_fitted_picture(
                 slide, embed_path, slide_width, slide_height, args.fit, name=image_path.stem
             )
-            if spec and "speaker_notes" in spec["slides"][index]:
+            if spec and spec["slides"][index].get("speaker_notes"):
                 slide.notes_slide.notes_text_frame.text = canonical_notes(spec["slides"][index]["speaker_notes"])
         output.parent.mkdir(parents=True, exist_ok=True)
         fd, temp_output = tempfile.mkstemp(suffix=".pptx", dir=output.parent)
@@ -175,7 +175,7 @@ def build_deck(args: argparse.Namespace) -> dict[str, object]:
             verification = Presentation(temp_output)
             if len(verification.slides) != len(images):
                 raise RuntimeError("Saved deck slide count does not match approved image count")
-            if spec and (errors := check_notes(verification, spec["slides"])):
+            if spec and (errors := check_notes(verification, spec["slides"], default_empty=spec.get("content_policy") == "1.1")):
                 raise ValueError("; ".join(errors))
             os.replace(temp_output, output)
         finally:

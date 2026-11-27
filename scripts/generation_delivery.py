@@ -17,6 +17,7 @@ from json_io import read_json
 from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.util import Inches
+from speaker_notes import canonical_notes, read_notes
 
 CONTRACT = "slidemuse-content.json"
 REVIEW = "content-review.json"
@@ -71,7 +72,9 @@ def prepare_spec(spec):
         slide["local_context"] = {"original_context": context, "approved_content": approved_content,
                                   "required_visible_text": visible_text(slide, policy=policy)}
         slide["constraints"] = [*slide.get("constraints", []),
-            ("Render every required_visible_text item exactly; keep evidence, explanation and boundaries visible. "
+            ("Render ONE independent full-canvas slide, not thumbnails, preview grids or a contact sheet. "
+             "Use only the current page and the accepted single-page style anchor, not other previews or old prompts. "
+             "Render every required_visible_text item exactly; keep evidence, explanation and boundaries visible. "
              "Use approved text and graphics to express semantic fields without adding redundant bullets. "
              "Review semantic coverage separately. Keep recorded sources and speaker_notes off the image. "
              "Do not replace substantive content with decoration or invent evidence.")]
@@ -92,7 +95,14 @@ def from_page_spec(path):
     if "content_policy" in spec:
         result["content_policy"] = spec["content_policy"]
     references = spec["style"].get("tokens", {}).get("reference_images", [])
-    if references:
+    if spec.get("content_policy") == "1.1":
+        # The selection overview is not a usable full-page visual anchor.
+        import copy
+        result["style"] = copy.deepcopy(spec["style"])
+        result["style"].get("tokens", {}).pop("reference_images", None)
+        for page in result["slides"]:
+            page.pop("generation_prompt", None)
+    elif references:
         result["approved_style_reference"] = {"path": str((path.parent / references[0]).resolve()),
                                                "role": "style-only; preserve approved content"}
     return result
@@ -113,6 +123,7 @@ def save_contract(deck, spec):
         jobs["slidemuse_content_policy"] = "1.0"
         write(jobs_path, jobs)
         write(deck / CONTRACT, {"version": "1.0", "pages": pages,
+                               **({"speaker_notes_policy": "explicit-only"} if spec.get("content_policy") == "1.1" else {}),
                                "scope": "Declared content; evidence accuracy and readability require actual review."})
 
 
@@ -212,7 +223,12 @@ def assemble(argv, vendor_script):
             report = review(deck, deck / REVIEW)
             if report["status"] != "pass":
                 raise ValueError("Content review incomplete or failed; run generate review and inspect findings")
-        notes = runpy.run_path(str(vendor_script))["load_speaker_notes"](str(deck))
+        contract = read_json(deck / CONTRACT) if (deck / CONTRACT).exists() else {}
+        if contract.get("speaker_notes_policy") == "explicit-only":
+            notes = {i: canonical_notes(p["content"].get("speaker_notes", ""))
+                     for i, p in enumerate(contract["pages"], 1)}
+        else:
+            notes = runpy.run_path(str(vendor_script))["load_speaker_notes"](str(deck))
         before = [sha(p) for p in images]
         prs = Presentation()
         prs.slide_width, prs.slide_height = Inches(10), Inches(10 / ratio)
@@ -221,7 +237,8 @@ def assemble(argv, vendor_script):
             picture = slide.shapes.add_picture(str(path), 0, 0, width=prs.slide_width, height=prs.slide_height)
             if hashlib.sha256(picture.image.blob).hexdigest() != before[i - 1]:
                 raise ValueError("Image embedding changed source media")
-            slide.notes_slide.notes_text_frame.text = notes.get(i, "")
+            if notes.get(i, ""):
+                slide.notes_slide.notes_text_frame.text = notes[i]
         target = deck / name
         fd, temporary = tempfile.mkstemp(dir=deck, suffix=".pptx")
         os.close(fd)
@@ -232,7 +249,7 @@ def assemble(argv, vendor_script):
                 raise ValueError("Images changed during assembly")
             for i, slide in enumerate(reopened.slides, 1):
                 if (hashlib.sha256(slide.shapes[0].image.blob).hexdigest() != before[i - 1]
-                        or slide.notes_slide.notes_text_frame.text != notes.get(i, "")):
+                        or read_notes(slide) != canonical_notes(notes.get(i, ""))):
                     raise ValueError("Exported media/notes differ from input")
             os.replace(temporary, target)
         finally:

@@ -205,3 +205,34 @@ def test_scorecard_rejects_missing_notes_despite_visual_and_content_pass(tmp_pat
     result = evaluate_delivery.evaluate(spec_path, render, review, [observations])
     assert result["content"]["issues"] == 0 and result["visual"]["passed"] == 1
     assert result["status"] == "fail" and result["speaker_notes"]["errors"]
+
+
+
+def test_new_page_spec_default_empty_rejects_unrequested_notes(tmp_path):
+    spec_path, scene_path, spec, scene = case(tmp_path)
+    spec["content_policy"] = "1.1"
+    spec["workflow"] = {"content_mode": "confirmed", "approved_content_version": spec["content_version"],
+                        "outline_ref": "Test approved outline"}
+    spec["style"].update(decision="locked-reference", authorization="Keep style")
+    for page in spec["slides"]:
+        page.pop("speaker_notes")
+    for page in scene["slides"]:
+        page.pop("speaker_notes")
+        page.pop("notes")
+    save(spec_path, spec)
+    save(scene_path, scene)
+    image = tmp_path / "image.pptx"
+    editable = tmp_path / "editable.pptx"
+    image_build(spec_path, image)
+    build_editable_ppt.build_deck(scene_path, editable, spec_path)
+    for output in (image, editable):
+        actual = Presentation(output)
+        assert all(not s.has_notes_slide for s in actual.slides)
+        assert audit_speaker_notes.audit(spec_path, output)["status"] == "pass"
+        actual.slides[0].notes_slide.notes_text_frame.text = "WORK-RECORD"
+        actual.save(output)
+        assert audit_speaker_notes.audit(spec_path, output)["status"] == "fail"
+    scene["slides"][0]["notes"] = "Unrequested legacy notes"
+    save(scene_path, scene)
+    with pytest.raises(ValueError, match="Unexpected Scene speaker_notes"):
+        build_editable_ppt.build_deck(scene_path, editable, spec_path)

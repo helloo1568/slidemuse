@@ -201,7 +201,7 @@ Full scorecards use visual review v1.2 with source/value, label/unit, scale/geom
 
 ## Speaker notes and material-specific review (2.9.0)
 
-When the content draft has presenter notes, preserve them in Page Spec/Scene `speaker_notes`. Both PPTX exports retain them; editable `--page-spec` verifies upstream order and declared notes. Delivery evaluation reads actual PPTX notes. Notes-only edits rebuild exports while reusing images. `export_speaker_notes.py` optionally writes a source-referenced Markdown companion; see [speaker notes](../references/speaker-notes.md).
+Speaker notes default to empty; only when explicitly requested or authorized, preserve them in Page Spec/Scene `speaker_notes`. Both PPTX exports retain them; editable `--page-spec` verifies upstream order and declared notes. Delivery evaluation reads actual PPTX notes. Notes-only edits rebuild exports while reusing images. `export_speaker_notes.py` optionally writes a source-referenced Markdown companion; see [speaker notes](../references/speaker-notes.md).
 
 Paper review covers formula variables, input/operation/output, experimental scope and source conflicts. Long-form review distinguishes targets, actions, support conditions and observed effects; see [material reading](../references/material-reading.md). Note fidelity does not prove semantic depth.
 

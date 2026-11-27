@@ -222,3 +222,15 @@ def test_deck_paths_with_spaces_and_unicode(tmp_path, name):
     deck = run_pipeline(tmp_path, name)
     assert (deck / "prompts/slide_01.json").is_file()
     assert len(os.listdir(deck / "origin_image")) == 0
+
+def test_offline_blocks_image_api_and_direct_route_is_single_request(monkeypatch):
+    assert generate_backend.run_backend(["image", "generate"], offline=True) == 2
+    with pytest.raises(ValueError, match="one independent"):
+        generate_backend.run_backend(["image", "generate-batch"])
+    calls = []
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        return type("Result", (), {"returncode": 0})()
+    monkeypatch.setattr(generate_backend.subprocess, "run", fake_run)
+    assert generate_backend.run_backend(["image", "generate", "--prompt-file", "one-page.json", "--n", "1"]) == 0
+    assert calls[0][-6:] == ["image_gen.py", "generate", "--prompt-file", "one-page.json", "--n", "1"] or calls[0][-5:] == ["generate", "--prompt-file", "one-page.json", "--n", "1"]

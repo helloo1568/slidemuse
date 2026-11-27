@@ -295,7 +295,8 @@ def build_deck(scene_path: Path, output: Path, page_spec_path: Path | None = Non
         slide.background.fill.fore_color.rgb = rgb(spec.get("background", "#FFFFFF"))
         for e in spec["elements"]:
             add_element(slide.shapes, e, scene_path.parent, sx, sy)
-        slide.notes_slide.notes_text_frame.text = scene_notes(spec)
+        if notes := scene_notes(spec):
+            slide.notes_slide.notes_text_frame.text = notes
     output.parent.mkdir(parents=True, exist_ok=True)
     # Save/reopen before replacing an existing deck; failed builds leave it intact.
     fd, tmp = tempfile.mkstemp(suffix=".pptx", dir=output.parent)
