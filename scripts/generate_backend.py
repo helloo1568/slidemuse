@@ -36,7 +36,8 @@ SCRIPTS = {
     "image": "scripts/image_gen.py",
 }
 FYAI_DEFAULT_BASE_URL = "https://fyai.uk/v1"
-FYAI_DEFAULT_MODEL = "gpt-image-2.6"
+FYAI_DEFAULT_MODEL = "gpt-image-2.6-sunburst"
+COMPATIBLE_API_DEFAULT_MODEL = "gpt-image-2.6"
 
 
 def prepare(argv, script, env):
@@ -152,7 +153,7 @@ def fyai_setup(argv, root=ROOT, offline=False):
                         help="Provider API key; stored in the user-level .env, never printed.")
     parser.add_argument("--base-url", default=FYAI_DEFAULT_BASE_URL,
                         help="OpenAI-compatible base URL ending at /v1.")
-    parser.add_argument("--model", default=FYAI_DEFAULT_MODEL, help="Image model name.")
+    parser.add_argument("--model", help=f"Image model name (FengYun default: {FYAI_DEFAULT_MODEL}).")
     args = parser.parse_args(argv)
     runtime = root / VENDOR / SKILL / SCRIPTS["runtime"]
     if not runtime.is_file():
@@ -160,9 +161,15 @@ def fyai_setup(argv, root=ROOT, offline=False):
         return 2
     env = os.environ.copy()
     env["PYTHONUTF8"] = "1"
+    config = ["config", "--api-key", args.api_key, "--base-url", args.base_url]
+    model = args.model
+    if model is None:
+        is_fyai = args.base_url.strip().rstrip("/").lower() == FYAI_DEFAULT_BASE_URL
+        model = FYAI_DEFAULT_MODEL if is_fyai else COMPATIBLE_API_DEFAULT_MODEL
+    config.extend(["--model", model])
     steps = [
         ("bootstrap", ["bootstrap"]),
-        ("config", ["config", "--api-key", args.api_key, "--base-url", args.base_url, "--model", args.model]),
+        ("config", config),
         ("doctor", ["doctor", "--check-api"]),
     ]
     for label, step in steps:

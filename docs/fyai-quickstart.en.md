@@ -24,4 +24,4 @@ The skill configures and verifies everything automatically (one `generate fyai-s
 python slidemuse.py generate fyai-setup --api-key <your-key>
 ```
 
-It defaults to FengYun AI (model gpt-image-2.6). The config is written to a user-level `.env`; your key never enters the repository. Generation still follows SlideMuse's normal flow: confirm content, pick a style, then generate and review page by page.
+FengYun AI defaults to GPT Image 2.6 Sunburst (`gpt-image-2.6-sunburst`) for both style previews and final slides. Updating SlideMuse does not overwrite a saved model. Rerun the command above to switch an existing FengYun setup. The config is written to a user-level `.env`; your key never enters the repository. Generation still follows SlideMuse's normal flow: confirm content, pick a style, then generate and review page by page.

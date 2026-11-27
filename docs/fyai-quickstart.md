@@ -24,4 +24,4 @@ SlideMuse 自带 OpenAI 兼容的 API 生图后端。接入只需两步：去网
 python slidemuse.py generate fyai-setup --api-key <你的Key>
 ```
 
-默认接入风云AI（模型 gpt-image-2.6）。配置写在用户级 `.env`，Key 不会进仓库。接入后生图仍按 SlideMuse 正常流程：先确认内容、再选风格、逐页生成并核对。
+默认接入风云AI，使用 GPT Image 2.6 质量版（`gpt-image-2.6-sunburst`）生成风格预览和正式页。已配置的旧型号不会被更新覆盖；想切换时可重跑上面的命令。配置写在用户级 `.env`，Key 不会进仓库。接入后生图仍按 SlideMuse 正常流程：先确认内容、再选风格、逐页生成并核对。

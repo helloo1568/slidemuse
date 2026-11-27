@@ -50,12 +50,12 @@
   },
   "patches": {
     "skills/codex-ppt/scripts/image_gen.py": {
-      "sha256": "4394dd9570d9c0726a9944695621c7d731e17922752a4ed3665d7928a3bbe5aa",
-      "reason": "SlideMuse: default/recommended model 2.6 with existing legacy option checks; preflight all output paths before API calls and fully decode complete image responses before writing. Original upstream hash retained in files. v2.29.0: Validate explicit requested dimensions against decoded image pixels before changing output files. v2.30.0: Reject image-bearing structured jobs sent as text-only requests and verify actual edit attachments against required reference hashes. The attachment guard also covers inline structured JSON and legacy hashed style anchors."
+      "sha256": "2679bbfac38eb65875e10793121cd8c412c4622f92299bd2ebbd417122ab3c3f",
+      "reason": "SlideMuse: default/recommended model 2.6 with existing legacy option checks; preflight all output paths before API calls and fully decode complete image responses before writing. Original upstream hash retained in files. v2.29.0: Validate explicit requested dimensions against decoded image pixels before changing output files. v2.30.0: Reject image-bearing structured jobs sent as text-only requests and verify actual edit attachments against required reference hashes. The attachment guard also covers inline structured JSON and legacy hashed style anchors. Use the FengYun-specific default and validate 2.6 Flare/Sunburst sizes."
     },
     "skills/codex-ppt/scripts/codex_ppt_runtime.py": {
-      "sha256": "fab9b971779ec4260be445559e6ee83843439968504edb48a84ff9aa4622c3b4",
-      "reason": "SlideMuse: default model gpt-image-2.6 to match image_gen."
+      "sha256": "6c5ab31bcc44650f31f1a314ef21d31cd886be0703aeaf4edb41f2a4a3d741ec",
+      "reason": "SlideMuse: default model gpt-image-2.6 to match image_gen. Resolve the quality model by default for FengYun only."
     },
     "tests/test_image_gen_models.py": {
       "sha256": "db834fb24099af8bc0610ef866403751367a31c858791e20cbb30548c6927fe5",

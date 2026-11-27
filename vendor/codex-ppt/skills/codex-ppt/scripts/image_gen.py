@@ -26,6 +26,7 @@ import time
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import urlparse
 
+from codex_ppt_runtime import default_model_for_base_url
 from image_providers import create_image_provider
 from image_providers.atlascloud import atlascloud_model_for_operation
 
@@ -89,7 +90,7 @@ def _load_runtime_env() -> None:
 
 
 def _default_model() -> str:
-    return os.getenv("CODEX_PPT_IMAGE_MODEL", DEFAULT_MODEL)
+    return os.getenv("CODEX_PPT_IMAGE_MODEL") or default_model_for_base_url(_api_base_url() or "")
 
 
 def _api_base_url() -> Optional[str]:
@@ -369,7 +370,7 @@ def _is_gpt_image_2_5_model(model: str) -> bool:
 def _is_gpt_image_2_6_model(model: str) -> bool:
     # SlideMuse adaptation (declared in upstream.json patches): gpt-image-2.6
     # shares the GPT Image 2 size envelope (up to 3840px edges, 2K/4K decks).
-    return bool(re.search(r"(?:^|/)gpt-image-2\.6(?:-\d{4}-\d{2}-\d{2})?(?:/|$)", model))
+    return bool(re.search(r"(?:^|/)gpt-image-2\.6(?:-(?:flare|sunburst))?(?:-\d{4}-\d{2}-\d{2})?(?:/|$)", model))
 
 
 def _validate_transparency(background: Optional[str], output_format: str) -> None:

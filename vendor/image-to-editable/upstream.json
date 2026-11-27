@@ -81,8 +81,8 @@
       "reason": "Use the project-recommended gpt-image-2.6 default when recording API reconstruction backends."
     },
     "skills/image-to-editable-ppt/cli/editppt/runtime/image_gen.py": {
-      "sha256": "1cb12f373caf3469e7c72768e0983512a9de31db068eb9a0955c2c2aad8cdc7d",
-      "reason": "Align reconstruction defaults and help with gpt-image-2.6 and the shared GPT Image 2 size envelope while preserving explicit legacy model and quality compatibility."
+      "sha256": "265e0f0e0e07ed0eba6fe2e79c75df169d25f28426d4e86a99980ba18fde4290",
+      "reason": "Align reconstruction defaults and help with gpt-image-2.6 and the shared GPT Image 2 size envelope while preserving explicit legacy model and quality compatibility. Allow GPT Image 2 sizes when using imported 2.6 Flare/Sunburst models."
     },
     "skills/image-to-editable-ppt/cli/editppt/runtime/main.py": {
       "sha256": "af152a6c498075eea76715d105496440fd489e64d062f1cd7fa6dbf2f751b74e",

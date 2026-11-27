@@ -535,7 +535,7 @@ def _is_gpt_image_2_5_model(model: str) -> bool:
 
 def _is_gpt_image_2_model(model: str) -> bool:
     return bool(re.fullmatch(
-        r"gpt-image-2(?:\.6)?(?:-\d{4}-\d{2}-\d{2})?", model.rsplit("/", 1)[-1]
+        r"gpt-image-2(?:\.6(?:-(?:flare|sunburst))?)?(?:-\d{4}-\d{2}-\d{2})?", model.rsplit("/", 1)[-1]
     )) or _is_gpt_image_2_5_model(model)
 
 

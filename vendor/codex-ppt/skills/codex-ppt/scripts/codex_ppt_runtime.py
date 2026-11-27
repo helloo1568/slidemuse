@@ -24,7 +24,15 @@ import venv
 
 DEFAULT_RUNTIME_HOME = "~/.codex-ppt-skill"
 DEFAULT_MODEL = "gpt-image-2.6"  # SlideMuse adaptation (declared in upstream.json patches)
+FYAI_DEFAULT_BASE_URL = "https://fyai.uk/v1"
+FYAI_DEFAULT_MODEL = "gpt-image-2.6-sunburst"
 ENV_FIELDS = ("OPENAI_API_KEY", "OPENAI_BASE_URL", "CODEX_PPT_IMAGE_MODEL")
+
+
+def default_model_for_base_url(base_url: str) -> str:
+    if base_url.strip().rstrip("/").lower() == FYAI_DEFAULT_BASE_URL:
+        return FYAI_DEFAULT_MODEL
+    return DEFAULT_MODEL
 
 
 def _runtime_home() -> Path:
@@ -227,7 +235,7 @@ def _doctor(args: argparse.Namespace) -> int:
     values = _load_env_values(home)
     api_key = values.get("OPENAI_API_KEY", "")
     base_url = values.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
-    model = values.get("CODEX_PPT_IMAGE_MODEL", DEFAULT_MODEL)
+    model = values.get("CODEX_PPT_IMAGE_MODEL") or default_model_for_base_url(base_url)
 
     print(f"OPENAI_API_KEY={'set (' + _mask_secret(api_key) + ')' if api_key else '<unset>'}")
     print(f"OPENAI_BASE_URL={base_url}")

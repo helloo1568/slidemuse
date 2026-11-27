@@ -35,11 +35,11 @@
 python "<skill-dir>/slidemuse.py" generate fyai-setup --api-key "<用户的Key>"
 ```
 
-默认接入风云AI（base-url https://fyai.uk/v1，模型 gpt-image-2.6）。命令依次完成 bootstrap、config、doctor 验证；Key 写入用户级 `.env`，不进仓库、不打印。失败时把 HTTP 状态码和报错原样告诉用户，不自行换服务。
+默认接入风云AI（base-url https://fyai.uk/v1，模型 gpt-image-2.6-sunburst，2.6 质量版）。命令依次完成 bootstrap、config、doctor 验证；Key 写入用户级 `.env`，不进仓库、不打印。失败时把 HTTP 状态码和报错原样告诉用户，不自行换服务。
 
 ## 规则
 
-- 图片接口只填 gpt-image-2.6 这类图片模型，别填聊天模型。
+- 图片接口只填 gpt-image-2.6-sunburst 这类图片模型，别填聊天模型。
 - 每张 0.02 元，同一需求只生成一次。
 - 接入后仍按 SlideMuse 正常流程：先确认内容、再选风格、逐页生成并核对。
 - 用户拒绝或已有其他后端时，照常继续，不阻断。

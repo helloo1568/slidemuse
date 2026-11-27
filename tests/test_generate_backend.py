@@ -94,6 +94,26 @@ def test_slidemuse_model_adaptation_defaults_and_sizes():
         sys.path.remove(scripts)
 
 
+@pytest.mark.parametrize(("base_url", "explicit", "expected"), [
+    ("https://fyai.uk/v1/", None, "gpt-image-2.6-sunburst"),
+    ("https://example.test/v1", None, "gpt-image-2.6"),
+    ("https://fyai.uk/v1", "gpt-image-2.6", "gpt-image-2.6"),
+])
+def test_image_default_respects_provider_and_explicit_choice(monkeypatch, base_url, explicit, expected):
+    scripts = str(ROOT / "vendor/codex-ppt/skills/codex-ppt/scripts")
+    monkeypatch.syspath_prepend(scripts)
+    import image_gen
+
+    monkeypatch.setenv("OPENAI_BASE_URL", base_url)
+    if explicit is None:
+        monkeypatch.delenv("CODEX_PPT_IMAGE_MODEL", raising=False)
+    else:
+        monkeypatch.setenv("CODEX_PPT_IMAGE_MODEL", explicit)
+    assert image_gen._default_model() == expected
+    for model in ("gpt-image-2.6-sunburst", "gpt-image-2.6-flare"):
+        image_gen._validate_size("3840x2160", model)
+
+
 def test_prepare_writes_per_slide_jobs_and_state(tmp_path):
     deck = run_pipeline(tmp_path)
     prompt = json.loads((deck / "prompts/slide_02.json").read_text(encoding="utf-8"))
@@ -224,7 +244,13 @@ def test_fyai_setup_requires_api_key():
     assert result.returncode != 0
 
 
-def test_fyai_setup_runs_three_steps_without_printing_key(monkeypatch, capsys):
+@pytest.mark.parametrize(("extra", "base", "model"), [
+    ([], "https://fyai.uk/v1", "gpt-image-2.6-sunburst"),
+    (["--base-url", "https://fyai.uk/v1/"], "https://fyai.uk/v1/", "gpt-image-2.6-sunburst"),
+    (["--base-url", "https://custom.test/v1"], "https://custom.test/v1", "gpt-image-2.6"),
+    (["--model", "gpt-image-2.6"], "https://fyai.uk/v1", "gpt-image-2.6"),
+])
+def test_fyai_setup_runs_three_steps_without_printing_key(monkeypatch, capsys, extra, base, model):
     calls = []
 
     class Completed:
@@ -235,10 +261,11 @@ def test_fyai_setup_runs_three_steps_without_printing_key(monkeypatch, capsys):
         return Completed()
 
     monkeypatch.setattr(generate_backend.subprocess, "run", fake_run)
-    assert generate_backend.fyai_setup(["--api-key", "SECRET-KEY-123"]) == 0
+    assert generate_backend.fyai_setup(["--api-key", "SECRET-KEY-123", *extra]) == 0
     assert [cmd[2] for cmd in calls] == ["bootstrap", "config", "doctor"]
     assert "SECRET-KEY-123" in calls[1]
-    assert "--base-url" in calls[1] and "https://fyai.uk/v1" in calls[1]
+    assert calls[1][calls[1].index("--base-url") + 1] == base
+    assert calls[1][calls[1].index("--model") + 1] == model
     assert "SECRET-KEY-123" not in capsys.readouterr().out
 
 
