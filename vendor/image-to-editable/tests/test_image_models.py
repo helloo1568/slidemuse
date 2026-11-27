@@ -17,10 +17,18 @@ from editppt.runtime import image_gen, runtime_env
 class ImageModelTests(unittest.TestCase):
     def test_default_and_explicit_configuration(self):
         with mock.patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(image_gen._default_model(), "gpt-image-2.5-sunburst")
+            self.assertEqual(image_gen._default_model(), "gpt-image-2.6")
             self.assertEqual(runtime_env.DEFAULT_IMAGE_MODEL, image_gen._default_model())
         with mock.patch.dict(os.environ, {"IMAGE_TO_EDITABLE_PPT_IMAGE_MODEL": "gpt-image-2"}):
             self.assertEqual(image_gen._default_model(), "gpt-image-2")
+
+    def test_recommended_model_size_with_provider_prefix_and_snapshot(self):
+        for model in ("gpt-image-2.6", "openai/gpt-image-2.6", "gpt-image-2.6-2026-11-27"):
+            with self.subTest(model=model):
+                image_gen._validate_size("2560x1440", model)
+                image_gen._validate_quality("high", model)
+                with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    image_gen._validate_size("2561x1440", model)
 
     def test_quality_and_size_for_both_models_and_snapshots(self):
         for name in ("flare", "sunburst"):

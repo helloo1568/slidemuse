@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 import re
 import sys
@@ -19,6 +20,7 @@ from slide_run_state import (
     now_iso,
     rel_to_deck,
     save_jobs,
+    sha256_file,
     set_run_status,
 )
 
@@ -201,10 +203,25 @@ def _build_prompt(
         if value not in (None, "", [], {})
     }
 
+    canvas = deck.get("canvas", {"width": 1600, "height": 900})
+    if not isinstance(canvas, dict):
+        _die("canvas must declare positive width and height.")
+    width, height = canvas.get("width"), canvas.get("height")
+    if any(isinstance(v, bool) or not isinstance(v, (int, float))
+           or not math.isfinite(v) or v <= 0 for v in (width, height)):
+        _die("canvas must declare positive finite width and height.")
+    if float(width).is_integer() and float(height).is_integer():
+        divisor = math.gcd(int(width), int(height))
+        aspect = f"{int(width) // divisor}:{int(height) // divisor}"
+    else:
+        aspect = f"{width}:{height}"
+
     prompt_parts = [
         "# Codex PPT Slide Image Prompt\n",
         _format_block("Canvas", {
-            "type": "16:9 full-slide PowerPoint image",
+            "type": f"{aspect} full-slide PowerPoint image",
+            "width": width,
+            "height": height,
             "language": deck.get("language", "Chinese"),
             "slide_number": number,
             "render_slide_number": False,
@@ -463,6 +480,17 @@ def main() -> int:
         final_image = out_dir / "origin_image" / f"{slide_id}.png"
         sample_approved = bool(slide.get("sample_approved") or slide.get("approved_sample"))
         status = "accepted" if sample_approved and final_image.exists() else "pending"
+        sample_result = None
+        if status == "accepted":
+            origin = slide.get("image_origin", {})
+            sample_hash = sha256_file(final_image)
+            if (not isinstance(origin, dict) or origin.get("kind") != "provided"
+                    or not isinstance(origin.get("source_ref"), str) or not origin["source_ref"].strip()
+                    or origin.get("sha256") != sample_hash):
+                _die("An existing approved sample requires image_origin with kind=provided, source_ref and its current sha256.")
+            sample_result = {"final_image": rel_to_deck(out_dir, final_image),
+                             "final_image_sha256": sample_hash, "selected_source_sha256": sample_hash,
+                             "accepted_sample": True, "source_kind": "provided", "source_ref": origin["source_ref"]}
         slide_job_entries.append(
             {
                 "slide_id": slide_id,
@@ -474,12 +502,7 @@ def main() -> int:
                 "requires_context_images": bool(images),
                 "status": status,
                 "dispatch": None,
-                "result": {
-                    "final_image": rel_to_deck(out_dir, final_image),
-                    "accepted_sample": True,
-                }
-                if status == "accepted"
-                else None,
+                "result": sample_result,
                 "blocker": None,
             }
         )
@@ -490,6 +513,7 @@ def main() -> int:
         "selected_backend": selected_backend,
         "sample_generation_method": sample_generation_method,
         "max_concurrent_slides": max_concurrent_slides,
+        "generation_evidence_policy": "1.0",
         "slides": slide_job_entries,
         "updated_at": now_iso(),
     }

@@ -1,6 +1,6 @@
 # 可恢复的图片制作
 
-## 独立单页请求（2.27.0）
+## 独立单页请求与来源记录（2.28.0）
 
 先按已确认内容与风格建立 Page Spec，选一个有代表性的内容页作校准（无内容页时用封面）。每次实际生成前运行：
 
@@ -22,11 +22,27 @@ python slidemuse.py produce failure work/page-spec.json --slide s02 --route host
 
 S5 中已确认的 Page Spec 是页面文字、数据、素材和最终坐标的唯一来源。`produce` 补齐宿主生图与现有 `run` 交付流水线之间的原图登记、证据合成和逐页审阅；它不调用生图，也不填通过记录。
 
-新增页面传给 `compose --source` 的原图必须来自真实生图调用；保留工具/后端、模型（未暴露则注明）、实际调用证据与原图。不得将 SVG、HTML、Python、程序化 PPTX 或其截图登记为模型生成原图。允许以真实生成的完整主视觉为基础局部修正文字、精确数据图表及证据素材。`produce` 的格式、哈希与审阅检查不认证生图来源；缺少真实调用证据时不得批准或作为新生图成品组装。
+新增页面传给 `compose --source` 的原图必须来自真实生图调用。每次成功调用后，将实际来源保存为 JSON，使用 `--generation-record` 一并登记：
+
+```json
+{
+  "version": "1.0",
+  "slide_id": "s01",
+  "request_sha256": "本次 request 输出的 request_sha256",
+  "source_sha256": "实际生成原图文件字节的 SHA-256",
+  "backend": "实际使用的工具或后端",
+  "model": null,
+  "result_ref": "可找回的实际调用 ID、结果 ID 或结果文件定位"
+}
+```
+
+以上是字段说明，哈希与定位必须替换为本次真实结果。`model` 填实际模型名；宿主未暴露时使用 `null`，不能猜测。记录不含密钥、Token 或授权头。工具将记录与独立请求、原图字节绑定并归档；缺少记录或哈希不符会阻止合成、批准与新材料导出。这些检查保证记录一致，不能认证提供商签名或代替实际调用。不得将 SVG、HTML、Python、程序化 PPTX 或其截图登记为模型生成原图。允许以真实生成的完整主视觉为基础局部修正文字、精确数据图表及证据素材。
 
 ```sh
 python slidemuse.py produce prepare work/page-spec.json
-python slidemuse.py produce compose work/page-spec.json --slide s01 --source work/raw/01.png
+python slidemuse.py produce request work/page-spec.json --slide s01 --route host
+# 按请求实际调用生图工具，保存原图和真实调用记录
+python slidemuse.py produce compose work/page-spec.json --slide s01 --source work/raw/01.png --generation-record work/calls/s01.json
 python slidemuse.py produce review-init work/page-spec.json --slide s01 --record work/reviews/s01-v1.json
 # 实际看图、对照来源后填写记录
 python slidemuse.py produce accept work/page-spec.json --slide s01 --record work/reviews/s01-v1.json
@@ -35,7 +51,7 @@ python slidemuse.py produce status work/page-spec.json
 
 宿主生成页面时把 `preserve_asset.region` 留作证据位置，按原有宿主工具规则生图；本工具将已确认原图按当前区域等比合成。生成提示必须说明这些位置保持空白。合成前后仍须检查周边文字是否被覆盖，像素相同不能证明地图标签读得清。精确素材哈希改变、区域重叠、画幅不符和越界均拒绝提交。
 
-prepare 为每页保存 `prompt_snapshot`，包含当前风格、语义、逐字可见清单和留白区域。路径相对于制作状态目录；宿主读取此文件再调用自己的生图能力，无需临时脚本拼接提示。已有 `generation_prompt` 保存在规格与意图记录，不转发到独立请求，以避免旧预览指令污染；区域和可见清单以当前规格为准。
+prepare 为每页保存 `prompt_snapshot`，包含当前风格、语义、逐字可见清单和留白区域。正式调用前运行 request 并读取其 `request_snapshot`，使调用记录对应唯一请求。路径相对于制作状态目录，无需临时脚本拼接提示。已有 `generation_prompt` 保存在规格与意图记录，不转发到独立请求，以避免旧预览指令污染；区域和可见清单以当前规格为准。
 
 每份规格对应同目录的 `.page-spec-production/`（名称随规格文件名变化），保存 `state.json`、只追加的内容寻址原图/成品/意图/审阅快照，以及自动生成的 `status.md`。当前阶段以该状态和 Page Spec 为准，`deck-spec.md` 保留需求与历史叙述，不能把旧的“待确认”段落当作当前状态。首次迁入已有任务不会自动批准旧图，须登记原图并重审。
 
@@ -55,6 +71,12 @@ python slidemuse.py produce compose work/page-spec.json --slide s01 --source wor
 成品尺寸与原图尺寸分别记录。默认拒绝放大，确需统一输出尺寸时显式加 `--allow-upscale`；状态保留 `upscaled: true`，不能宣称原生高清。该开关是制作选择，不增加用户确认步骤。工具计时 `compose_seconds` 仅表示本地合成时间，不能代替生图或审阅时间。
 
 原始临时文件丢失时，`--source` 可指向当前页或其历史记录中哈希仍匹配的 `source_snapshot`，直接用归档原图重做合成；不能把旧合成成品再次当作生成原图。
+
+同一已记录原图做获授权的区域修改时，沿用该原图的既有调用记录，不重复调用模型，也不伪造新调用。更换原图必须提供对应的新请求与新记录；局部修改后的成品仍需重新看图和批准。
+
+升级已有 v2.27 制作任务时，若 state 或 history 已共同保留原始 request、route 和 source，可直接给该原图补 `--generation-record`，使用历史请求的原始 SHA-256 与真实历史调用定位；工具不重写旧请求，补证后回到 `generated`，需要重新 review/accept。没有保留实际 request 时，先从可信备份恢复；无法恢复则保留旧目录，在独立新项目中沿用已确认内容并真正重新生成。不能把旧图绑定到刚创建的新请求来补造证据。
+
+用户提供的既有图片走直接导入路径：每页声明 `image_origin: {"kind": "provided", "source_ref": "实际输入或授权定位", "sha256": "图片文件 SHA-256"}`，核对后将 `image_status` 设为 `approved`。这类页面可以与新生成页面共存，不要求补造生图记录。已有生成历史的页面不能通过改标 `provided` 绕过审阅。新材料或已有制作状态的页面在导出时重新验证来源、当前合同、审阅记录及最终图片哈希；仅修改 `image_status` 或替换同尺寸图片不能通过。无 1.1 策略、无制作状态的旧规格仍按既有图片读取，不追认其为有调用证据的新生成页面。
 
 审阅记录绑定当前页面意图和图片哈希，初始化保留空文本、空观察、pending 和空审阅者。填写实际转录、实际查看尺寸、审阅者及五类观察：语义覆盖、来源准确、可读性、有效信息密度、视觉关系；每项定位到元素 ID 或 `page`。同一 Agent 制作和审阅可以如实记录，但不能声称独立盲评。文字匹配只做遗漏筛查；事实、空间关系、数字口径及画面可读性仍须看图和查源。不得从预期文本批量生成观察或批准。
 

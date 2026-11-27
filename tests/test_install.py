@@ -308,3 +308,37 @@ def test_core_upgrade_removes_legacy_showcase(tmp_path: Path) -> None:
     installer.install_skill(ROOT, target, "codex", "slidemuse", False, True)
     assert not (target / "showcase").exists()
     assert (target / "slidemuse.py").is_file()
+
+
+def test_json_install_separates_dependency_and_validation_logs(tmp_path: Path) -> None:
+    # Exercise the real CLI, installation, activation and both validation calls.
+    # Only replace dependency downloads with an inherited, offline environment.
+    harness = """
+import subprocess
+import sys
+import venv
+import install as installer
+
+real_run = subprocess.run
+real_builder = venv.EnvBuilder
+def offline_builder(**kwargs):
+    return real_builder(with_pip=False, system_site_packages=True)
+def offline_pip(command, **kwargs):
+    if command[1:4] == ['-m', 'pip', 'install']:
+        return real_run([sys.executable, '-c', 'print("offline dependency progress")'], **kwargs)
+    return real_run(command, **kwargs)
+installer.venv.EnvBuilder = offline_builder
+installer.subprocess.run = offline_pip
+sys.argv = ['install.py', '--client', 'codex', '--home', sys.argv[1], '--json']
+installer.main()
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", harness, str(tmp_path / "home")],
+        cwd=ROOT, check=True, capture_output=True, encoding="utf-8",
+    )
+    installed = json.loads(result.stdout)
+    assert installed["ok"] is True
+    assert installed["verified"] is True
+    assert Path(installed["target"]).is_dir()
+    assert "offline dependency progress" in result.stderr
+    assert result.stderr.count("Page Spec valid:") == 2

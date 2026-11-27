@@ -243,6 +243,87 @@ def plan_update(path, overrides):
             "scope": "Explicit bindings only. Undeclared dependencies still require review."}, paths
 
 
+def copy_production_state(source_spec, draft_spec, published_spec, visible_slides):
+    """Carry only verified recovery evidence into the still-private draft directory."""
+    from page_production import current, digest, save, seal, workspace
+
+    source_root = workspace(source_spec)
+    state_path = source_root / "state.json"
+    if not state_path.exists():
+        return
+    original = state_path.read_bytes()
+    state = json.loads(original.decode("utf-8-sig"))
+    if not isinstance(state, dict) or state.get("version") != "1.0" or not isinstance(state.get("pages"), dict):
+        raise ValueError("Unsupported production state")
+    if state.get("state_sha256") != seal({k: v for k, v in state.items() if k != "state_sha256"}):
+        raise ValueError("Production state changed; retain it for recovery")
+    draft_root, published_root = workspace(draft_spec), workspace(published_spec)
+    if (draft_root / "state.json").exists():
+        raise ValueError("Production state path collides with draft assets or documents")
+    copied = set()
+
+    def snapshot(name, expected=None):
+        stored = _relative_path(source_root, name)
+        relative = stored.relative_to(source_root.resolve())
+        if (len(relative.parts) != 2 or relative.parts[0] != "artifacts"
+                or not re.fullmatch(r"[0-9a-f]{64}\.[A-Za-z0-9.-]+", relative.name)):
+            raise ValueError("Production snapshots must be content-addressed artifacts")
+        checksum = relative.name[:64]
+        if expected is not None and expected != checksum:
+            raise ValueError("Production snapshot differs from its recorded hash")
+        if relative not in copied:
+            data = stored.read_bytes()
+            if digest(data) != checksum:
+                raise ValueError("Committed production snapshot changed")
+            destination = draft_root / relative
+            if destination.exists() and destination.read_bytes() != data:
+                raise ValueError("Production artifact collides with draft assets")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
+            copied.add(relative)
+        return relative
+
+    def relocate(value):
+        if isinstance(value, list):
+            for item in value:
+                relocate(item)
+        elif isinstance(value, dict):
+            for key, item in value.items():
+                if key.endswith("_snapshot") and item is not None:
+                    expected = value.get({"source_snapshot": "source_sha256", "image_snapshot": "image_sha256",
+                                          "request_snapshot": "request_sha256"}.get(key))
+                    value[key] = str(snapshot(item, expected))
+                elif key == "request_reference":
+                    reference = Path(item)
+                    if reference.is_absolute():
+                        try:
+                            reference = reference.resolve().relative_to(source_root.resolve())
+                        except ValueError as error:
+                            raise ValueError("Production style reference must remain in its artifact directory") from error
+                    value[key] = str(published_root / snapshot(str(reference)))
+                else:
+                    relocate(item)
+
+    # Includes archived originals, reviews, request packets and failed-call requests.
+    relocate(state)
+    state["state_sha256"] = seal({k: v for k, v in state.items() if k != "state_sha256"})
+    save(draft_root / "state.json", state)
+    updated = current(draft_spec, read_json(draft_spec), draft_root)
+    for slide_id in visible_slides:
+        page, previous = updated["pages"][slide_id], state["pages"].get(slide_id, {})
+        # Scene-only edits can invalidate the image without changing its Page Spec fingerprint.
+        if page["contract_sha256"] == previous.get("contract_sha256") and previous.get("status") != "pending":
+            updated["pages"][slide_id] = {
+                **{key: page[key] for key in ("contract_sha256", "intent_snapshot", "prompt_snapshot") if key in page},
+                "status": "pending",
+                "history": [*previous.get("history", []), {k: v for k, v in previous.items() if k != "history"}],
+            }
+    updated["state_sha256"] = seal({k: v for k, v in updated.items() if k != "state_sha256"})
+    save(draft_root / "state.json", updated)
+    if state_path.read_bytes() != original:
+        raise ValueError("Production state changed during export; create a new update plan")
+
+
 def export_draft(path, output, plan, paths):
     output = output.resolve()
     if output.exists() or output == path.parent or path.parent.is_relative_to(output):
@@ -260,6 +341,8 @@ def export_draft(path, output, plan, paths):
             if kind == "page_spec":
                 names = [s["image_file"] for s in document["slides"]]
                 names += document["style"].get("tokens", {}).get("reference_images", [])
+                names += [e["preserve_asset"]["file"] for s in document["slides"]
+                          for e in s["elements"] if "preserve_asset" in e]
             else:
                 names = [s["source_image"] for s in document["slides"] if s.get("source_image")]
                 names += [e["path"] for s in document["slides"] for e in walk(s["elements"]) if e["type"] == "image"]
@@ -291,6 +374,9 @@ def export_draft(path, output, plan, paths):
         for name, data in (("data-bindings.json", plan["contract"]),
                            ("update-plan.json", {k: v for k, v in plan.items() if k not in ("documents", "contract")})):
             (stage / name).write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        if "page_spec" in paths:
+            relative = paths["page_spec"].relative_to(path.parent)
+            copy_production_state(paths["page_spec"], stage / relative, output / relative, plan["visible_slides"])
         os.rename(stage, output)
     finally:
         if stage.exists():

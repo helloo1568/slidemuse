@@ -86,3 +86,18 @@ def test_required_numeric_values_must_not_match_inside_larger_numbers():
     assert not text_present("351", "1351")
     assert text_present("32", "32%")
     assert text_present("32%", "覆盖率32%，另一个值132%")
+
+
+@pytest.mark.parametrize("minus", ["−", "－", "﹣", "-"])
+def test_negative_signs_keep_their_numeric_meaning(tmp_path, minus):
+    assert not audit_page_content.text_present("增长5%", f"增长{minus}5%")
+    assert audit_page_content.text_present("增长-5%", f"增长{minus}5%")
+    path, spec = make_spec(tmp_path)
+    slide = spec["slides"][0]
+    slide["required_visible_values"] = ["增长5%"]
+    path.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    observations = audit_page_content.template(path, [slide])
+    observations["slides"][0].update(status="complete", observed_text="\n".join(
+        [e["text"] for e in slide["elements"] if e["kind"] == "text"] + [f"增长{minus}5%超出预期"]))
+    result = audit_page_content.audit(path, [slide], observations)
+    assert not result["pass"] and result["issues"] == 1

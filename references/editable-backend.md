@@ -46,6 +46,10 @@ python slidemuse.py rebuild page-prompt work/rebuild --page page_001 --out worke
 
 `--offline` 写在 `rebuild` 后，隔离 OCR/图像配置和凭证发现；本地准备、测量、素材处理、编译和组装仍可用。`prepare` 默认记录 `builtin-imagegen`，只准备输入与文字几何提示，不自动重建页面。Windows 子进程统一用 UTF-8。
 
+图片输入先应用 EXIF 显示方向。图片版 PPTX 按实际裁剪区域归一化，并保留原始幻灯片物理尺寸；遇到无法准确提取的旋转、翻转、叠加或特殊图片效果时明确停止，先真实渲染成独立页面图片后再准备。不会把未经裁剪的原媒体图当成可见页面。
+
+`prepare --page-spec <approved.json>` 同时保存哈希绑定的语义快照，将显式 `speaker_notes` 写入实际使用的备注清单；未声明的备注保持空。构建和最终验证分别对照快照与 PPTX 实际备注，保留空行和换行，不能用空清单绕过检查。显式 API 生成的默认模型为 `gpt-image-2.6`，用户已有的明确配置保持原值。
+
 读取每页 `text_hints.json`/`text_hints.png`，结合源图纠正漏检、误框、换行和同级字号。已有 Page Spec 的文字、数字、来源和 ID 仍为事实源；OCR 不得静默覆盖。直接输入没有 Page Spec 时，先建立可见内容清单，记录看不清的部分。
 
 根据 `run next` 的动作处理：单页可由主 Agent 执行，多页在环境支持且任务允许时分派真实 worker，先有 worker 再登记。`page-prompt` 只写适配提示，不伪造分派。单页本地示例：

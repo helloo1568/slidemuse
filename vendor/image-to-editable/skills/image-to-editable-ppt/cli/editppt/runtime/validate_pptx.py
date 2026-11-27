@@ -9,6 +9,7 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 
 from build_pptx_from_manifest import TEXT_ALIGNMENTS, TEXT_VERTICAL_ALIGNMENTS, normalize_manifest, slide_xml
+from _input_normalization import approved_notes_contract, notes_body_text
 
 
 NS = {
@@ -489,7 +490,7 @@ def collect_notes_texts(z, names):
         match = re.search(r"notesSlide(\d+)\.xml$", name)
         if not match:
             continue
-        notes[int(match.group(1))] = collect_paragraph_text(z.read(name))
+        notes[int(match.group(1))] = notes_body_text(ET.fromstring(z.read(name)))
     return notes
 
 
@@ -519,10 +520,16 @@ def validate_deck(args):
         "notes_expected": len(notes_manifest.get("notes", [])),
         "notes_found": 0,
         "notes_hash_mismatches": [],
+        "notes_contract_errors": [],
         "missing_parts": [],
         "warnings": [],
         "passed": False,
     }
+    try:
+        approved_notes = approved_notes_contract(deck, root)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as exc:
+        approved_notes = None
+        report["notes_contract_errors"].append(str(exc))
 
     geometry_manifests = []
     for page_index, page in enumerate(deck.get("pages", []), start=1):
@@ -591,11 +598,16 @@ def validate_deck(args):
             for entry in notes_manifest.get("notes", []):
                 page_index = int(entry.get("page_index", 0))
                 expected_hash = entry.get("text_sha256", sha256_text(entry.get("text", "")))
-                actual = notes_texts.get(page_index)
+                actual = notes_texts.get(page_index, "" if not entry.get("text") else None)
                 if actual is None:
                     report["notes_hash_mismatches"].append({"page_index": page_index, "reason": "missing notes slide"})
                 elif sha256_text(actual) != expected_hash:
                     report["notes_hash_mismatches"].append({"page_index": page_index, "reason": "text hash mismatch"})
+            if approved_notes is not None:
+                for page_index, expected in approved_notes.items():
+                    if notes_texts.get(page_index, "") != expected:
+                        report["notes_contract_errors"].append(
+                            f"Page {page_index}: speaker notes differ from the approved Page Spec")
     except Exception as exc:
         report["warnings"].append(f"Unable to read pptx: {exc}")
 
@@ -607,6 +619,8 @@ def validate_deck(args):
         and not report["page_contract_violations"]
         and not report["missing_parts"]
         and not report["notes_hash_mismatches"]
+        and not report["notes_contract_errors"]
+        and not report["warnings"]
     )
     output = json.dumps(report, ensure_ascii=False, indent=2)
     if args.report:

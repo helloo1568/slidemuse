@@ -20,6 +20,8 @@ from slide_run_state import (
     set_run_status,
     sha256_file,
     update_jobs_run_status,
+    validate_dispatch_inputs,
+    validate_generation_record,
 )
 
 
@@ -129,6 +131,7 @@ def main() -> int:
     parser.add_argument("--backend-used", required=True)
     parser.add_argument("--selected-source", required=True, help="Generated image selected by the worker.")
     parser.add_argument("--qa-note", required=True)
+    parser.add_argument("--generation-record", help="Actual call record bound to the job and original image; required for new jobs.")
     args = parser.parse_args()
 
     deck_dir = deck_dir_from_target(args.deck)
@@ -147,6 +150,15 @@ def main() -> int:
         expected_backend_labels = _expected_backend_labels(jobs, slide, prompt_job)
         matched_expected_backend = _matched_expected_backend(backend_used, expected_backend_labels)
         source = ensure_file(Path(args.selected_source).expanduser().resolve(), "selected source image")
+        source_hash = sha256_file(source)
+        generation_record = None
+        if jobs.get("generation_evidence_policy") == "1.0" or args.generation_record:
+            if not args.generation_record:
+                raise SystemExit("New generation results require --generation-record with actual call evidence")
+            request_hash = validate_dispatch_inputs(deck_dir, slide)
+            generation_record = json.loads(Path(args.generation_record).read_text(encoding="utf-8-sig"))
+            validate_generation_record(generation_record, slide_id=slide["slide_id"],
+                                       request_sha256=request_hash, source_sha256=source_hash, backend=backend_used)
         out_ref = slide.get("out") or f"origin_image/{slide['slide_id']}.png"
         target = resolve_deck_path(deck_dir, out_ref)
         try:
@@ -161,7 +173,7 @@ def main() -> int:
             "agent_id": args.agent_id,
             "backend_used": backend_used,
             "selected_source": str(source),
-            "selected_source_sha256": sha256_file(source),
+            "selected_source_sha256": source_hash,
             "final_image": rel_to_deck(deck_dir, target),
             "final_image_sha256": sha256_file(target),
             "expected_backend": matched_expected_backend,
@@ -169,6 +181,8 @@ def main() -> int:
             "sample_generation_method_matched": bool(matched_expected_backend),
             "qa_note": args.qa_note,
             "recorded_at": now_iso(),
+            **({"source_kind": "generated", "generation_record": generation_record}
+               if generation_record is not None else {}),
         }
         slide["status"] = "recorded"
         update_jobs_run_status(jobs)

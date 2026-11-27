@@ -50,6 +50,10 @@ python slidemuse.py doctor --require-renderer --backend powerpoint
 
 `validate <page-spec> --content --strict` checks current role-aware content. `generate prepare --page-spec <page-spec> --out-dir <deck>` carries the same approved content to generation; `generate review <deck> --init` creates pending observations, and `generate review <deck>` verifies the completed record before guarded assembly. `rebuild --offline prepare --page-spec <page-spec> --job-dir <run>` carries approved text/data into rebuilding prompts. See [content-density.md](../references/content-density.md).
 
-### Isolated generation (2.27.0)
+### 独立生图与结果登记（2.28.0）
 
-`produce request <page-spec> --slide <id> --route host` writes an independent one-page request, with an approved full-page anchor when available. Record actual failed calls with `produce failure <page-spec> --slide <id> --route host --failure-kind multi-page --evidence <actual-result-id>`. Two consecutive same-kind failures on that route block further requests. Use a real alternative or report blocked. `generate image generate/edit` uses an authorized configured API for independent requests; `--offline` rejects it. See [page production](../references/page-production.md).
+`produce request <page-spec> --slide <id> --route host` 创建独立单页包，有已批准单页时附其风格锚点。实际调用成功后用 `produce compose <page-spec> --slide <id> --source <原图> --generation-record <真实调用记录.json>` 登记，记录绑定本次请求和原图哈希。完整后端 `generate result` 同样要求 `--generation-record`。用户提供的既有图片在 Page Spec 声明 `image_origin`，不伪造生图调用。字段及恢复方式见[图片制作](../references/page-production.md)。
+
+调用失败用 `produce failure <page-spec> --slide <id> --route host --failure-kind multi-page --evidence <真实结果定位>` 登记。同一方式连续两次同类失败会阻止继续分派，应切换实际可用方式或报告阻塞。`generate image generate/edit` 使用用户已授权且配置的 API，`--offline` 拒绝联网；配置过共享 API 环境时，实际调用使用同一解释器。
+
+`install.py --json` 的标准输出只有最终 JSON；依赖安装和验证日志输出到标准错误，可直接交给 JSON 解析器。

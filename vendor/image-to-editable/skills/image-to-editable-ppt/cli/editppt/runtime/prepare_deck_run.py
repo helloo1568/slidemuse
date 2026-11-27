@@ -66,6 +66,8 @@ def page_source_size(run_dir, page):
 
 
 def deck_slide_layout(run_dir, deck):
+    if "source_slide" in deck:
+        return dict(deck["source_slide"])
     first_page = deck.get("pages", [{}])[0]
     _source, width_px, height_px = page_source_size(run_dir, first_page)
     return slide_for_source(width_px, height_px)

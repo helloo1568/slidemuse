@@ -4,6 +4,7 @@ All images/transcriptions in these tests are synthetic protocol fixtures, not
 evidence of model image quality or authenticated real-world sources.
 """
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -12,17 +13,28 @@ from content_density import validate_content, visible_text
 from generation_delivery import CHECKS, CONTRACT, REVIEW, review
 from PIL import Image
 from pptx import Presentation
-from test_generate_backend import invoke, run_pipeline, write_slide_image
+from test_generate_backend import (
+    invoke,
+    run_pipeline,
+    write_generation_record,
+    write_slide_image,
+)
 
 
-def record_pages(tmp_path):
+def record_pages(tmp_path, custom_prompt=False):
     deck = run_pipeline(tmp_path)
     for number in (1, 2):
         image = tmp_path / f"source-{number}.png"
         write_slide_image(image)
-        assert invoke("--offline", "dispatch", deck, "--slide", number, "--agent-id", "main").returncode == 0
+        handoff = []
+        if custom_prompt and number == 1:
+            prompt = deck / "worker.md"
+            prompt.write_text("Synthetic worker: read prompts/slide_01.json and return its required image.", encoding="utf-8")
+            handoff = ["--prompt-file", prompt]
+        assert invoke("--offline", "dispatch", deck, "--slide", number, "--agent-id", "main", *handoff).returncode == 0
         result = invoke("--offline", "result", deck, "--slide", number, "--agent-id", "main",
                         "--backend-used", "built-in image tool", "--selected-source", image,
+                        "--generation-record", write_generation_record(deck, number, image),
                         "--qa-note", "Synthetic protocol fixture")
         assert result.returncode == 0, result.stderr
     return deck
@@ -155,6 +167,139 @@ def test_lossless_assembly_keeps_exact_image_bytes(tmp_path):
         assert slide.shapes[0].image.blob == (deck / f"origin_image/slide_{index:02d}.png").read_bytes()
 
 
+def test_new_spec_contract_ignores_undeclared_speech_file(tmp_path):
+    from speaker_notes import read_notes
+    deck = record_pages(tmp_path)
+    contract = json.loads((deck / CONTRACT).read_text(encoding="utf-8"))
+    assert contract["speaker_notes_policy"] == "explicit-only"
+    assert all("speaker_notes" not in p["content"] for p in contract["pages"])
+    (deck / "speech.md").write_text("## Slide 1: Old notes\nOLD_GENERATION_DIAGNOSTIC\n", encoding="utf-8")
+    fill_review(deck)
+    result = invoke("--offline", "assemble", tmp_path, f"{deck.name}.pptx")
+    assert result.returncode == 0, result.stderr
+    prs = Presentation(deck / f"{deck.name}.pptx")
+    assert all(read_notes(slide) == "" for slide in prs.slides)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "source_sha256", "request_sha256", "backend", "result_ref", "extra"])
+def test_result_requires_evidence_bound_to_actual_job_and_source(tmp_path, mutation):
+    deck = run_pipeline(tmp_path)
+    source = tmp_path / "source.png"
+    write_slide_image(source)
+    assert invoke("--offline", "dispatch", deck, "--slide", 1, "--agent-id", "fixture").returncode == 0
+    before = (deck / "slide_jobs.json").read_bytes()
+    record = write_generation_record(deck, 1, source)
+    data = json.loads(record.read_text(encoding="utf-8"))
+    extra = []
+    if mutation != "missing":
+        if mutation == "extra":
+            data["unapproved_extra_field"] = "must not be silently retained"
+        else:
+            data[mutation] = "" if mutation == "result_ref" else "mismatched"
+        record.write_text(json.dumps(data), encoding="utf-8")
+        extra = ["--generation-record", record]
+    result = invoke("--offline", "result", deck, "--slide", 1, "--agent-id", "fixture",
+                    "--backend-used", "built-in image tool", "--selected-source", source,
+                    "--qa-note", "Synthetic fixture", *extra)
+    assert result.returncode != 0
+    assert (deck / "slide_jobs.json").read_bytes() == before
+    assert not (deck / "origin_image/slide_01.png").exists()
+
+
+def test_assembly_rechecks_generation_evidence(tmp_path):
+    deck = record_pages(tmp_path)
+    fill_review(deck)
+    path = deck / "slide_jobs.json"
+    jobs = json.loads(path.read_text(encoding="utf-8"))
+    jobs["slides"][0]["result"]["generation_record"]["source_sha256"] = "0" * 64
+    path.write_text(json.dumps(jobs), encoding="utf-8")
+    result = invoke("--offline", "assemble", tmp_path, f"{deck.name}.pptx")
+    assert result.returncode != 0
+    assert "Generation record differs" in result.stderr
+
+
+def test_custom_worker_prompt_keeps_canonical_job_binding_through_delivery(tmp_path):
+    deck = record_pages(tmp_path, custom_prompt=True)
+    jobs = json.loads((deck / "slide_jobs.json").read_text(encoding="utf-8"))
+    first = jobs["slides"][0]
+    assert first["dispatch"]["job_sha256"] == hashlib.sha256((deck / first["job"]).read_bytes()).hexdigest()
+    assert first["dispatch"]["prompt_sha256"] == hashlib.sha256((deck / "worker.md").read_bytes()).hexdigest()
+    assert first["dispatch"]["job_sha256"] != first["dispatch"]["prompt_sha256"]
+    assert first["result"]["generation_record"]["request_sha256"] == first["dispatch"]["job_sha256"]
+    fill_review(deck)
+    assert invoke("--offline", "review", deck).returncode == 0
+    assembled = invoke("--offline", "assemble", tmp_path, f"{deck.name}.pptx")
+    assert assembled.returncode == 0, assembled.stderr
+    assert len(Presentation(deck / f"{deck.name}.pptx").slides) == 2
+
+
+@pytest.mark.parametrize("changed", ["prompts/slide_01.json", "worker.md"])
+def test_result_rejects_changed_canonical_job_or_custom_handoff(tmp_path, changed):
+    deck = run_pipeline(tmp_path)
+    handoff = deck / "worker.md"
+    handoff.write_text("Synthetic worker: use prompts/slide_01.json.", encoding="utf-8")
+    assert invoke("--offline", "dispatch", deck, "--slide", 1, "--agent-id", "fixture",
+                  "--prompt-file", handoff).returncode == 0
+    source = tmp_path / "source.png"
+    write_slide_image(source)
+    record = write_generation_record(deck, 1, source)
+    changed_path = deck / changed
+    changed_path.write_bytes(changed_path.read_bytes() + b"\n")
+    before = (deck / "slide_jobs.json").read_bytes()
+    result = invoke("--offline", "result", deck, "--slide", 1, "--agent-id", "fixture",
+                    "--backend-used", "built-in image tool", "--selected-source", source,
+                    "--generation-record", record, "--qa-note", "Synthetic fixture")
+    assert result.returncode != 0
+    assert "Dispatched" in result.stderr and "changed" in result.stderr
+    assert (deck / "slide_jobs.json").read_bytes() == before
+    assert not (deck / "origin_image/slide_01.png").exists()
+
+
+@pytest.mark.parametrize("changed", ["prompts/slide_01.json", "worker.md"])
+def test_review_and_assembly_recheck_custom_dispatch_inputs(tmp_path, changed):
+    deck = record_pages(tmp_path, custom_prompt=True)
+    fill_review(deck)
+    path = deck / changed
+    path.write_bytes(path.read_bytes() + b"\n")
+    reviewed = invoke("--offline", "review", deck)
+    assert reviewed.returncode != 0
+    assert "Dispatched" in reviewed.stderr and "changed" in reviewed.stderr
+    assembled = invoke("--offline", "assemble", tmp_path, f"{deck.name}.pptx")
+    assert assembled.returncode != 0
+    assert not (deck / f"{deck.name}.pptx").exists()
+
+
+@pytest.mark.parametrize("declared", [False, True])
+def test_existing_sample_requires_declared_provided_origin(tmp_path, declared):
+    from test_generate_backend import deck_spec
+    spec = deck_spec()
+    spec["slides"] = spec["slides"][:1]
+    spec["slides"][0]["sample_approved"] = True
+    deck = tmp_path / "provided"
+    image = deck / "origin_image/slide_01.png"
+    image.parent.mkdir(parents=True)
+    write_slide_image(image)
+    if declared:
+        spec["slides"][0]["image_origin"] = {
+            "kind": "provided", "source_ref": "Synthetic supplied sample fixture",
+            "sha256": hashlib.sha256(image.read_bytes()).hexdigest(),
+        }
+    source = tmp_path / "sample.json"
+    source.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    prepared = invoke("--offline", "prepare", "--spec", source, "--out-dir", deck)
+    if not declared:
+        assert prepared.returncode != 0
+        assert "image_origin" in prepared.stderr
+        return
+    assert prepared.returncode == 0, prepared.stderr
+    jobs = json.loads((deck / "slide_jobs.json").read_text(encoding="utf-8"))
+    assert jobs["slides"][0]["result"]["source_kind"] == "provided"
+    assert "generation_record" not in jobs["slides"][0]["result"]
+    fill_review(deck)
+    assembled = invoke("--offline", "assemble", tmp_path, "provided.pptx")
+    assert assembled.returncode == 0, assembled.stderr
+
+
 def test_help_and_content_template_are_usable(tmp_path):
     assert invoke("--help").returncode == 0
     path = tmp_path / "template.json"
@@ -190,6 +335,23 @@ def test_page_spec_to_generation_preserves_semantic_ids_and_notes(tmp_path):
     assert source["slides"][0]["speaker_notes"] in (deck / "speech.md").read_text(encoding="utf-8")
     assert source["slides"][0]["speaker_notes"] not in contract["pages"][0]["expected_text"]
     assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("size,aspect", [((1200, 900), "4:3"), ((1600, 900), "16:9")])
+def test_page_spec_canvas_reaches_generation_prompt(tmp_path, size, aspect):
+    path, source = approved_page_spec(tmp_path)
+    source["canvas"] = {"width": size[0], "height": size[1]}
+    for element in source["slides"][0]["elements"]:
+        element.pop("bbox_hint", None)
+    path.write_text(json.dumps(source, ensure_ascii=False), encoding="utf-8")
+    deck = tmp_path / "converted"
+    result = invoke("--offline", "prepare", "--page-spec", path, "--out-dir", deck)
+    assert result.returncode == 0, result.stderr
+    prompt = json.loads((deck / "prompts/slide_01.json").read_text(encoding="utf-8"))["prompt"]
+    assert f"{aspect} full-slide PowerPoint image" in prompt
+    assert f'"width": {size[0]}' in prompt and f'"height": {size[1]}' in prompt
+    if aspect != "16:9":
+        assert "16:9 full-slide" not in prompt
 
 
 def test_reviewed_page_spec_sends_only_literal_copy_and_keeps_provenance_local(tmp_path):

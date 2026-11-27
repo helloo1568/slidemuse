@@ -136,7 +136,7 @@ Parent agent responsibilities:
 - Ensure the approved sample slide is included in every non-sample job as a style-only input image when available.
 - Ensure every dispatched slide job is self-contained. If a slide summarizes, compares, continues, or refers to deck-wide concepts, put the required concepts into `deck_context` or the slide's `local_context` before running `prepare_slide_prompts.py`.
 - Ensure `sample_generation_method` is present in `deck_spec.json`, every `prompts/slide_XX.json`, and `slide_jobs.json`; it must describe the exact backend/tool/mode used to generate the approved sample.
-- If the approved sample slide already exists and should not be regenerated, mark that slide in `deck_spec.json` with `sample_approved: true` or `approved_sample: true` before running `prepare_slide_prompts.py`; the helper records it as `accepted` when the final image file exists.
+- If an existing approved sample should be reused, mark the slide with `sample_approved: true` and `image_origin: {"kind": "provided", "source_ref": "<actual supplied source and reuse authorization>", "sha256": "<current image SHA-256>"}`. The helper verifies that declaration against the existing final image and records `source_kind: provided`; it never labels that sample as a new model call. A newly generated sample should use the normal dispatch/result path with its actual generation record.
 - In built-in `image_gen` mode, ensure every slide-level required local source image has already been inspected with `view_image` before any delegated job that depends on it.
 - In CLI/API fallback mode, ensure each JSON job lists the required source images and that the selected CLI path can use them; if the CLI path cannot attach input images for a slide, do not delegate that slide as a text-only replacement for the asset.
 - Spawn subagents with exactly one slide job each, up to `dispatch_slots_available`.
@@ -182,6 +182,7 @@ Result recording:
   --agent-id <agent id> \
   --backend-used "built-in image tool" \
   --selected-source /absolute/path/to/generated/slide_02.png \
+  --generation-record /absolute/path/to/actual/slide_02-call.json \
   --qa-note "Text readable; style matches the approved sample."
 ```
 
@@ -205,7 +206,7 @@ Save images as:
 ...
 ```
 
-After each image is generated, the parent agent should record it with `record_slide_result.py`, which copies it into `{base_dir}/{deck_name}/origin_image/` and rejects backend provenance that does not match the selected backend or sample generation method. Do not leave final slide images only in a temporary or default generated-images directory, and do not manually mark slide state complete.
+After each image is generated, the parent agent should record it with `record_slide_result.py`, which copies it into `{base_dir}/{deck_name}/origin_image/` and rejects backend provenance that does not match the selected backend or sample generation method. New jobs also require `--generation-record`: a JSON object containing exactly `version: "1.0"`, `slide_id`, `request_sha256` (the canonical page job JSON hash), `source_sha256` (the original image hash), `backend` (the exact reported backend label), `model` (its actual name, or null when unavailable), and `result_ref` (the actual tool/API call or result locator). Record only actual evidence, never credentials or invented calls. The result recorder and SlideMuse review/assembly recheck these bindings. A custom `dispatch --prompt-file worker.md` is supported: the canonical page job remains the request bound by `request_sha256`, while dispatch separately stores `job_sha256` for that job and `prompt_sha256` for the actual worker handoff. Result recording, review and assembly verify both files have remained unchanged. Dispatch checks the configured concurrency limit while holding the job lock; wait for a completed or blocked worker before dispatching into a full queue. Do not leave final slide images only in a temporary or default generated-images directory, and do not manually mark slide state complete.
 
 In CLI/API fallback mode, read `cli-api-fallback.md` for text-only generation commands, image-input limitations, edit commands, transparency rules, and runtime troubleshooting.
 

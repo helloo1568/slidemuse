@@ -100,13 +100,13 @@ jobs:
       - name: Commit optimized previews
         shell: bash
         run: |
-          if git diff --quiet -- README.md README.en.md showcase/preview; then
+          git add -- README.md README.en.md showcase/preview
+          if git diff --cached --quiet -- README.md README.en.md showcase/preview; then
             echo "No showcase preview changes."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add README.md README.en.md showcase/preview
           git commit -m "docs: use lightweight WebP previews for showcase"
           git push

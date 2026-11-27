@@ -14,6 +14,8 @@ python slidemuse.py generate --help
 
 额外依赖装入本技能隔离环境。普通安装也保留完整源码；需要扩展运行能力时使用 `--with-generate`，或用技能解释器安装 `requirements-generate.txt`。`capabilities` 只检查可用性和来源，不读取凭证或测试外部服务。
 
+通过 `fyai-setup` 或 `generate runtime bootstrap` 配置共享 API 环境后，`generate image` 自动使用同一 `CODEX_PPT_HOME/.venv` 解释器；没有共享环境时使用当前已安装生成依赖的解释器。配置诊断与实际调用不会各用一套依赖。
+
 **一条任务只用一个事实源。** SlideMuse 主流程用 `page-spec.json` + `slides/NN-*.png` + `build_image_ppt.py`；本后端用已确认大纲 + `prompts/slide_NN.json` + `slide_jobs.json` + `origin_image/slide_NN.png` + `assemble_ppt.py`。任务格式不能互换；`prepare --page-spec` 负责将同一批准内容投影到生成格式，稳定 ID、文字和数据仍保留。S1–S5 的门禁、内容确认和视觉选型两套流程完全相同，本后端不放宽任何门禁，也不替代内容大纲的要点密度要求（见 [content-outline.md](content-outline.md)）。
 
 ## 能力覆盖
@@ -25,7 +27,7 @@ python slidemuse.py generate --help
 | 分派登记与并发额度 | `dispatch` | 需要真实 worker 与提示文件；聊天记录不构成分派 |
 | 结果登记与来源校验 | `result` | 复制选中图片到最终路径，记录后端来源与哈希；拒绝本地绘制类后端 |
 | 阻塞登记 | `blocker` | 已完成页面拒绝改标阻塞 |
-| 图片版 PPTX 组装 | `assemble` | 按 `slide_NN` 页序充满整页，可选写入 `speech.md` 备注；不替代真实渲染验收 |
+| 图片版 PPTX 组装 | `assemble` | 按 `slide_NN` 页序充满整页，仅导出合同明确声明的讲稿；不替代真实渲染验收 |
 | 纯色背景去底 | `chroma` | 本地像素处理，需核对 alpha 边缘 |
 | 共享运行环境与 API 配置 | `runtime bootstrap/config/doctor` | 需要联网安装依赖并写用户级 `.env`；只在用户选定 API 后端时使用 |
 
@@ -48,7 +50,7 @@ python slidemuse.py generate image edit --prompt-file "<request_snapshot 的实�
 python slidemuse.py generate prepare --spec "<work>/deck_spec.json" --out-dir "<work>"
 python slidemuse.py generate status "<work>" --json
 python slidemuse.py generate dispatch "<work>" --slide 3 --agent-id <真实worker-id> --prompt-file "<绝对提示路径>"
-python slidemuse.py generate result "<work>" --slide 3 --agent-id <真实worker-id> --backend-used "built-in image tool" --selected-source "<生成图路径>" --qa-note "<看图结论>"
+python slidemuse.py generate result "<work>" --slide 3 --agent-id <真实worker-id> --backend-used "built-in image tool" --selected-source "<生成图路径>" --generation-record "<实际调用记录.json>" --qa-note "<看图结论>"
 python slidemuse.py generate blocker "<work>" --slide 3 --agent-id <真实worker-id> --reason "<缺失条件与证据>"
 python slidemuse.py generate assemble "<base_dir>" "<deck>.pptx"
 ```
@@ -59,7 +61,15 @@ python slidemuse.py generate assemble "<base_dir>" "<deck>.pptx"
 - 需要严格输入素材时，在 `required_images` 标记角色与保真要求，并在 S1 内容门禁处让用户核对素材图→页映射。
 - 状态以脚本记录为准：`slide_jobs.json` 中仍有 `pending`、`dispatched` 或 `blocked` 的页面时不得组装。
 
+新任务的 `result --generation-record` 使用与 [produce](page-production.md) 相同的七字段记录：`version`、`slide_id`、`request_sha256`、`source_sha256`、`backend`、`model`、`result_ref`。此处 `slide_id` 使用后端任务 ID（如 `slide_03`），请求哈希为实际 `prompts/slide_03.json` 的文件 SHA-256，后端名称与 `--backend-used` 一致。记录保存实际调用信息；`model` 未暴露时为 `null`。`review` 和 `assemble` 会重新核验记录及图片，不能靠手改完成状态跳过。`sample_approved` 仅用于明确带 `image_origin` 来源和图片哈希的既有导入样张，新生成样张同样登记真实调用。
+
+`dispatch` 在状态锁内执行 `max_concurrency` 限额，重复登记同一活动任务不额外占位。API 生成在发出请求前检查预期输出文件是否冲突；返回空结果、数量不符或不可解码图片会失败，不报告虚假成功。
+
+`--prompt-file` 可以指定任务目录内的自定义 worker 交接文件；分派分别记录实际交接文件和批准任务 JSON 的哈希，结果登记、审阅和组装均校验它们未变。调用记录的 `request_sha256` 始终对应批准的任务 JSON，不误用交接说明文件的哈希。
+
 `prepare --spec` 的输入是上游格式的 `deck_spec.json`（字段示例可用 `prepare --write-template <path>` 生成）。它由已确认的大纲填写，不替代 `deck-spec.md`：页面类型与 3–5 条要点仍以内容门禁批准的版本为准。
+
+所有新任务默认空备注；讲稿仅从输入中显式声明的 `speaker_notes` 导出，不自动吸收工作目录遗留的 `speech.md`。Page Spec 的 `canvas` 同时传入任务、提示词与组装，4:3 等画幅不会被提示词固定为 16:9。
 
 ## 离线执行
 

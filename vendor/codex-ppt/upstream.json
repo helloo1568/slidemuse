@@ -50,8 +50,8 @@
   },
   "patches": {
     "skills/codex-ppt/scripts/image_gen.py": {
-      "sha256": "7949307ed76374246707d454efbfc13399578d15d48f2365584729c5eca91899",
-      "reason": "SlideMuse: default model gpt-image-2.6; gpt-image-2.6 joins the GPT Image 2 size envelope (2K/4K decks). Upstream hash retained in files."
+      "sha256": "3fadd6973c9a4b86d9b16fdca9c5047388c01ff143703f26d370f71fc60ba0d4",
+      "reason": "SlideMuse: default/recommended model 2.6 with existing legacy option checks; preflight all output paths before API calls and fully decode complete image responses before writing. Original upstream hash retained in files."
     },
     "skills/codex-ppt/scripts/codex_ppt_runtime.py": {
       "sha256": "fab9b971779ec4260be445559e6ee83843439968504edb48a84ff9aa4622c3b4",
@@ -60,6 +60,50 @@
     "tests/test_image_gen_models.py": {
       "sha256": "db834fb24099af8bc0610ef866403751367a31c858791e20cbb30548c6927fe5",
       "reason": "SlideMuse: assert gpt-image-2.6 default and size envelope; 2.6 keeps the conservative xhigh/max quality boundary."
+    },
+    "skills/codex-ppt/scripts/image_providers/atlascloud.py": {
+      "sha256": "c55e2d74dad4d797a650f2996e86ebb3f57f3ed1870b5cf924bfd8db787144e3",
+      "reason": "SlideMuse: align the adapter fallback model with the configured 2.6 default without removing operation routing. Original upstream hash retained in files."
+    },
+    "skills/codex-ppt/scripts/prepare_slide_prompts.py": {
+      "sha256": "6b17b5817f37f8bd8e00e4aa73629179a036c7ddf3ffa0cd9c0b47bc89ccb024",
+      "reason": "SlideMuse: preserve explicit canvas dimensions/aspect; require declared, hashed provided origins for reused samples and generation evidence for new jobs. Original upstream hash retained in files."
+    },
+    "skills/codex-ppt/scripts/record_slide_dispatch.py": {
+      "sha256": "078a9846166bfe2a9e5da0bf4e3131ce0b2f5530d37c88a8860668078c4ddad4",
+      "reason": "SlideMuse: enforce dispatch capacity inside the existing job lock and bind canonical job plus custom worker handoff independently. Original upstream hash retained in files."
+    },
+    "skills/codex-ppt/scripts/record_slide_result.py": {
+      "sha256": "92780438f5bae318bcda0847d39d8bda8dd5533c90d1e5fa6543612606a3682c",
+      "reason": "SlideMuse: bind actual call records to the canonical page job, original image, slide and backend; also recheck the separately dispatched worker handoff before recording new generation results. Original upstream hash retained in files."
+    },
+    "skills/codex-ppt/scripts/slide_run_state.py": {
+      "sha256": "86acb74276ffbb925cc52d924d448fa9f81089c94f0dd10ef44328d051acb2a5",
+      "reason": "SlideMuse: validate the shared seven-field actual generation call-record contract and independently verify canonical job/custom handoff hashes without claiming provider authentication. Original upstream hash retained in files."
+    },
+    "skills/codex-ppt/SKILL.md": {
+      "sha256": "53898fa0113d1c3aaf233dfd7e7d8adf75800b14083d053c61ffdd4117771e8d",
+      "reason": "SlideMuse: align model guidance to 2.6, require actual call evidence and use explicit-only speaker notes. Original upstream hash retained in files."
+    },
+    "skills/codex-ppt/docs/image-model-configuration.md": {
+      "sha256": "497bb9e624c080c04b7a4f54bfd0a6b02be133956eb228bde5c524b8b6ad6878",
+      "reason": "SlideMuse: use 2.6 in default configuration and recommended examples; require provider support to be checked. Original upstream hash retained in files."
+    },
+    "skills/codex-ppt/docs/cli-api-fallback.md": {
+      "sha256": "8109d6ef42bf09e6ce310b938802dc747183cc9b232aa649491c80a95e4a35ff",
+      "reason": "SlideMuse: recommend 2.6 without widening legacy quality checks; document output preflight and response validation. Original upstream hash retained in files."
+    },
+    "skills/codex-ppt/docs/slide-generation-and-subagents.md": {
+      "sha256": "d033bd33619bbccc509b7712a99eb9d6dfc56afb96acd9a90cf73d652496acf8",
+      "reason": "SlideMuse: document bound call records, separately hashed custom worker handoffs, declared supplied samples and enforced dispatch capacity. Original upstream hash retained in files."
+    },
+    "skills/codex-ppt/prompts/slide-worker.md": {
+      "sha256": "248118b02d4fe869b20507cd9192a6b2008be3f9397179f937a2802929bfb0f8",
+      "reason": "SlideMuse: require actual generation call-record handoff with no credentials. Original upstream hash retained in files."
+    },
+    "skills/codex-ppt/docs/project-assembly-and-reporting.md": {
+      "sha256": "6fd41ad03b20f6046715d844ed582fa88ca98026417adcbab0f11f2653caa3ee",
+      "reason": "SlideMuse: document explicit-only notes for new guarded generation contracts. Original upstream hash retained in files."
     }
   }
 }

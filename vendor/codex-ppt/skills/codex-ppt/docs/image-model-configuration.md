@@ -19,13 +19,13 @@ Typical cases:
 - Codex is using a third-party API or OpenAI-compatible proxy for image generation.
 - The skill is being used from Claude Code, OpenClaw, Hermes Agent, or another agent without Codex's built-in image tool.
 
-If Codex is being used through a GPT subscription and the built-in image tool is available, do not ask the user to configure `gpt-image-2.5-flare`.
+If Codex is being used through a GPT subscription and the built-in image tool is available, do not ask the user to configure `gpt-image-2.6`.
 
 ## Required And Optional Values
 
 - `OPENAI_API_KEY` is required for real API/CLI fallback calls.
 - `OPENAI_BASE_URL` is optional. When it is unset, the CLI uses the official OpenAI API. When it is set, the CLI uses the configured third-party provider base URL.
-- `CODEX_PPT_IMAGE_MODEL` is optional. The default is `gpt-image-2.5-flare`. Use `gpt-image-2.5-sunburst` to select Sunburst, or a model name supported by the provider.
+- `CODEX_PPT_IMAGE_MODEL` is optional. The default is `gpt-image-2.6`. Use an explicitly selected provider model name only after confirming that provider supports it.
 
 Configure provided API settings with `scripts/codex_ppt_runtime.py config --api-key`. The config command writes `~/.codex-ppt-skill/.env`.
 
@@ -34,7 +34,7 @@ Configure provided API settings with `scripts/codex_ppt_runtime.py config --api-
 ```bash
 python3 {skill_root}/scripts/codex_ppt_runtime.py config \
   --api-key "your-api-key" \
-  --model gpt-image-2.5-flare
+  --model gpt-image-2.6
 ```
 
 ## OpenAI-Compatible Provider Example
@@ -45,7 +45,7 @@ Use this shape for providers that implement the OpenAI Images API paths used by 
 python3 {skill_root}/scripts/codex_ppt_runtime.py config \
   --api-key "your-provider-api-key" \
   --base-url "https://xxxx.example.com/v1" \
-  --model gpt-image-2.5-flare
+  --model gpt-image-2.6
 ```
 
 This produces the same effective runtime config as:
@@ -53,22 +53,22 @@ This produces the same effective runtime config as:
 ```env
 OPENAI_API_KEY=your-provider-api-key
 OPENAI_BASE_URL=https://xxxx.example.com/v1
-CODEX_PPT_IMAGE_MODEL=gpt-image-2.5-flare
+CODEX_PPT_IMAGE_MODEL=gpt-image-2.6
 ```
 
 For OpenAI-compatible providers, `OPENAI_BASE_URL` should normally end at the provider's `/v1` root. Do not set it to `/images/generations`, `/images/edits`, or another terminal endpoint. The fallback CLI appends the image-generation or image-edit path through the OpenAI SDK.
 
-Use the provider's model name only when the provider documents a custom name. Otherwise prefer `gpt-image-2.5-flare`.
+Use the provider's model name only when the provider documents a custom name. Otherwise prefer `gpt-image-2.6`.
 
 ## AtlasCloud Example
 
-For AtlasCloud, set `--model` to the base model name. The CLI chooses the matching generation or editing model route internally. This example retains the known `gpt-image-2` route; check provider documentation before selecting a 2.5 model.
+For AtlasCloud, set `--model` to the base model name. The CLI chooses the matching generation or editing model route internally. The example uses the recommended 2.6 model name; confirm the provider exposes this route before using it. A configuration example does not verify API availability.
 
 ```bash
 python3 {skill_root}/scripts/codex_ppt_runtime.py config \
   --api-key "your-atlascloud-api-key" \
   --base-url "https://api.atlascloud.ai/api/v1/model" \
-  --model openai/gpt-image-2
+  --model openai/gpt-image-2.6
 ```
 
 ## Runtime Config

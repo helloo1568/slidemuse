@@ -130,12 +130,17 @@ def copy_runtime(root: Path, target: Path) -> None:
             shutil.copy2(source, destination)
 
 
+def run_install_command(command: list[str]) -> None:
+    """Keep subprocess progress out of the installer's machine-readable stdout."""
+    subprocess.run(command, check=True, stdout=sys.stderr)
+
+
 def install_dependencies(target: Path, final_target: Path) -> Path:
     env_dir = target / ".venv"
     python = venv_python(env_dir)
     if not python.exists():
         venv.EnvBuilder(with_pip=True, clear=False).create(env_dir)
-    subprocess.run(
+    run_install_command(
         [
             str(python),
             "-m",
@@ -145,7 +150,6 @@ def install_dependencies(target: Path, final_target: Path) -> Path:
             "-r",
             str(target / "requirements.txt"),
         ],
-        check=True,
     )
     (target / ".skill-python").write_text(
         str(venv_python(final_target / ".venv")) + "\n",
@@ -155,14 +159,13 @@ def install_dependencies(target: Path, final_target: Path) -> Path:
 
 
 def validate_install(target: Path, python: Path) -> None:
-    subprocess.run(
+    run_install_command(
         [
             str(python),
             str(target / "scripts" / "validate_page_spec.py"),
             str(target / "examples" / "page-spec.example.json"),
             "--strict",
         ],
-        check=True,
     )
 
 
@@ -210,8 +213,8 @@ def install_skill(
             for enabled, requirements in ((with_editable, "requirements-editable.txt"),
                                           (with_generate, "requirements-generate.txt")):
                 if enabled:
-                    subprocess.run([str(python), "-m", "pip", "install", "--disable-pip-version-check",
-                                    "-r", str(staging / requirements)], check=True)
+                    run_install_command([str(python), "-m", "pip", "install", "--disable-pip-version-check",
+                                         "-r", str(staging / requirements)])
 
         marker = {
             "installer": "slidemuse",
@@ -239,15 +242,15 @@ def install_skill(
         if not skip_deps:
             validate_install(target, final_python)
             if with_editable:
-                subprocess.run([str(final_python), "-c",
-                                "import fitz, PIL, openai, yaml, numpy, requests"], check=True)
-                subprocess.run([str(final_python), str(target / "slidemuse.py"),
-                                "rebuild", "capabilities", "--verify-source"], check=True)
+                run_install_command([str(final_python), "-c",
+                                     "import fitz, PIL, openai, yaml, numpy, requests"])
+                run_install_command([str(final_python), str(target / "slidemuse.py"),
+                                     "rebuild", "capabilities", "--verify-source"])
             if with_generate:
-                subprocess.run([str(final_python), "-c",
-                                "import pptx, PIL, openai, filelock"], check=True)
-                subprocess.run([str(final_python), str(target / "slidemuse.py"),
-                                "generate", "capabilities", "--verify-source"], check=True)
+                run_install_command([str(final_python), "-c",
+                                     "import pptx, PIL, openai, filelock"])
+                run_install_command([str(final_python), str(target / "slidemuse.py"),
+                                     "generate", "capabilities", "--verify-source"])
     except BaseException:
         failed: Path | None = None
         if activated:

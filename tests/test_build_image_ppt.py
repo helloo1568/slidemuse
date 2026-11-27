@@ -115,6 +115,22 @@ def pictures(slide) -> list:
     return [shape for shape in slide.shapes if shape.shape_type == MSO_SHAPE_TYPE.PICTURE]
 
 
+@pytest.mark.parametrize("target", ["spec", "image", "state"])
+def test_export_rejects_overwriting_inputs_or_production_state(approved_spec, target):
+    import argparse
+    spec = json.loads(approved_spec.read_text(encoding="utf-8"))
+    image = approved_spec.parent / spec["slides"][0]["image_file"]
+    before = (approved_spec.read_bytes(), image.read_bytes())
+    output = {"spec": approved_spec, "image": image,
+              "state": approved_spec.parent / ".page-spec-production" / "evidence.pptx"}[target]
+    args = argparse.Namespace(input_dir=approved_spec, output=output, width=None, height=None, fit="cover",
+                              background="FFFFFF", title="", max_width=0, jpeg_quality=0)
+    with pytest.raises(ValueError, match="Output must"):
+        build_image_ppt.build_deck(args)
+    assert (approved_spec.read_bytes(), image.read_bytes()) == before
+    assert not (approved_spec.parent / ".page-spec-production").exists()
+
+
 def test_natural_sort(tmp_path):
     slides = make_slides(tmp_path, {"2.png": (10, 10), "10.png": (10, 10), "1.png": (10, 10)})
     names = [path.name for path in build_image_ppt.collect_images(slides, (".png", ".jpg", ".jpeg"))]

@@ -46,6 +46,7 @@ Before returning, visually check:
 
 Return only:
 backend_used=<built-in image tool OR scripts/image_gen.py>
+generation_record=<path to actual call record with version, slide_id, request_sha256, source_sha256, backend, model and result_ref; no credentials>
 selected_source=/absolute/path/to/$CODEX_HOME/generated_images/.../ig_*.png
 qa_note=<one sentence>
 ```

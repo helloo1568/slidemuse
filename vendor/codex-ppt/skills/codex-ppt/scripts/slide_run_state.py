@@ -73,6 +73,37 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def validate_generation_record(value: Any, *, slide_id: str, request_sha256: str,
+                               source_sha256: str, backend: str) -> None:
+    """Check call-record bindings; a declaration does not authenticate a provider."""
+    required = {"version", "slide_id", "request_sha256", "source_sha256", "backend", "model", "result_ref"}
+    if not isinstance(value, dict) or set(value) != required:
+        raise ValueError("Generation record requires version, slide_id, request_sha256, source_sha256, backend, model and result_ref")
+    if (value["version"] != "1.0" or value["slide_id"] != slide_id
+            or value["request_sha256"] != request_sha256 or value["source_sha256"] != source_sha256
+            or value["backend"] != backend):
+        raise ValueError("Generation record differs from the dispatched request, source image or backend")
+    if any(not isinstance(value[key], str) or not value[key].strip() for key in ("backend", "result_ref")):
+        raise ValueError("Record the actual image tool/backend and call/result locator")
+    if value["model"] is not None and (not isinstance(value["model"], str) or not value["model"].strip()):
+        raise ValueError("Model must be its actual name, or null when the host does not expose it")
+
+
+def validate_dispatch_inputs(deck_dir: Path, slide: Dict[str, Any]) -> str:
+    """Bind the canonical page job and optional custom worker handoff separately."""
+    dispatch = slide.get("dispatch") or {}
+    for reference, hash_key, label in ((slide.get("job"), "job_sha256", "canonical job"),
+                                       (dispatch.get("prompt"), "prompt_sha256", "worker prompt")):
+        if not isinstance(reference, str) or not reference.strip():
+            raise ValueError(f"Dispatched {label} is missing")
+        path = resolve_deck_path(deck_dir, reference)
+        if not path.is_relative_to(Path(deck_dir).resolve()) or not path.is_file():
+            raise ValueError(f"Dispatched {label} must remain a file inside the deck")
+        if dispatch.get(hash_key) != sha256_file(path):
+            raise ValueError(f"Dispatched {label} changed; prepare and dispatch the approved inputs again")
+    return dispatch["job_sha256"]
+
+
 def deck_dir_from_target(target: str) -> Path:
     path = Path(target).expanduser().resolve()
     if path.is_dir():

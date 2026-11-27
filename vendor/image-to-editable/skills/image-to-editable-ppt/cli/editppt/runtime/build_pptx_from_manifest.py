@@ -15,6 +15,7 @@ from pathlib import Path
 from native_tables import normalize_table, table_xml, cell_text_box
 
 from path_geometry import custom_path_geometry_xml, draw_styled_path, preview_path_points, validate_shape
+from _input_normalization import approved_notes_contract
 
 
 EMU_PER_INCH = 914400
@@ -574,8 +575,10 @@ def rels_xml(manifest, media_start=1, notes_index=None):
 
 def notes_slide_xml(text):
     paras = "".join(
-        f'<a:p><a:r><a:rPr lang="zh-CN" sz="1200"/><a:t>{xml_text(line)}</a:t></a:r><a:endParaRPr lang="zh-CN" sz="1200"/></a:p>'
-        for line in str(text).splitlines()
+        '<a:p>' + '<a:br/>'.join(
+            f'<a:r><a:rPr lang="zh-CN" sz="1200"/><a:t>{xml_text(part)}</a:t></a:r>'
+            for part in line.split("\v")) + '<a:endParaRPr lang="zh-CN" sz="1200"/></a:p>'
+        for line in str(text).replace("\r\n", "\n").replace("\r", "\n").split("\n")
     ) or '<a:p><a:endParaRPr lang="zh-CN" sz="1200"/></a:p>'
     return f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <p:notes xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
@@ -783,6 +786,16 @@ def page_entries_from_deck_manifest(deck_manifest_path):
                     if not notes_xml_path.is_absolute():
                         notes_xml_path = root / notes_xml_path
                     note["notes_xml"] = str(notes_xml_path)
+    approved = approved_notes_contract(deck, root)
+    if approved is not None:
+        actual = {int(note["page_index"]): note.get("text", "") for note in notes_entries}
+        if (len(actual) != len(notes_entries) or set(actual) - set(approved)
+                or any(actual.get(index, "") != text for index, text in approved.items())):
+            raise ValueError("Rebuild speaker notes differ from the approved Page Spec")
+        # Page Spec notes are literal approved text; inherited XML is not allowed
+        # to override it while carrying a different text declaration.
+        for note in notes_entries:
+            note.pop("notes_xml", None)
     return deck, entries, notes_entries
 
 

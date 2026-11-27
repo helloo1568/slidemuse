@@ -185,8 +185,11 @@ def main() -> None:
     if output.exists() and (not output.is_dir() or any(output.iterdir())) and not args.overwrite:
         parser.error("output directory is not empty; pass --overwrite to replace its review files")
     output.mkdir(parents=True, exist_ok=True)
-    for path in output.glob("[0-9][0-9][0-9].png"):
-        path.unlink()
+    # Measurements belong to the render that created them. A successful render
+    # without COM measurements must not inherit an older deck's bounds.
+    for pattern in ("[0-9][0-9][0-9].png", "[0-9][0-9][0-9].layout.json"):
+        for path in output.glob(pattern):
+            path.unlink()
     backends = [args.backend] if args.backend != "auto" else (["powerpoint", "libreoffice"] if os.name == "nt" else ["libreoffice"])
     errors = []
     with rendering_options(timeout=args.timeout, retries=args.retries, measure_text=args.measure_text):

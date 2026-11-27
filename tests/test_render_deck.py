@@ -83,3 +83,32 @@ def test_portrait_review_preserves_readable_page_proportions(tmp_path):
         # The page area remains portrait instead of shrinking into a 360px landscape row.
         assert sheet.height > 800
     assert report[0]["mean_absolute_difference"] == 0
+
+
+def test_overwrite_does_not_reuse_old_powerpoint_measurements(tmp_path, monkeypatch):
+    deck = tmp_path / "new.pptx"
+    prs = Presentation()
+    prs.slides.add_slide(prs.slide_layouts[6])
+    prs.save(deck)
+    output = tmp_path / "review"
+    output.mkdir()
+    # This belongs to a deleted object from an older PowerPoint render.
+    (output / "001.layout.json").write_text(json.dumps({
+        "page_number": 1, "slide_width_pt": 720, "slide_height_pt": 540,
+        "items": [{"element_id": "deleted-object", "status": "measured", "bounds": [20, 20, 100, 50],
+                   "content_width_pt": 500, "content_height_pt": 50,
+                   "available_width_pt": 100, "available_height_pt": 50}]}), encoding="utf-8")
+
+    def renderer(_deck, target, width, height, count):
+        assert count == 1
+        Image.new("RGB", (width, height), "white").save(target / "001.png")
+
+    monkeypatch.setattr(render_deck, "render_libreoffice", renderer)
+    monkeypatch.setattr(sys, "argv", ["render_deck.py", str(deck), str(output),
+                                      "--backend", "libreoffice", "--overwrite"])
+    render_deck.main()
+    report = json.loads((output / "render-report.json").read_text(encoding="utf-8"))
+    assert report["backend"] == "libreoffice"
+    assert report["deck_sha256"] == render_deck.sha256(deck)
+    assert report["measured_layout"] == []
+    assert not (output / "001.layout.json").exists()

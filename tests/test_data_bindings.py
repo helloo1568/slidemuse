@@ -124,6 +124,34 @@ def test_source_changed_after_preview_cannot_export_stale_plan(bound_case):
     assert not (path.parent / "draft").exists()
 
 
+def test_notes_only_draft_preserves_independent_evidence_assets(bound_case):
+    import hashlib
+    path, spec_path, contract, spec = bound_case
+    evidence = path.parent / "evidence" / "map.png"
+    evidence.parent.mkdir()
+    Image.new("RGB", (30, 20), "navy").save(evidence)
+    declaration = {"file": "evidence/map.png", "sha256": hashlib.sha256(evidence.read_bytes()).hexdigest(),
+                   "region": [10, 10, 30, 20]}
+    spec["slides"][0]["elements"].append({"id": "source-map", "kind": "image", "role": "evidence",
+        "native_intent": "raster", "source_ref": "Synthetic independent evidence", "confirmation_status": "confirmed",
+        "visual_brief": "Preserve the independent synthetic map", "separate_asset": True,
+        "preserve_asset": declaration})
+    with Image.open(path.parent / spec["slides"][0]["image_file"]) as image:
+        image.paste(Image.open(evidence), (10, 10))
+        image.save(path.parent / spec["slides"][0]["image_file"])
+    contract["bindings"] = contract["bindings"][1:]
+    dump(spec_path, spec)
+    dump(path, contract)
+    load_page_spec(spec_path, require_images=True)
+    plan, paths = plan_update(path, {"current": 90})
+    assert plan["visible_slides"] == []
+    draft = path.parent / "preserved-draft"
+    export_draft(path, draft, plan, paths)
+    assert (draft / declaration["file"]).read_bytes() == evidence.read_bytes()
+    actual, _ = load_page_spec(draft / "page-spec.json", require_images=True)
+    assert actual["slides"][0]["speaker_notes"] == "90 / 120 * 100 = 75.0%; synthetic"
+
+
 def test_example_updates_real_native_workbook_prose_and_notes(tmp_path):
     from audit_editability import audit
     from build_editable_ppt import build_deck

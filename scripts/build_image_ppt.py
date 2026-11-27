@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -14,6 +15,7 @@ from pathlib import Path
 from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.dml.color import RGBColor
+from pptx.shapes.picture import Picture
 from pptx.util import Inches
 from speaker_notes import canonical_notes, check_notes
 from validate_page_spec import load_page_spec
@@ -76,7 +78,7 @@ def add_fitted_picture(
     slide_height: int,
     fit: str,
     name: str = "",
-) -> None:
+) -> Picture:
     if fit == "stretch":
         picture = slide.shapes.add_picture(str(image_path), 0, 0, width=slide_width, height=slide_height)
     else:
@@ -113,12 +115,18 @@ def add_fitted_picture(
                 picture.crop_bottom = crop
     if name:
         picture.name = name
+    return picture
 def build_deck(args: argparse.Namespace) -> dict[str, object]:
     input_dir = args.input_dir.resolve()
     output = args.output.resolve()
     spec = None
+    approved_hashes = None
+    spec_hash = None
     if input_dir.is_file():
+        spec_hash = hashlib.sha256(input_dir.read_bytes()).hexdigest()
         spec, _ = load_page_spec(input_dir, require_images=True, strict=True)
+        from page_production import approved_image_hashes
+        approved_hashes = approved_image_hashes(input_dir, spec)
         if (any("preserve_asset" in element for slide in spec["slides"]
                 for element in slide["elements"])
                 and (args.max_width > 0 or args.jpeg_quality > 0)):
@@ -130,6 +138,18 @@ def build_deck(args: argparse.Namespace) -> dict[str, object]:
         raise FileNotFoundError(f"Input directory or Page Spec does not exist: {input_dir}")
     if not images:
         raise FileNotFoundError(f"No supported images found in: {input_dir}")
+    inputs = set(images)
+    if spec:
+        from page_production import workspace
+        inputs.add(input_dir)
+        inputs.update((input_dir.parent / element["preserve_asset"]["file"]).resolve()
+                      for slide in spec["slides"] for element in slide["elements"] if "preserve_asset" in element)
+        inputs.update((input_dir.parent / name).resolve()
+                      for name in spec["style"].get("tokens", {}).get("reference_images", []))
+        if output.is_relative_to(workspace(input_dir).resolve()):
+            raise ValueError("Output must be outside the managed production state directory")
+    if output in inputs:
+        raise ValueError("Output must not overwrite a Page Spec, slide image or source asset")
     width, height = args.width, args.height
     if spec:
         ratio = spec["canvas"]["width"] / spec["canvas"]["height"]
@@ -151,20 +171,29 @@ def build_deck(args: argparse.Namespace) -> dict[str, object]:
     slide_height = presentation.slide_height
     blank_layout = presentation.slide_layouts[6]
     process = args.max_width > 0 or args.jpeg_quality > 0
-    with (tempfile.TemporaryDirectory() if process else nullcontext(None)) as tmp:
+    with (tempfile.TemporaryDirectory() if process or spec else nullcontext(None)) as tmp:
         for index, image_path in enumerate(images):
+            source_path = image_path
+            if spec:
+                raw = image_path.read_bytes()
+                if hashlib.sha256(raw).hexdigest() != approved_hashes[spec["slides"][index]["id"]]:
+                    raise ValueError("Approved image changed during export")
+                source_path = Path(tmp) / f"approved-{index:04d}{image_path.suffix.lower()}"
+                source_path.write_bytes(raw)
             embed_path = (
                 prepare_image(
-                    image_path, index, Path(tmp), args.max_width, args.jpeg_quality, args.background
+                    source_path, index, Path(tmp), args.max_width, args.jpeg_quality, args.background
                 )
                 if process
-                else image_path
+                else source_path
             )
             slide = presentation.slides.add_slide(blank_layout)
             add_background(slide, args.background)
-            add_fitted_picture(
+            picture = add_fitted_picture(
                 slide, embed_path, slide_width, slide_height, args.fit, name=image_path.stem
             )
+            if spec and picture.image.blob != embed_path.read_bytes():
+                raise ValueError("Image embedding changed the verified source bytes")
             if spec and spec["slides"][index].get("speaker_notes"):
                 slide.notes_slide.notes_text_frame.text = canonical_notes(spec["slides"][index]["speaker_notes"])
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -177,6 +206,11 @@ def build_deck(args: argparse.Namespace) -> dict[str, object]:
                 raise RuntimeError("Saved deck slide count does not match approved image count")
             if spec and (errors := check_notes(verification, spec["slides"], default_empty=spec.get("content_policy") == "1.1")):
                 raise ValueError("; ".join(errors))
+            if spec:
+                if hashlib.sha256(input_dir.read_bytes()).hexdigest() != spec_hash:
+                    raise ValueError("Page Spec changed during export")
+                if approved_image_hashes(input_dir, spec) != approved_hashes:
+                    raise ValueError("Approved images changed during export")
             os.replace(temp_output, output)
         finally:
             Path(temp_output).unlink(missing_ok=True)

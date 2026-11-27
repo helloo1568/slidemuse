@@ -213,7 +213,7 @@ Scene v1 JSON 编译器为独立实现，未复制这些项目的源码。可选
 
 ## 讲稿与论文/长文审阅（2.9.0）
 
-默认无备注；仅用户明确要求或授权保留讲稿时，将最终文本写入 Page Spec/Scene 的 `speaker_notes`，图片版与可编辑版均保留为演讲备注。可编辑编译传 `--page-spec` 核对上游，交付评测读取实际备注；只改讲稿会重建导出而复用图片。按需用 `export_speaker_notes.py` 导出附来源的讲稿，详见[讲稿保留](../references/speaker-notes.md)。
+默认无备注；仅用户明确要求或授权保留讲稿时，将最终文本写入 Page Spec/Scene 的 `speaker_notes`，图片版与可编辑版均保留为演讲备注。完整生成后端的新合同也仅采用显式讲稿，不吸收旧 `speech.md`。可编辑编译传 `--page-spec` 核对上游，完整重建后端同时保存并核对讲稿语义快照，交付评测读取实际备注；只改讲稿会重建导出而复用图片。按需用 `export_speaker_notes.py` 导出附来源的讲稿，详见[讲稿保留](../references/speaker-notes.md)。
 
 论文审阅展开公式变量、输入/运算/输出和实验口径；长文区分目标、行动、支撑和效果，来源冲突记录后核验或缩小范围。见[按材料审阅](../references/material-reading.md)。备注保真检查不能证明大纲深度。
 

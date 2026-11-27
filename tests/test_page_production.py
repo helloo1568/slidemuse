@@ -33,6 +33,25 @@ def production(tmp_path):
     return path, source
 
 
+
+def compose_fixture(path, **kwargs):
+    """Explicit synthetic call evidence for protocol tests; no real model invocation."""
+    from page_production import digest
+    slide_id = kwargs["slide_id"]
+    page = execute(path, "status")["pages"][slide_id]
+    source_hash = digest(Path(kwargs["source"]).read_bytes())
+    previous = [page, *page.get("history", [])]
+    if any(p.get("source_sha256") == source_hash and p.get("generation_snapshot") for p in previous):
+        return execute(path, "compose", **kwargs)
+    if not page.get("request_snapshot"):
+        page = execute(path, "request", slide_id=slide_id, route="host")["pages"][slide_id]
+    record = path.parent / f"synthetic-call-{slide_id}.json"
+    write(record, {"version": "1.0", "slide_id": slide_id, "request_sha256": page["request_sha256"],
+                   "source_sha256": source_hash, "backend": "synthetic-test-fixture", "model": None,
+                   "result_ref": "Synthetic protocol result; not an actual image generation call"})
+    return execute(path, "compose", **kwargs, generation_record=record)
+
+
 def fixture_review(path, slide_id, record):
     execute(path, "review-init", slide_id=slide_id, record=record)
     value = json.loads(record.read_text(encoding="utf-8"))
@@ -47,12 +66,12 @@ def fixture_review(path, slide_id, record):
 def test_prepare_is_idempotent_and_does_not_reset_approved_pages(production, tmp_path):
     path, source = production
     execute(path, "prepare")
-    execute(path, "compose", slide_id="s01", source=source)
+    compose_fixture(path, slide_id="s01", source=source)
     fixture_review(path, "s01", tmp_path / "review.json")
     execute(path, "accept", slide_id="s01", record=tmp_path / "review.json")
     before = (workspace(path) / "state.json").read_bytes()
     execute(path, "prepare")
-    execute(path, "compose", slide_id="s01", source=source)
+    compose_fixture(path, slide_id="s01", source=source)
     assert (workspace(path) / "state.json").read_bytes() == before
     assert json.loads(path.read_text(encoding="utf-8"))["slides"][0]["image_status"] == "approved"
     notes_spec = json.loads(path.read_text(encoding="utf-8"))
@@ -70,7 +89,7 @@ def test_prepare_is_idempotent_and_does_not_reset_approved_pages(production, tmp
 @pytest.mark.parametrize("mutation", ["ratio", "resolution", "asset", "pending-review", "changed-image", "stale-contract"])
 def test_failure_preserves_previous_image_and_state(production, tmp_path, mutation):
     path, source = production
-    execute(path, "compose", slide_id="s01", source=source)
+    compose_fixture(path, slide_id="s01", source=source)
     target = tmp_path / "slides/01-cover.png"
     before = target.read_bytes()
     state_before = (workspace(path) / "state.json").read_bytes()
@@ -95,7 +114,7 @@ def test_failure_preserves_previous_image_and_state(production, tmp_path, mutati
             write(path, spec)
     with pytest.raises(ValueError):
         if mutation in ("ratio", "resolution", "asset"):
-            execute(path, "compose", slide_id="s01", source=source)
+            compose_fixture(path, slide_id="s01", source=source)
         else:
             execute(path, "accept", slide_id="s01", record=record)
     assert target.read_bytes() == before
@@ -106,7 +125,7 @@ def test_upscale_disclosed_and_region_change_invalidates_only_affected_page(prod
     path, source = production
     Image.new("RGB", (800, 450), "white").save(source)
     for slide in ("s01", "s02"):
-        execute(path, "compose", slide_id=slide, source=source, allow_upscale=True)
+        compose_fixture(path, slide_id=slide, source=source, allow_upscale=True)
         fixture_review(path, slide, tmp_path / f"{slide}.json")
         execute(path, "accept", slide_id=slide, record=tmp_path / f"{slide}.json")
     result = execute(path, "region", slide_id="s01", element_id="agronomist", region=[1050, 200, 480, 270])
@@ -119,14 +138,14 @@ def test_upscale_disclosed_and_region_change_invalidates_only_affected_page(prod
     previous = result["pages"]["s02"]["source_snapshot"]
     source.unlink()
     # Restore from the retained original, never from the previous composited page.
-    execute(path, "compose", slide_id="s01", source=workspace(path) / previous, allow_upscale=True)
+    compose_fixture(path, slide_id="s01", source=workspace(path) / previous, allow_upscale=True)
     with pytest.raises(ValueError, match="Stale"):
         execute(path, "accept", slide_id="s01", record=tmp_path / "s01.json")
 
 
 def test_prepare_restores_interrupted_projection_from_committed_snapshot(production, tmp_path):
     path, source = production
-    execute(path, "compose", slide_id="s01", source=source)
+    compose_fixture(path, slide_id="s01", source=source)
     target = tmp_path / "slides/01-cover.png"
     before = target.read_bytes()
     target.unlink()
@@ -147,7 +166,7 @@ def test_failed_projection_recovers_after_atomic_state_commit(production, tmp_pa
 
     monkeypatch.setattr(page_production, "atomic", fail_final)
     with pytest.raises(OSError, match="interruption"):
-        execute(path, "compose", slide_id="s01", source=source)
+        compose_fixture(path, slide_id="s01", source=source)
     assert not target.exists()
     assert execute(path, "status")["pages"]["s01"]["status"] == "generated"
     monkeypatch.setattr(page_production, "atomic", original_atomic)
@@ -157,7 +176,7 @@ def test_failed_projection_recovers_after_atomic_state_commit(production, tmp_pa
 
 def test_invalid_region_retains_specification_and_current_approval(production):
     path, source = production
-    execute(path, "compose", slide_id="s01", source=source)
+    compose_fixture(path, slide_id="s01", source=source)
     before = path.read_bytes()
     state_before = (workspace(path) / "state.json").read_bytes()
     with pytest.raises(ValueError, match="outside canvas"):
@@ -194,7 +213,7 @@ def test_workflow_uses_visible_copy_and_reuses_unaffected_approved_pages(product
                ("Internal page provenance", "Internal element provenance", "Private speaker note"))
 
     for slide_id in ("s01", "s02"):
-        execute(path, "compose", slide_id=slide_id, source=source)
+        compose_fixture(path, slide_id=slide_id, source=source)
         record = tmp_path / f"{slide_id}.json"
         fixture_review(path, slide_id, record)
         if slide_id == "s01":
@@ -276,7 +295,7 @@ def test_single_page_requests_isolate_preview_and_anchor_after_review(production
     assert "reference_images" not in packet["style"]["tokens"]
     assert "request_reference" not in page
     assert packet["slide"]["id"] == "s01" and "slides" not in packet
-    execute(path, "compose", slide_id="s01", source=source)
+    compose_fixture(path, slide_id="s01", source=source)
     record = tmp_path / "anchor-review.json"
     fixture_review(path, "s01", record)
     execute(path, "accept", slide_id="s01", record=record)
@@ -299,3 +318,155 @@ def test_duplicate_failure_fuses_route_and_requires_new_route(production):
     result = execute(path, "request", slide_id="s01", route="isolated-api")
     assert result["pages"]["s01"]["request_route"] == "isolated-api"
     assert len(result["pages"]["s01"]["generation_failures"]) == 2
+
+
+def current_one_page(path):
+    spec = json.loads(path.read_text(encoding="utf-8"))
+    spec["content_policy"] = "1.1"
+    spec["workflow"] = {"content_mode": "confirmed", "approved_content_version": spec["content_version"],
+                        "outline_ref": "Synthetic current-policy test outline"}
+    spec["style"].update(decision="skipped", authorization="Synthetic test authorization")
+    spec["slides"] = spec["slides"][:1]
+    for element in spec["slides"][0]["elements"]:
+        element.pop("preserve_asset", None)
+    write(path, spec)
+    return spec
+
+
+def test_new_original_requires_prepared_request_and_bound_call_evidence(production, tmp_path):
+    from page_production import digest
+    path, source = production
+    current_one_page(path)
+    with pytest.raises(ValueError, match="generation-record"):
+        execute(path, "compose", slide_id="s01", source=source)
+    page = execute(path, "request", slide_id="s01", route="host")["pages"]["s01"]
+    with pytest.raises(ValueError, match="generation-record"):
+        execute(path, "compose", slide_id="s01", source=source)
+    record = tmp_path / "call.json"
+    valid = {"version": "1.0", "slide_id": "s01", "request_sha256": page["request_sha256"],
+             "source_sha256": digest(source.read_bytes()), "backend": "synthetic-fixture", "model": None,
+             "result_ref": "Synthetic actual-output locator for protocol testing"}
+    for key, value in (("request_sha256", "0" * 64), ("source_sha256", "0" * 64),
+                       ("backend", ""), ("result_ref", ""), ("model", "")):
+        write(record, {**valid, key: value})
+        with pytest.raises(ValueError):
+            execute(path, "compose", slide_id="s01", source=source, generation_record=record)
+        assert execute(path, "status")["pages"]["s01"]["status"] == "pending"
+    write(record, valid)
+    assert execute(path, "compose", slide_id="s01", source=source, generation_record=record)["pages"]["s01"]["status"] == "generated"
+
+
+def test_export_rejects_shadow_approval_and_changed_approved_image(production, tmp_path):
+    import argparse
+
+    from build_image_ppt import build_deck
+    from validate_page_spec import load_page_spec
+    path, source = production
+    spec = current_one_page(path)
+    target = tmp_path / spec["slides"][0]["image_file"]
+    target.parent.mkdir(exist_ok=True)
+    target.write_bytes(source.read_bytes())
+    spec["slides"][0]["image_status"] = "approved"
+    write(path, spec)
+    with pytest.raises(ValueError, match="production approval"):
+        load_page_spec(path, require_images=True)
+    compose_fixture(path, slide_id="s01", source=source)
+    review = tmp_path / "approved-review.json"
+    fixture_review(path, "s01", review)
+    execute(path, "accept", slide_id="s01", record=review)
+    args = argparse.Namespace(input_dir=path, output=tmp_path / "approved.pptx", width=None, height=None,
+                              fit="cover", background="FFFFFF", title="", max_width=0, jpeg_quality=0)
+    assert build_deck(args)["slides"] == 1
+    before = args.output.read_bytes()
+    Image.new("RGB", (1600, 900), "red").save(target)
+    with pytest.raises(ValueError, match="Approved image or review changed"):
+        build_deck(args)
+    assert args.output.read_bytes() == before
+
+
+def test_explicit_existing_images_need_no_generation_but_keep_hash_binding(production, tmp_path):
+    from page_production import digest
+    from validate_page_spec import load_page_spec
+    path, source = production
+    spec = current_one_page(path)
+    slide = spec["slides"][0]
+    target = tmp_path / slide["image_file"]
+    target.parent.mkdir(exist_ok=True)
+    target.write_bytes(source.read_bytes())
+    slide.update(image_status="approved", image_origin={"kind": "provided", "source_ref": "User-provided synthetic fixture",
+                                                       "sha256": digest(target.read_bytes())})
+    write(path, spec)
+    assert load_page_spec(path, require_images=True)[1]["slides"] == 1
+    assert not workspace(path).exists()
+    Image.new("RGB", (1600, 900), "red").save(target)
+    with pytest.raises(ValueError, match="Provided image changed"):
+        load_page_spec(path, require_images=True)
+
+
+def test_generated_history_cannot_be_reclassified_as_provided(production, tmp_path):
+    from page_production import digest
+    from validate_page_spec import load_page_spec
+    path, source = production
+    current_one_page(path)
+    compose_fixture(path, slide_id="s01", source=source)
+    spec = json.loads(path.read_text(encoding="utf-8"))
+    slide = spec["slides"][0]
+    slide.update(image_status="approved", image_origin={"kind": "provided", "source_ref": "False reclassification",
+        "sha256": digest((tmp_path / slide["image_file"]).read_bytes())})
+    write(path, spec)
+    for action in (lambda: load_page_spec(path, require_images=True), lambda: execute(path, "prepare")):
+        with pytest.raises(ValueError, match="cannot bypass production review"):
+            action()
+
+
+def test_provided_jpeg_and_generated_page_can_share_production(production, tmp_path):
+    from page_production import digest
+    from validate_page_spec import load_page_spec
+    path, source = production
+    spec = current_one_page(path)
+    provided = copy.deepcopy(spec["slides"][0])
+    provided.update(id="s02", page_number=2, image_file="provided.jpg", image_status="approved")
+    image = tmp_path / provided["image_file"]
+    Image.new("RGB", (1600, 900), "navy").save(image)
+    raw = image.read_bytes()
+    provided["image_origin"] = {"kind": "provided", "source_ref": "User-provided synthetic fixture",
+                                "sha256": digest(raw)}
+    spec["slides"].append(provided)
+    write(path, spec)
+    state = execute(path, "prepare")
+    assert state["pages"]["s02"]["status"] == "approved"
+    page = execute(path, "request", slide_id="s01", route="host")["pages"]["s01"]
+    assert Path(page["request_reference"]).read_bytes() == raw
+    compose_fixture(path, slide_id="s01", source=source)
+    review = tmp_path / "mixed-review.json"
+    fixture_review(path, "s01", review)
+    execute(path, "accept", slide_id="s01", record=review)
+    assert load_page_spec(path, require_images=True)[1]["slides"] == 2
+    assert image.read_bytes() == raw
+    with pytest.raises(ValueError, match="Provided images"):
+        execute(path, "request", slide_id="s02", route="host")
+
+
+def test_export_checks_for_input_changes_after_embedding(production, tmp_path, monkeypatch):
+    import argparse
+
+    import build_image_ppt
+    path, source = production
+    spec = current_one_page(path)
+    compose_fixture(path, slide_id="s01", source=source)
+    review = tmp_path / "review.json"
+    fixture_review(path, "s01", review)
+    execute(path, "accept", slide_id="s01", record=review)
+    original = build_image_ppt.add_fitted_picture
+
+    def substitute(*args, **kwargs):
+        picture = original(*args, **kwargs)
+        Image.new("RGB", (1600, 900), "red").save(tmp_path / spec["slides"][0]["image_file"])
+        return picture
+
+    monkeypatch.setattr(build_image_ppt, "add_fitted_picture", substitute)
+    args = argparse.Namespace(input_dir=path, output=tmp_path / "late-change.pptx", width=None, height=None,
+                              fit="cover", background="FFFFFF", title="", max_width=0, jpeg_quality=0)
+    with pytest.raises(ValueError, match="Approved image or review changed"):
+        build_image_ppt.build_deck(args)
+    assert not args.output.exists()

@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import math
 import posixpath
 import shutil
 import subprocess
@@ -10,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 IMG_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".tif", ".tiff"}
@@ -37,6 +38,41 @@ def collect_paragraph_text(root):
     return "\n".join(paragraphs)
 
 
+def notes_body_text(root):
+    """Read the speaker-note body without dropping blank lines or placeholders."""
+    for shape in root.findall(".//p:sp", NS):
+        placeholder = shape.find("p:nvSpPr/p:nvPr/p:ph", NS)
+        if placeholder is None or placeholder.get("type") != "body":
+            continue
+        paragraphs = []
+        for paragraph in shape.findall("p:txBody/a:p", NS):
+            paragraphs.append("".join(
+                "\v" if child.tag == f"{{{NS['a']}}}br" else
+                "".join(node.text or "" for node in child.iter(f"{{{NS['a']}}}t"))
+                for child in paragraph))
+        return "\n".join(paragraphs)
+    return ""
+
+
+def approved_notes_contract(deck, root):
+    """Load the independent, hash-bound SlideMuse Page Spec note contract."""
+    name = deck.get("slidemuse_content", "slidemuse-page-content.json")
+    snapshot = (root / name).resolve()
+    if not snapshot.is_relative_to(root.resolve()):
+        raise ValueError("Approved content snapshot must stay inside the run directory")
+    if "slidemuse_content" not in deck and not snapshot.exists():
+        return None
+    data = snapshot.read_bytes()
+    if ("slidemuse_content" in deck
+            and hashlib.sha256(data).hexdigest() != deck.get("slidemuse_content_sha256")):
+        raise ValueError("Approved content snapshot changed or lacks its recorded hash")
+    slides = json.loads(data)["slides"]
+    if len(slides) != int(deck.get("page_count", len(deck.get("pages", [])))):
+        raise ValueError("Approved content slide count differs from the rebuild run")
+    return {index: slide.get("speaker_notes", "").replace("\r\n", "\n").replace("\r", "\n")
+            for index, slide in enumerate(slides, 1)}
+
+
 def copy_input(src, input_dir):
     src = Path(src).resolve()
     dest = input_dir / src.name
@@ -53,7 +89,7 @@ def save_image_page(src, page_dir):
     page_dir.mkdir(parents=True, exist_ok=True)
     out = page_dir / "source.png"
     with Image.open(src) as image:
-        image.convert("RGB").save(out)
+        ImageOps.exif_transpose(image).convert("RGB").save(out)
     return out
 
 
@@ -114,7 +150,7 @@ def collect_notes_from_pptx(pptx_path, notes_dir=None):
                         if notes_part in names:
                             notes_bytes = z.read(notes_part)
                             notes_root = ET.fromstring(notes_bytes)
-                            text = collect_paragraph_text(notes_root)
+                            text = notes_body_text(notes_root)
                             update = {
                                 "text": text,
                                 "text_sha256": sha256_text(text),
@@ -174,6 +210,12 @@ def full_slide_picture_target(zip_file, slide_part, slide_cx, slide_cy):
     if len(pictures) != 1:
         raise ValueError(f"{slide_part} must contain exactly one full-slide picture; found {len(pictures)}.")
     picture = pictures[0]
+    tree = slide_root.find("p:cSld/p:spTree", NS)
+    if tree is None or picture not in list(tree) or any(
+        child.tag.rsplit("}", 1)[-1] not in {"nvGrpSpPr", "grpSpPr", "pic", "extLst"}
+        for child in tree
+    ):
+        raise ValueError(f"{slide_part} contains overlaid or grouped objects; render the slide before rebuilding.")
     blip = picture.find(".//a:blip", NS)
     if blip is None:
         raise ValueError(f"{slide_part} picture has no embedded image.")
@@ -183,8 +225,12 @@ def full_slide_picture_target(zip_file, slide_part, slide_cx, slide_cy):
     if rel is None or not rel.attrib.get("Type", "").endswith("/image"):
         raise ValueError(f"{slide_part} picture relationship is not an embedded image.")
 
-    off = picture.find(".//a:xfrm/a:off", NS)
-    ext = picture.find(".//a:xfrm/a:ext", NS)
+    transform = picture.find("p:spPr/a:xfrm", NS)
+    if transform is None or (int(transform.get("rot", "0")) % 21600000
+            or any(transform.get(key, "0").lower() in {"1", "true"} for key in ("flipH", "flipV"))):
+        raise ValueError(f"{slide_part} has a rotated/flipped picture; render the slide before rebuilding.")
+    off = transform.find("a:off", NS)
+    ext = transform.find("a:ext", NS)
     if off is None or ext is None:
         raise ValueError(f"{slide_part} picture has no placement transform.")
     x, y = int(off.attrib.get("x", 0)), int(off.attrib.get("y", 0))
@@ -192,8 +238,27 @@ def full_slide_picture_target(zip_file, slide_part, slide_cx, slide_cy):
     tolerance = 2
     if abs(x) > tolerance or abs(y) > tolerance or abs(cx - slide_cx) > tolerance or abs(cy - slide_cy) > tolerance:
         raise ValueError(f"{slide_part} picture is not full-slide.")
-
-    return resolve_target(f"{posixpath.dirname(slide_part)}/_rels/{posixpath.basename(slide_part)}.rels", rel.attrib["Target"])
+    geometry = picture.find("p:spPr/a:prstGeom", NS)
+    effects = picture.find("p:spPr/a:effectLst", NS)
+    fill = picture.find("p:blipFill", NS)
+    fill_rect = picture.find("p:blipFill/a:stretch/a:fillRect", NS)
+    line = picture.find("p:spPr/a:ln", NS)
+    if (geometry is not None and geometry.get("prst") != "rect"
+            or picture.find("p:spPr/a:custGeom", NS) is not None
+            or effects is not None and len(effects)
+            or line is not None and line.find("a:noFill", NS) is None
+            or any(child.tag != f"{{{NS['a']}}}extLst" for child in blip)
+            or fill is None or fill.find("a:tile", NS) is not None
+            or fill_rect is None or any(float(value) for value in fill_rect.attrib.values())):
+        raise ValueError(f"{slide_part} has unsupported picture styling; render the slide before rebuilding.")
+    source_rect = picture.find("p:blipFill/a:srcRect", NS)
+    crop = [float(source_rect.get(key, "0")) / 100000 if source_rect is not None else 0.0
+            for key in ("l", "t", "r", "b")]
+    if (not all(math.isfinite(value) and 0 <= value < 1 for value in crop)
+            or crop[0] + crop[2] >= 1 or crop[1] + crop[3] >= 1):
+        raise ValueError(f"{slide_part} has unsupported picture cropping; render the slide before rebuilding.")
+    target = resolve_target(f"{posixpath.dirname(slide_part)}/_rels/{posixpath.basename(slide_part)}.rels", rel.attrib["Target"])
+    return target, crop
 
 
 def extract_image_based_pptx_pages(pptx_path, pages_dir):
@@ -202,14 +267,26 @@ def extract_image_based_pptx_pages(pptx_path, pages_dir):
         names = set(z.namelist())
         slide_cx, slide_cy = slide_size_from_pptx(z)
         for index, slide_part in enumerate(slide_parts_from_pptx(z), start=1):
-            image_part = full_slide_picture_target(z, slide_part, slide_cx, slide_cy)
+            image_part, crop = full_slide_picture_target(z, slide_part, slide_cx, slide_cy)
             if image_part not in names:
                 raise ValueError(f"{slide_part} references missing image part: {image_part}")
             page_dir = pages_dir / f"page_{index:03d}"
             page_dir.mkdir(parents=True, exist_ok=True)
             out = page_dir / "source.png"
             with Image.open(io.BytesIO(z.read(image_part))) as image:
-                image.convert("RGB").save(out)
+                image = ImageOps.exif_transpose(image).convert("RGBA")
+                if image.getchannel("A").getextrema()[0] != 255:
+                    raise ValueError(f"{slide_part} has a transparent picture; render the slide before rebuilding.")
+                image = image.convert("RGB")
+                left, top, right, bottom = crop
+                box = (image.width * left, image.height * top,
+                       image.width * (1 - right), image.height * (1 - bottom))
+                width = max(1, round(box[2] - box[0]))
+                size = (width, max(1, round(width * slide_cy / slide_cx)))
+                if any(crop) or size != image.size:
+                    image = image.transform(size, Image.Transform.EXTENT, box,
+                                            resample=Image.Resampling.BICUBIC)
+                image.save(out)
             outputs.append(out)
     return outputs
 
@@ -294,6 +371,7 @@ def normalize_inputs(inputs, out_root="output/image-to-editable-ppt", job_dir=No
     suffixes = {path.suffix.lower() for path in copied}
     pages = []
     notes = []
+    source_slide = None
     input_type = "images"
 
     if len(copied) == 1 and copied[0].suffix.lower() == ".pdf":
@@ -312,11 +390,17 @@ def normalize_inputs(inputs, out_root="output/image-to-editable-ppt", job_dir=No
                     f"{exc} This skill accepts image-based PPTX files through lightweight extraction. "
                     "Convert native/complex PPTX slides to PDF or page images first."
                 ) from exc
+            with zipfile.ZipFile(copied[0]) as archive:
+                width, height = slide_size_from_pptx(archive)
+            source_slide = {"width": width / 914400, "height": height / 914400, "size_mode": "pptx"}
         else:
             input_type = "ppt"
             with tempfile.TemporaryDirectory() as tmp:
                 tmp_dir = Path(tmp)
                 source_pptx = convert_ppt_to_pptx(copied[0], tmp_dir)
+                with zipfile.ZipFile(source_pptx) as archive:
+                    width, height = slide_size_from_pptx(archive)
+                source_slide = {"width": width / 914400, "height": height / 914400, "size_mode": "pptx"}
                 notes = collect_notes_from_pptx(source_pptx, input_dir / "notes")
                 if source_pptx != copied[0]:
                     shutil.copy2(source_pptx, input_dir / source_pptx.name)
@@ -350,6 +434,8 @@ def normalize_inputs(inputs, out_root="output/image-to-editable-ppt", job_dir=No
         "output": default_output_name(copied),
         "validation": "validation.json",
     }
+    if source_slide is not None:
+        deck_manifest["source_slide"] = source_slide
     deck_manifest_path = job_dir / "deck_manifest.json"
     deck_manifest_path.write_text(json.dumps(deck_manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return deck_manifest_path

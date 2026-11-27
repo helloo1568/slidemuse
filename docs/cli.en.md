@@ -57,3 +57,13 @@ Diagnosis does not test the host agent's document reading, vision or image gener
 ### 2.21.0 content and delivery checks
 
 `validate <page-spec> --content --strict` checks current role-aware content. `generate prepare --page-spec <page-spec> --out-dir <deck>` carries the same approved content to generation; `generate review <deck> --init` creates pending observations, and `generate review <deck>` verifies the completed record before guarded assembly. `rebuild --offline prepare --page-spec <page-spec> --job-dir <run>` carries approved text/data into rebuilding prompts. See [content-density.md](../references/content-density.md).
+
+### Independent generation and result records (2.28.0)
+
+`produce request <page-spec> --slide <id> --route host` creates an independent page packet and selects an approved full-page style anchor when available. After a real call, use `produce compose <page-spec> --slide <id> --source <original> --generation-record <actual-call.json>` to bind its request and original image hashes to the actual tool, model and result locator. `generate result` requires the same record through `--generation-record`; its slide ID and request hash refer to the backend prompt job. An unexposed model is `null`. See [page production](../references/page-production.md).
+
+Declare existing user images with Page Spec `image_origin`, using `kind: "provided"`, the actual source locator and the image SHA-256. Imported images can coexist with generated pages. Generation records do not replace visual review; current material and managed production exports recheck the approved image bytes and bound records.
+
+Record failed calls with `produce failure <page-spec> --slide <id> --route host --failure-kind multi-page --evidence <actual-result-locator>`. Two consecutive same-kind failures on that route block another request. Use an available real alternative or report blocked. Authorized `generate image generate/edit` requests use the configured shared API interpreter when present; `--offline` rejects network calls.
+
+`install.py --json` writes one final JSON object to stdout. Dependency installation and validation logs go to stderr.

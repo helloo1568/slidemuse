@@ -1,4 +1,5 @@
 import copy
+import hashlib
 import json
 from pathlib import Path
 
@@ -216,6 +217,8 @@ def test_new_page_spec_default_empty_rejects_unrequested_notes(tmp_path):
     spec["style"].update(decision="locked-reference", authorization="Keep style")
     for page in spec["slides"]:
         page.pop("speaker_notes")
+        page["image_origin"] = {"kind": "provided", "source_ref": "Existing synthetic image for notes validation",
+                                "sha256": hashlib.sha256((tmp_path / page["image_file"]).read_bytes()).hexdigest()}
     for page in scene["slides"]:
         page.pop("speaker_notes")
         page.pop("notes")

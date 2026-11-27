@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import base64
+import binascii
 from io import BytesIO
 import json
 import os
@@ -236,14 +237,14 @@ def _validate_gpt_image_2_size(size: str) -> None:
     total_pixels = width * height
 
     if max_edge > GPT_IMAGE_2_MAX_EDGE:
-        _die("GPT Image 2 / 2.5 size maximum edge length must be less than or equal to 3840px.")
+        _die("GPT Image size maximum edge length must be less than or equal to 3840px.")
     if width % 16 != 0 or height % 16 != 0:
-        _die("GPT Image 2 / 2.5 size width and height must be multiples of 16px.")
+        _die("GPT Image size width and height must be multiples of 16px.")
     if max_edge / min_edge > GPT_IMAGE_2_MAX_RATIO:
-        _die("GPT Image 2 / 2.5 size long edge to short edge ratio must not exceed 3:1.")
+        _die("GPT Image size long edge to short edge ratio must not exceed 3:1.")
     if total_pixels < GPT_IMAGE_2_MIN_PIXELS or total_pixels > GPT_IMAGE_2_MAX_PIXELS:
         _die(
-            "GPT Image 2 / 2.5 size total pixels must be at least 655,360 and no more than 8,294,400."
+            "GPT Image size total pixels must be at least 655,360 and no more than 8,294,400."
         )
 
 
@@ -262,7 +263,7 @@ def _validate_quality(quality: str, model: str) -> None:
     if quality not in ALLOWED_QUALITIES:
         _die("quality must be one of low, medium, high, xhigh, max, or auto.")
     if quality in {"xhigh", "max"} and not _is_gpt_image_2_5_model(model):
-        _die("xhigh and max quality require gpt-image-2.5-flare or gpt-image-2.5-sunburst.")
+        _die("The selected model supports low, medium, high or auto quality; xhigh/max require an explicitly supported legacy variant.")
 
 
 def _validate_background(background: Optional[str]) -> None:
@@ -279,8 +280,7 @@ def _validate_model(model: str) -> None:
     if GPT_IMAGE_MODEL_PREFIX not in model:
         _die(
             "model must be a GPT Image model name containing 'gpt-image-' "
-            "(for example gpt-image-2.5-flare, gpt-image-2.5-sunburst, gpt-image-2, "
-            "gpt-image-1, or gpt-image-1-mini)."
+            "(for example gpt-image-2.6 or its provider-prefixed name)."
         )
 
 
@@ -317,7 +317,7 @@ def _validate_model_specific_options(
     if background == "transparent":
         _die(
             "transparent backgrounds are not supported in gpt-image-2. "
-            "Use --model gpt-image-2.5-flare --background transparent --output-format png instead."
+            "Use an opaque background or an explicitly approved model with provider-confirmed transparency support."
         )
     if input_fidelity is not None:
         _die(
@@ -435,21 +435,62 @@ def _print_request(payload: dict) -> None:
 
 
 def _decode_and_write(images: List[str], outputs: List[Path], force: bool) -> None:
-    for idx, image_b64 in enumerate(images):
-        if idx >= len(outputs):
-            break
-        out_path = outputs[idx]
-        if out_path.exists() and not force:
-            _die(f"Output already exists: {out_path} (use --force to overwrite)")
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_bytes(base64.b64decode(image_b64))
-        print(f"Wrote {out_path}")
+    _decode_write_and_downscale(images, outputs, force=force, downscale_max_dim=None,
+                                downscale_suffix=DEFAULT_DOWNSCALE_SUFFIX, output_format="png")
 
 
 def _derive_downscale_path(path: Path, suffix: str) -> Path:
     if suffix and not suffix.startswith("-") and not suffix.startswith("_"):
         suffix = "-" + suffix
     return path.with_name(f"{path.stem}{suffix}{path.suffix}")
+
+
+def _preflight_outputs(
+    outputs: List[Path], *, force: bool,
+    downscale_max_dim: Optional[int], downscale_suffix: str,
+) -> None:
+    """Reject known output conflicts before spending an API request."""
+    paths = list(outputs)
+    if downscale_max_dim is not None:
+        paths.extend(_derive_downscale_path(path, downscale_suffix) for path in outputs)
+    resolved = [path.resolve() for path in paths]
+    if len(set(resolved)) != len(resolved):
+        raise ValueError("Output paths overlap; choose distinct original and downscaled filenames")
+    for path in paths:
+        if path.exists() and (not force or not path.is_file()):
+            raise ValueError(f"Output already exists: {path} (use --force to overwrite a file)")
+        for parent in path.parents:
+            if parent.exists():
+                if not parent.is_dir():
+                    raise ValueError(f"Output parent is not a directory: {parent}")
+                break
+
+
+def _decode_images(images: List[str], expected: int) -> List[bytes]:
+    """Validate the whole response before replacing any previous output."""
+    if not isinstance(images, list) or len(images) != expected or not images:
+        actual = len(images) if isinstance(images, list) else "invalid"
+        raise ValueError(f"Image API returned {actual} images; expected {expected}")
+    from PIL import Image
+    decoded = []
+    for index, encoded in enumerate(images, 1):
+        if not isinstance(encoded, str) or not encoded.strip():
+            raise ValueError(f"Image API returned no base64 image data for result {index}")
+        try:
+            raw = base64.b64decode(encoded, validate=True)
+        except (ValueError, binascii.Error) as error:
+            raise ValueError(f"Image API returned invalid base64 for result {index}") from error
+        try:
+            with Image.open(BytesIO(raw)) as image:
+                image.verify()
+            # verify() alone does not decode JPEG pixels and can accept a
+            # truncated stream. Reopen after verification and decode fully.
+            with Image.open(BytesIO(raw)) as image:
+                image.load()
+        except (ValueError, OSError, SyntaxError) as error:
+            raise ValueError(f"Image API returned invalid image data for result {index}") from error
+        decoded.append(raw)
+    return decoded
 
 
 def _downscale_image_bytes(image_bytes: bytes, *, max_dim: int, output_format: str) -> bytes:
@@ -495,28 +536,19 @@ def _decode_write_and_downscale(
     downscale_suffix: str,
     output_format: str,
 ) -> None:
-    for idx, image_b64 in enumerate(images):
-        if idx >= len(outputs):
-            break
-        out_path = outputs[idx]
-        if out_path.exists() and not force:
-            _die(f"Output already exists: {out_path} (use --force to overwrite)")
-        out_path.parent.mkdir(parents=True, exist_ok=True)
-
-        raw = base64.b64decode(image_b64)
-        out_path.write_bytes(raw)
-        print(f"Wrote {out_path}")
-
-        if downscale_max_dim is None:
-            continue
-
-        derived = _derive_downscale_path(out_path, downscale_suffix)
-        if derived.exists() and not force:
-            _die(f"Output already exists: {derived} (use --force to overwrite)")
-        derived.parent.mkdir(parents=True, exist_ok=True)
-        resized = _downscale_image_bytes(raw, max_dim=downscale_max_dim, output_format=output_format)
-        derived.write_bytes(resized)
-        print(f"Wrote {derived}")
+    decoded = _decode_images(images, len(outputs))
+    pending = list(zip(outputs, decoded))
+    if downscale_max_dim is not None:
+        pending.extend((_derive_downscale_path(path, downscale_suffix),
+                        _downscale_image_bytes(raw, max_dim=downscale_max_dim, output_format=output_format))
+                       for path, raw in zip(outputs, decoded))
+    _preflight_outputs(outputs, force=force, downscale_max_dim=downscale_max_dim,
+                       downscale_suffix=downscale_suffix)
+    for path, raw in pending:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("wb" if force else "xb") as stream:
+            stream.write(raw)
+        print(f"Wrote {path}")
 
 
 def _slugify(value: str) -> str:
@@ -622,84 +654,44 @@ async def _run_generate_batch(args: argparse.Namespace) -> int:
         "moderation": args.moderation,
     }
 
+    prepared = []
+    for i, job in enumerate(jobs, start=1):
+        prompt = str(job["prompt"]).strip()
+        fields = _merge_non_null(base_fields, job.get("fields", {}))
+        fields = _merge_non_null(fields, {k: job.get(k) for k in base_fields.keys()})
+        payload = dict(base_payload)
+        payload["prompt"] = _augment_prompt_fields(args.augment, prompt, fields)
+        payload = _merge_non_null(payload, {k: job.get(k) for k in base_payload.keys()})
+        payload = {k: v for k, v in payload.items() if v is not None}
+        _validate_generate_payload(payload)
+        output_format = _normalize_output_format(payload.get("output_format"))
+        _validate_transparency(payload.get("background"), output_format)
+        payload["output_format"] = output_format
+        outputs = _job_output_paths(out_dir=out_dir, output_format=output_format, idx=i,
+                                    prompt=prompt, n=int(payload.get("n", 1)), explicit_out=job.get("out"))
+        prepared.append((i, payload, outputs))
+
     if args.dry_run:
-        for i, job in enumerate(jobs, start=1):
-            prompt = str(job["prompt"]).strip()
-            fields = _merge_non_null(base_fields, job.get("fields", {}))
-            # Allow flat job keys as well (use_case, scene, etc.)
-            fields = _merge_non_null(fields, {k: job.get(k) for k in base_fields.keys()})
-            augmented = _augment_prompt_fields(args.augment, prompt, fields)
-
-            job_payload = dict(base_payload)
-            job_payload["prompt"] = augmented
-            job_payload = _merge_non_null(job_payload, {k: job.get(k) for k in base_payload.keys()})
-            job_payload = {k: v for k, v in job_payload.items() if v is not None}
-
-            _validate_generate_payload(job_payload)
-            effective_output_format = _normalize_output_format(job_payload.get("output_format"))
-            _validate_transparency(job_payload.get("background"), effective_output_format)
-            job_payload["output_format"] = effective_output_format
-
-            n = int(job_payload.get("n", 1))
-            outputs = _job_output_paths(
-                out_dir=out_dir,
-                output_format=effective_output_format,
-                idx=i,
-                prompt=prompt,
-                n=n,
-                explicit_out=job.get("out"),
-            )
+        for i, payload, outputs in prepared:
             downscaled = None
             if args.downscale_max_dim is not None:
-                downscaled = [
-                    str(_derive_downscale_path(p, args.downscale_suffix)) for p in outputs
-                ]
-            _print_request(
-                {
-                    "endpoint": _preview_endpoint("generate"),
-                    "job": i,
-                    "outputs": [str(p) for p in outputs],
-                    "outputs_downscaled": downscaled,
-                    **{
-                        **job_payload,
-                        "model": _preview_model(str(job_payload["model"]), "generate"),
-                    },
-                }
-            )
+                downscaled = [str(_derive_downscale_path(p, args.downscale_suffix)) for p in outputs]
+            _print_request({"endpoint": _preview_endpoint("generate"), "job": i,
+                            "outputs": [str(p) for p in outputs], "outputs_downscaled": downscaled,
+                            **payload, "model": _preview_model(str(payload["model"]), "generate")})
         return 0
 
+    _preflight_outputs([path for _, _, paths in prepared for path in paths], force=args.force,
+                       downscale_max_dim=args.downscale_max_dim, downscale_suffix=args.downscale_suffix)
     provider = create_image_provider(api_key=os.getenv("OPENAI_API_KEY"), base_url=_api_base_url())
     sem = asyncio.Semaphore(args.concurrency)
 
     any_failed = False
 
-    async def run_job(i: int, job: Dict[str, Any]) -> Tuple[int, Optional[str]]:
+    async def run_job(i: int, payload: Dict[str, Any], outputs: List[Path]) -> Tuple[int, Optional[str]]:
         nonlocal any_failed
-        prompt = str(job["prompt"]).strip()
         job_label = f"[job {i}/{len(jobs)}]"
-
-        fields = _merge_non_null(base_fields, job.get("fields", {}))
-        fields = _merge_non_null(fields, {k: job.get(k) for k in base_fields.keys()})
-        augmented = _augment_prompt_fields(args.augment, prompt, fields)
-
-        payload = dict(base_payload)
-        payload["prompt"] = augmented
-        payload = _merge_non_null(payload, {k: job.get(k) for k in base_payload.keys()})
-        payload = {k: v for k, v in payload.items() if v is not None}
-
-        n = int(payload.get("n", 1))
-        _validate_generate_payload(payload)
-        effective_output_format = _normalize_output_format(payload.get("output_format"))
-        _validate_transparency(payload.get("background"), effective_output_format)
-        payload["output_format"] = effective_output_format
-        outputs = _job_output_paths(
-            out_dir=out_dir,
-            output_format=effective_output_format,
-            idx=i,
-            prompt=prompt,
-            n=n,
-            explicit_out=job.get("out"),
-        )
+        effective_output_format = payload["output_format"]
         try:
             async with sem:
                 print(f"{job_label} starting", file=sys.stderr)
@@ -727,7 +719,7 @@ async def _run_generate_batch(args: argparse.Namespace) -> int:
                 raise
             return i, str(exc)
 
-    tasks = [asyncio.create_task(run_job(i, job)) for i, job in enumerate(jobs, start=1)]
+    tasks = [asyncio.create_task(run_job(i, payload, outputs)) for i, payload, outputs in prepared]
 
     try:
         await asyncio.gather(*tasks)
@@ -785,6 +777,8 @@ def _generate(args: argparse.Namespace) -> None:
         )
         return
 
+    _preflight_outputs(output_paths, force=args.force, downscale_max_dim=args.downscale_max_dim,
+                       downscale_suffix=args.downscale_suffix)
     print(
         "Calling Image API (generation). This can take up to a couple of minutes.",
         file=sys.stderr,
@@ -860,6 +854,8 @@ def _edit(args: argparse.Namespace) -> None:
         )
         return
 
+    _preflight_outputs(output_paths, force=args.force, downscale_max_dim=args.downscale_max_dim,
+                       downscale_suffix=args.downscale_suffix)
     print(
         f"Calling Image API (edit) with {len(image_paths)} image(s).",
         file=sys.stderr,
@@ -881,7 +877,7 @@ def _edit(args: argparse.Namespace) -> None:
 
 
 def _add_shared_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--model", default=_default_model())
+    parser.add_argument("--model", default=_default_model(), help="Image model (default: %(default)s)")
     parser.add_argument("--prompt")
     parser.add_argument("--prompt-file")
     parser.add_argument("--n", type=int, default=1)
@@ -971,7 +967,10 @@ def main() -> int:
     )
     _ensure_api_key(args.dry_run)
 
-    args.func(args)
+    try:
+        args.func(args)
+    except (ValueError, OSError) as error:
+        _die(str(error))
     return 0
 
 

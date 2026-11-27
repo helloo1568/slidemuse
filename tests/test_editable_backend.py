@@ -131,6 +131,17 @@ def test_offline_blocks_live_image_requests_before_reading_sources():
     assert "--dry-run" in result.stderr
 
 
+def test_rebuild_dry_run_defaults_to_recommended_model_and_size(monkeypatch):
+    monkeypatch.delenv("IMAGE_TO_EDITABLE_PPT_IMAGE_MODEL", raising=False)
+    monkeypatch.delenv("CODEX_PPT_IMAGE_MODEL", raising=False)
+    result = invoke("--offline", "image", "generate", "--prompt", "Synthetic dry run",
+                    "--size", "2560x1440", "--dry-run")
+    assert result.returncode == 0, result.stdout + result.stderr
+    request = json.loads(result.stdout)
+    assert request["model"] == "gpt-image-2.6"
+    assert request["size"] == "2560x1440"
+
+
 def test_extra_dependency_failure_preserves_existing_install(tmp_path, monkeypatch):
     target = tmp_path / "slidemuse"
     target.mkdir()

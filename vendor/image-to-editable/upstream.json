@@ -57,20 +57,52 @@
   },
   "patches": {
     "skills/image-to-editable-ppt/cli/editppt/runtime/build_pptx_from_manifest.py": {
-      "sha256": "0f856ace8ce5180152e33fed26d245f90dba680c46c9a3652a2454d23ae3c0d2",
-      "reason": "Discover Windows and Linux fonts for diagnostic previews and text geometry."
+      "sha256": "db08e989e20dce678dd64555d95d9ec1f5168cf372f0ccf03672b7c4fb4f5d0e",
+      "reason": "Keep cross-platform diagnostic font discovery; preserve empty lines and soft breaks in approved speaker notes and check the independent Page Spec note contract before replacing a deck."
     },
     "tests/test_slide_layout.py": {
       "sha256": "98cd27d7bf0a1cadc11affc4c199ccb56d68cd40d57506d0c7ede4ec9b84edc4",
       "reason": "Use a Windows scalable font in the same upstream preview assertions and accept the standard fonts-liberation path installed on Linux CI runners."
     },
     "skills/image-to-editable-ppt/cli/editppt/runtime/_input_normalization.py": {
-      "sha256": "54dad3a79278edacc906e1ce5985ddd3051f76819ecc950b05b1d9298a892fd7",
-      "reason": "Use the supplied dpi in legacy PPT normalization rather than an undefined args variable, and import pymupdf directly so the deprecated fitz shim cannot print a warning into captured prepare output."
+      "sha256": "722f3fb8bda4fbb097e79dcbac77ec147bb31079cdb407bb7a9c6d81d2da1c87",
+      "reason": "Preserve EXIF orientation, apply supported PPTX image crops and aspect ratio, reject unsupported picture transforms or overlays, retain exact speaker-note text, and verify approved Page Spec note contracts. Retain the legacy PPT dpi fix and direct pymupdf import."
     },
     "skills/image-to-editable-ppt/cli/editppt/runtime/formula_renderer.py": {
       "sha256": "3651679ffe317efb947d762af85f9352fdef734f56c279d7cf2745cfae0f9446",
       "reason": "Render PNG formulas with the already required PyMuPDF, avoiding Windows convert.exe."
+    },
+    "skills/image-to-editable-ppt/cli/editppt/runtime/configure_image_backend.py": {
+      "sha256": "73ccd43d99ab746f69eb7d69edcbc9126e3855bb4da49d69b4b897dc1e500f0c",
+      "reason": "Use the project-recommended gpt-image-2.6 default when recording API reconstruction backends."
+    },
+    "skills/image-to-editable-ppt/cli/editppt/runtime/image_gen.py": {
+      "sha256": "1cb12f373caf3469e7c72768e0983512a9de31db068eb9a0955c2c2aad8cdc7d",
+      "reason": "Align reconstruction defaults and help with gpt-image-2.6 and the shared GPT Image 2 size envelope while preserving explicit legacy model and quality compatibility."
+    },
+    "skills/image-to-editable-ppt/cli/editppt/runtime/main.py": {
+      "sha256": "af152a6c498075eea76715d105496440fd489e64d062f1cd7fa6dbf2f751b74e",
+      "reason": "Align reconstruction CLI examples with the project-recommended gpt-image-2.6 model."
+    },
+    "skills/image-to-editable-ppt/cli/editppt/runtime/prepare_deck_run.py": {
+      "sha256": "c4dda48dca6faddad61ebc7579325182298095b67696036789fc8902f232238d",
+      "reason": "Keep the original PPTX slide dimensions after lightweight picture extraction instead of guessing a new canvas from media dimensions."
+    },
+    "skills/image-to-editable-ppt/cli/editppt/runtime/runtime_env.py": {
+      "sha256": "56bebfcbc9983a7945af2c0a9cb8855aef3e65103d3b5221647904e79c1180f4",
+      "reason": "Use gpt-image-2.6 as the reconstruction default while preserving explicit user model configuration."
+    },
+    "skills/image-to-editable-ppt/cli/editppt/runtime/validate_pptx.py": {
+      "sha256": "f4bb03b6cbf1b1337207a87044a9f908e9afef097033ac29daab8572d3032c4b",
+      "reason": "Validate exact note-body text and the independent approved Page Spec note contract; missing, altered, or unreadable evidence must not pass final deck validation."
+    },
+    "skills/image-to-editable-ppt/references/cli-helper.md": {
+      "sha256": "5871a1c400320919c907af097549681b072f0706b244da8994fe902dce58df7c",
+      "reason": "Document the gpt-image-2.6 reconstruction default and explicitly retained legacy quality compatibility."
+    },
+    "tests/test_image_models.py": {
+      "sha256": "7d5d7f7d9c7e412b5d40aa9d39912445e6173ef03c00159840623c58fe925032",
+      "reason": "Verify the recommended gpt-image-2.6 default, provider-prefixed and dated size validation, while retaining legacy-model compatibility regressions."
     }
   }
 }

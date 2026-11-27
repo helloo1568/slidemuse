@@ -110,6 +110,27 @@ def page_prompt(argv, root=ROOT):
     return 0
 
 
+def save_content_contract(job_dir: Path, semantic: dict) -> None:
+    """Carry approved notes into the backend's actual assembly input and verifier."""
+    from speaker_notes import canonical_notes
+
+    snapshot = job_dir / "slidemuse-page-content.json"
+    snapshot.write_text(json.dumps(semantic, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    notes = [{"page_index": index, "source_slide_id": slide["id"],
+              "text": canonical_notes(slide.get("speaker_notes", ""))}
+             for index, slide in enumerate(semantic["slides"], 1)]
+    for entry in notes:
+        entry["text_sha256"] = hashlib.sha256(entry["text"].encode("utf-8")).hexdigest()
+    (job_dir / "notes_manifest.json").write_text(
+        json.dumps({"source": snapshot.name, "notes": notes}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8")
+    deck_path = job_dir / "deck_manifest.json"
+    deck = json.loads(deck_path.read_text(encoding="utf-8"))
+    deck["slidemuse_content"] = snapshot.name
+    deck["slidemuse_content_sha256"] = hashlib.sha256(snapshot.read_bytes()).hexdigest()
+    deck_path.write_text(json.dumps(deck, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 def main(argv=None):
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
@@ -139,7 +160,7 @@ def main(argv=None):
         semantic, _ = load_page_spec(source, require_images=True, strict=True, content=True)
         argv = ["prepare", *extra, "--job-dir", str(args.job_dir),
                 *[str((source.parent / s["image_file"]).resolve()) for s in semantic["slides"]]]
-        job_dir = args.job_dir
+        job_dir = args.job_dir.resolve()
     entry = ROOT / VENDOR / SKILL / "cli/editppt/cli.py"
     if not entry.is_file():
         print("SlideMuse: packaged editable backend is missing; reinstall the skill.", file=sys.stderr)
@@ -163,10 +184,7 @@ def main(argv=None):
         try:
             result = subprocess.run([sys.executable, str(entry), *argv], env=env, check=False).returncode
             if result == 0 and semantic is not None:
-                # Separate immutable content snapshot; image coordinates and manifest
-                # assets keep the upstream format and are not invented here.
-                (job_dir / "slidemuse-page-content.json").write_text(
-                    json.dumps(semantic, ensure_ascii=False, indent=2), encoding="utf-8")
+                save_content_contract(job_dir, semantic)
             return result
         except KeyboardInterrupt:
             return 130

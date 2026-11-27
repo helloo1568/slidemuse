@@ -88,6 +88,7 @@ def from_page_spec(path):
         if any("preserve_asset" in e for e in slide["elements"]):
             raise ValueError("Protected evidence requires the Page Spec production pipeline: use slidemuse.py produce prepare; do not regenerate its pixels through generate")
     result = {"deck_name": spec["title"], "language": "Chinese", "goal": spec["title"],
+            "canvas": dict(spec["canvas"]),
             "selected_image_backend": "built-in image tool", "style": spec["style"],
             "content_version": spec["content_version"], "content_authorization": spec["content_authorization"],
             "slides": [{**s, "number": s["page_number"], "local_context": {"page_spec_sha256": sha(path)}}
@@ -123,7 +124,8 @@ def save_contract(deck, spec):
         jobs["slidemuse_content_policy"] = "1.0"
         write(jobs_path, jobs)
         write(deck / CONTRACT, {"version": "1.0", "pages": pages,
-                               **({"speaker_notes_policy": "explicit-only"} if spec.get("content_policy") == "1.1" else {}),
+                               "speaker_notes_policy": "explicit-only",
+                               "generation_evidence_policy": "1.0",
                                "scope": "Declared content; evidence accuracy and readability require actual review."})
 
 
@@ -134,6 +136,13 @@ def checked_images(deck, jobs, ratio=None):
     if [s.get("number") for s in slides] != list(range(1, len(slides) + 1)):
         raise ValueError("Generation pages must be consecutive and ordered")
     images = []
+    validate_generation = None
+    validate_dispatch = None
+    if jobs.get("generation_evidence_policy") == "1.0":
+        helper = (Path(__file__).resolve().parents[1] / "vendor/codex-ppt/skills/codex-ppt/scripts/slide_run_state.py")
+        helpers = runpy.run_path(str(helper))
+        validate_generation = helpers["validate_generation_record"]
+        validate_dispatch = helpers["validate_dispatch_inputs"]
     for slide in slides:
         label = slide["slide_id"]
         if label != f"slide_{slide['number']:02d}":
@@ -143,6 +152,21 @@ def checked_images(deck, jobs, ratio=None):
         path = inside(deck, slide["out"])
         if not path.is_file() or (slide.get("result") or {}).get("final_image_sha256") != sha(path):
             raise ValueError(f"{label}: missing image or recorded image hash changed")
+        if validate_generation:
+            result = slide.get("result") or {}
+            image_hash = sha(path)
+            if result.get("selected_source_sha256") != image_hash:
+                raise ValueError(f"{label}: final image differs from its recorded original")
+            if result.get("source_kind") == "generated":
+                request_hash = validate_dispatch(deck, slide)
+                validate_generation(result.get("generation_record"), slide_id=label,
+                                    request_sha256=request_hash, source_sha256=image_hash,
+                                    backend=result.get("backend_used"))
+            elif result.get("source_kind") == "provided" and result.get("accepted_sample") is True:
+                if not isinstance(result.get("source_ref"), str) or not result["source_ref"].strip():
+                    raise ValueError(f"{label}: provided sample requires its actual source reference")
+            else:
+                raise ValueError(f"{label}: missing generation evidence or declared provided sample")
         with Image.open(path) as im:
             im.verify()
         if ratio:
@@ -160,6 +184,9 @@ def checked_images(deck, jobs, ratio=None):
 
 def check_contract(deck, jobs):
     contract = read_json(deck / CONTRACT)
+    if (contract.get("generation_evidence_policy") == "1.0"
+            and jobs.get("generation_evidence_policy") != "1.0"):
+        raise ValueError("Generation evidence policy changed; retain the current source records")
     pages = contract.get("pages", [])
     if [p["id"] for p in pages] != [s["slide_id"] for s in jobs["slides"]]:
         raise ValueError("Content contract page order differs from jobs")

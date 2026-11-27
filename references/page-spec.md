@@ -17,7 +17,7 @@
 1. Step 1 内容确认后，把页序、标题、核心结论、准确文字/数据和来源写入 `deck-spec.md`。
 2. 风格锁定后进入 S5，将已确认内容与 `style` 一起写入 Page Spec，再运行验证器；不得提前写入虚假的风格授权。
 3. Step 2 每完成一页，记录最终 `image_file`、`image_status`、实际提示词和更新后的布局提示。
-4. 交付图片版前使用 `--require-images` 再验证一次，确保所有页面图片存在且状态为 `approved`。
+4. 交付图片版前使用 `--require-images` 再验证一次，确保所有页面图片存在、状态为 `approved`，且新材料的调用记录、审阅和实际图片哈希一致。
 5. Step 3 以 Page Spec 为语义事实源、页面图片为视觉事实源。按[变更与恢复规则](workflow-updates.md)区分已授权修改与未知冲突；仅对未知冲突请求确认，不得静默用 OCR 覆盖已确认内容。
 
 直接还原现有页面时，将 `style.decision` 设为 `locked-reference`，`visual_spec` 写明保持原页，`authorization` 记录用户要求还原原图的指令；低置信度内容按元素标记为 `unresolved`。
@@ -39,6 +39,7 @@
 - `bbox_hint` 是 `[x, y, w, h]` 的整页画布坐标提示；它可以在图片页验收后更新，但不能冒充最终 Scene 坐标。
 - `separate_asset: true` 表示该视觉对象在可编辑版中需要独立移动或替换。
 - `slides[].speaker_notes` 保存已确定的可选讲稿，允许明确空字符串，新材料 1.1 缺失或空字符串均按空备注验收；旧规格缺失仍表示未声明。只有用户要求讲稿或授权保留既有讲稿才填入非空值；`notes` 工作记录不会自动导出。讲稿不参与图片提示/必现文字，但写入图片版 PPTX，重建时沿用到 Scene；见[讲稿保留](speaker-notes.md)。
+- `slides[].image_origin` 仅用于明确导入用户既有图片，包含 `kind: "provided"`、真实输入或授权定位 `source_ref`、图片文件字节的 `sha256`。导入图实际核对后仍需 `image_status: "approved"`；替换字节会使旧哈希失效。新生成页使用 [produce 调用记录](page-production.md)，不能改标导入图来绕过已有生成历史的审阅。
 
 ## 验证
 
@@ -75,9 +76,9 @@ python "<skill-dir>/scripts/validate_page_spec.py" "<work>/page-spec.json" --req
 python "<skill-dir>/scripts/build_image_ppt.py" "<work>/page-spec.json" "<work>/output/image-deck.pptx"
 ```
 
-验证器检查 Schema、有限数值、连续页码、唯一 ID、画布边界和不重复的相对图片路径。`--require-images` 还检查批准状态、文件存在性、PNG/JPEG 可读性和 EXIF 校正后的画幅比例（允许单像素取整误差）。`--strict` 拒绝未解决元素；直接还原任务可先不加 `--strict` 以保留低置信度项，但交付前必须逐项说明。验证器不检查图片中的文字是否正确，也不替代逐页视觉验收。
+验证器检查 Schema、有限数值、连续页码、唯一 ID、画布边界和不重复的相对图片路径。`--require-images` 还检查批准状态、文件存在性、PNG/JPEG 可读性和 EXIF 校正后的画幅比例（允许单像素取整误差）。1.1 或已有制作状态的规格同时验证当前制作批准与图片哈希，直接导入图验证 `image_origin`。`--strict` 拒绝未解决元素；直接还原任务可先不加 `--strict` 以保留低置信度项，但交付前必须逐项说明。验证器不检查图片中的文字是否正确，也不替代逐页视觉验收。
 
-图片构建器以 Page Spec 为输入时会自动执行上述两项严格检查，只导出 `slides` 中声明的图片，并继承列表顺序与 `canvas` 比例。可指定 `--width` 或 `--height` 改变物理尺寸；同时指定两者时必须保持该比例。直接传图片目录仍使用旧版自然排序模式，仅适用于没有 Page Spec 的独立合并任务。
+图片构建器以 Page Spec 为输入时会自动执行上述两项严格检查，只导出 `slides` 中声明的图片，并继承列表顺序与 `canvas` 比例。导出使用已核对字节的临时快照，完成后再次核对原始规格、来源与图片；中途变更会终止并保留已有 PPTX。可指定 `--width` 或 `--height` 改变物理尺寸；同时指定两者时必须保持该比例。直接传图片目录仍使用旧版自然排序模式，仅适用于没有 Page Spec 的独立合并任务。
 
 ## 图片页内容核对
 

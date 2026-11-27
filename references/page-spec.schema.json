@@ -177,6 +177,16 @@
         "image_status": {
           "enum": ["pending", "generated", "revision", "approved"]
         },
+        "image_origin": {
+          "description": "Explicit existing user image import; never a substitute for a new generation call record.",
+          "type": "object", "additionalProperties": false,
+          "required": ["kind", "source_ref", "sha256"],
+          "properties": {
+            "kind": {"const": "provided"},
+            "source_ref": {"type": "string", "pattern": "\\S"},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+          }
+        },
         "generation_prompt": {"type": "string"},
         "elements": {
           "type": "array",

@@ -22,14 +22,14 @@ Basic generation command:
 
 ```bash
 ~/.codex-ppt-skill/.venv/bin/python {skill_root}/scripts/image_gen.py generate \
-  --model gpt-image-2.5-flare \
+  --model gpt-image-2.6 \
   --prompt-file {prompt_file} \
   --size 2560x1440 \
   --quality medium \
   --out {base_dir}/{deck_name}/origin_image/slide_01.png
 ```
 
-The fallback CLI defaults to `gpt-image-2.5-flare`. Select `--model gpt-image-2.5-sunburst` for Sunburst. It also accepts provider-prefixed names and older GPT Image models; verify provider support before using a model.
+The fallback CLI defaults to `gpt-image-2.6`. It also accepts explicitly selected provider-prefixed names and older GPT Image models for compatibility; verify provider support before using a model.
 
 When generating from saved `prompts/slide_XX.json` files, use the job's `prompt` field only when the job does not require input images:
 
@@ -51,7 +51,7 @@ The fallback CLI supports:
 - `generate`: create one or more images from a prompt.
 - `edit`: edit one or more existing images, optionally with a mask.
 
-The fallback CLI defaults to 2K 16:9 landscape output, `2560x1440`, with `medium` quality. GPT Image 2.5 also supports `xhigh` and `max`; older models retain their existing quality limits. For 4K landscape slides, use `--size 3840x2160 --quality high` only when the user asks for 4K, text-heavy slides need sharper output, or the default result is blurry. For portrait assets, use `--size 2160x3840` only if the user requests portrait output. For GPT Image 2.5, output above `2560x1440` pixels is experimental; inspect the actual size and visual quality.
+The fallback CLI defaults to 2K 16:9 landscape output, `2560x1440`, with `medium` quality. The recommended GPT Image 2.6 path uses `low`, `medium`, `high`, or `auto`; it does not infer support for `xhigh` or `max`. Explicitly selected legacy variants retain their own validated option limits. For 4K landscape slides, use `--size 3840x2160 --quality high` only when the user asks for 4K, text-heavy slides need sharper output, or the default result is blurry. For portrait assets, use `--size 2160x3840` only if the user requests portrait output. Always inspect the actual returned dimensions and visual quality; accepted request dimensions do not prove the provider produced native 4K output.
 
 ## Editing Slides
 
@@ -64,14 +64,14 @@ If a slide is mostly correct but has a localized issue, use the selected backend
   --out {new_slide_path}
 ```
 
-Replace the final slide only after validating the edited output.
+Replace the final slide only after validating the edited output. Existing output files, including downscaled copies, are checked before an API call; choose a new filename or explicitly use `--force`. Empty, incomplete, invalid-base64, and invalid-image responses fail without replacing previous outputs.
 
 ## Transparent Backgrounds
 
 Transparent-background requests:
 
-- GPT Image 2.5 Flare and Sunburst support `--background transparent --output-format png` (or `webp`) through compatible APIs. JPEG cannot preserve transparency. The current AtlasCloud adapter does not forward `background` and accepts only PNG/JPEG; do not promise native transparency through that adapter.
-- `gpt-image-2` does not support native transparent backgrounds; GPT Image 1 / 1.5 do. Preserve the selected model unless a switch has been agreed.
+- For the recommended GPT Image 2.6 model, request `--background transparent --output-format png` (or `webp`) only when the selected provider confirms support. JPEG cannot preserve transparency. The current AtlasCloud adapter does not forward `background` and accepts only PNG/JPEG; do not promise native transparency through that adapter.
+- Compatibility checks for explicitly selected older models remain in the CLI. Preserve the selected model unless a switch has been agreed; do not infer their capability limits from the 2.6 recommendation.
 - In built-in mode, use native transparency if the tool supports it; otherwise use a flat chroma-key background and `scripts/remove_chroma_key.py` when appropriate.
 
 ## Assembly And Doctor

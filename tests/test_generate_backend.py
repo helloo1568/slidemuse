@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import subprocess
@@ -38,6 +39,20 @@ def deck_spec(name="示例课件"):
 
 def write_slide_image(path, size=(1600, 900)):
     Image.new("RGB", size, "#F8F5EB").save(path)
+
+
+def write_generation_record(deck, number, source):
+    """Declared synthetic call fixture; never evidence of a real model invocation."""
+    label = f"slide_{int(number):02d}"
+    record = source.with_suffix(".call.json")
+    record.write_text(json.dumps({
+        "version": "1.0", "slide_id": label,
+        "request_sha256": hashlib.sha256((deck / f"prompts/{label}.json").read_bytes()).hexdigest(),
+        "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        "backend": "built-in image tool", "model": None,
+        "result_ref": f"synthetic-test-fixture:{label}",
+    }), encoding="utf-8")
+    return record
 
 
 def run_pipeline(tmp_path, name="示例课件"):
@@ -96,9 +111,14 @@ def test_prepare_writes_per_slide_jobs_and_state(tmp_path):
 
 
 def test_dispatch_result_and_assemble_produce_deck_with_notes(tmp_path):
-    deck = run_pipeline(tmp_path)
-    (deck / "speech.md").write_text("## Slide 1: 封面\n开场说明。\n\n## Slide 2: 证据\n数据来自报告表 2。\n",
-                                   encoding="utf-8")
+    spec = deck_spec()
+    spec["slides"][0]["speaker_notes"] = "开场说明。"
+    spec["slides"][1]["speaker_notes"] = "数据来自报告表 2。"
+    source = tmp_path / "deck_spec.json"
+    source.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    deck = tmp_path / spec["deck_name"]
+    prepared = invoke("--offline", "prepare", "--spec", source, "--out-dir", deck)
+    assert prepared.returncode == 0, prepared.stderr
     for number in (1, 2):
         slide_id = f"slide_{number:02d}"
         generated = tmp_path / f"{slide_id}-generated.png"
@@ -107,6 +127,7 @@ def test_dispatch_result_and_assemble_produce_deck_with_notes(tmp_path):
         assert dispatched.returncode == 0, dispatched.stdout + dispatched.stderr
         recorded = invoke("--offline", "result", deck, "--slide", slide_id, "--agent-id", "main",
                           "--backend-used", "built-in image tool", "--selected-source", generated,
+                          "--generation-record", write_generation_record(deck, number, generated),
                           "--qa-note", "文字与要点齐全")
         assert recorded.returncode == 0, recorded.stdout + recorded.stderr
     jobs = json.loads((deck / "slide_jobs.json").read_text(encoding="utf-8"))
@@ -126,6 +147,24 @@ def test_dispatch_result_and_assemble_produce_deck_with_notes(tmp_path):
     presentation = Presentation(tmp_path / deck.name / f"{deck.name}.pptx")
     assert len(presentation.slides) == 2
     assert "数据来自报告表 2" in presentation.slides[1].notes_slide.notes_text_frame.text
+
+
+def test_dispatch_enforces_limit_and_releases_slot_after_blocker(tmp_path):
+    spec = deck_spec()
+    spec["max_concurrent_slides"] = 1
+    source = tmp_path / "limited.json"
+    source.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    deck = tmp_path / "limited"
+    assert invoke("--offline", "prepare", "--spec", source, "--out-dir", deck).returncode == 0
+    assert invoke("--offline", "dispatch", deck, "--slide", 1, "--agent-id", "first").returncode == 0
+    before = (deck / "slide_jobs.json").read_bytes()
+    rejected = invoke("--offline", "dispatch", deck, "--slide", 2, "--agent-id", "second")
+    assert rejected.returncode != 0
+    assert "No dispatch slots" in rejected.stderr
+    assert (deck / "slide_jobs.json").read_bytes() == before
+    assert invoke("--offline", "blocker", deck, "--slide", 1,
+                  "--reason", "Synthetic unavailable worker").returncode == 0
+    assert invoke("--offline", "dispatch", deck, "--slide", 2, "--agent-id", "second").returncode == 0
 
 
 def test_result_rejects_local_rendering_as_final_image(tmp_path):

@@ -154,6 +154,9 @@ def validate_page_spec(
 def load_page_spec(path: Path, require_images: bool = False, strict: bool = False, content: bool = False):
     spec = read_json(path)
     result = validate_page_spec(spec, path.resolve().parent, require_images, strict, content)
+    if require_images:
+        from page_production import approved_image_hashes
+        approved_image_hashes(path.resolve(), spec)
     return spec, result
 
 

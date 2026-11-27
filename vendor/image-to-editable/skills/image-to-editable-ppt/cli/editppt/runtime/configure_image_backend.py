@@ -64,7 +64,7 @@ def main():
     )
     parser.add_argument("--tool-name")
     parser.add_argument("--tool-call")
-    parser.add_argument("--model", default="gpt-image-2")
+    parser.add_argument("--model", default="gpt-image-2.6")
     parser.add_argument("--fallback-command")
     parser.add_argument("--runtime-home", default="~/.editppt")
     parser.add_argument("--input-context-policy")

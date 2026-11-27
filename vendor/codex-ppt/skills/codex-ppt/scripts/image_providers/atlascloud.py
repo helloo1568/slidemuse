@@ -123,7 +123,7 @@ class AtlasCloudImageProvider(ImageProvider):
 
         body: Dict[str, Any] = {
             "model": atlascloud_model_for_operation(
-                str(payload.get("model", "gpt-image-2")),
+                str(payload.get("model", "gpt-image-2.6")),
                 operation,
             ),
             "prompt": payload["prompt"],

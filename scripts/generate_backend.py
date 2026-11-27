@@ -166,6 +166,15 @@ def fyai_setup(argv, root=ROOT, offline=False):
     return 0
 
 
+def image_runtime_python(env):
+    """Use the same environment that runtime bootstrap and doctor prepare."""
+    home = Path(env.get("CODEX_PPT_HOME", "~/.codex-ppt-skill")).expanduser()
+    python = home / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    # Preserve a POSIX venv symlink path: resolving it would lose pyvenv.cfg.
+    # Without a shared runtime, --with-generate installs remain self-contained.
+    return python.absolute() if python.is_file() else Path(sys.executable)
+
+
 def run_backend(argv, root=ROOT, offline=False):
     name = argv[0] if argv else ""
     if name in ("", "--help", "-h"):
@@ -212,7 +221,8 @@ def run_backend(argv, root=ROOT, offline=False):
         if name == "assemble":
             from generation_delivery import assemble
             return assemble(argv[1:], script)
-        return subprocess.run([sys.executable, str(script), *argv[1:]], env=env, check=False).returncode
+        python = image_runtime_python(env) if name == "image" else Path(sys.executable)
+        return subprocess.run([str(python), str(script), *argv[1:]], env=env, check=False).returncode
     except KeyboardInterrupt:
         return 130
 

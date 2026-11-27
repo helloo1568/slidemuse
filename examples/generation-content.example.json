@@ -1,6 +1,7 @@
 {
   "deck_name": "客流变化解读示例",
   "language": "Chinese",
+  "canvas": {"width": 1600, "height": 900},
   "goal": "用明确标注的合成数据演示比较与结论边界；不代表真实实验。",
   "selected_image_backend": "built-in image tool",
   "style": {"name": "科研答辩风", "visual_direction": "蓝白学术风，优先呈现数据比较和解释；减少装饰，不缩小关键文字。"},

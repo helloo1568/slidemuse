@@ -22,13 +22,18 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def normalized_numbers(value: str) -> str:
+    # NFKC covers fullwidth/small signs, but does not map the mathematical minus.
+    return unicodedata.normalize("NFKC", value).replace("\u2212", "-")
+
+
 def compact(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", value).casefold()
+    normalized = normalized_numbers(value).casefold()
     return "".join(char for char in normalized if char.isalnum() or char in ".%‰+-/")
 
 
 def numbers(value: str) -> list[str]:
-    normalized = unicodedata.normalize("NFKC", value)
+    normalized = normalized_numbers(value)
     return re.findall(r"(?<![A-Za-z0-9])[+-]?\d+(?:,\d{3})*(?:\.\d+)?(?:%|‰)?", normalized)
 
 
