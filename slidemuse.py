@@ -11,6 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 COMMANDS = {
+    "workbuddy": ("scripts/workbuddy_delivery.py", (), "Set up and check WorkBuddy's preview and delivery hooks"),
     "style-overview": ("scripts/build_style_overview.py", (), "Label style cards or compare four in one image"),
     "style-reference": ("scripts/style_reference.py", (), "Bind a single-page visual reference to the selected style"),
     "produce": ("scripts/page_production.py", (), "Compose, resume and review Page Spec image production"),

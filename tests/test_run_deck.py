@@ -9,6 +9,7 @@ import pytest
 import run_deck
 from PIL import Image, ImageDraw
 from pptx import Presentation
+from workbuddy_delivery import hook, publish, review, setup
 
 
 def save(path, value):
@@ -89,6 +90,40 @@ def test_first_run_waits_for_review_and_resume_reuses_hash_bound_artifacts(pipel
     assert resumed["reused_slides"] == ["s01", "s02"]
     assert calls == [[1, 2]]
     assert (work / "scorecard.json").is_file()
+
+
+def test_workbuddy_publishes_only_the_current_reviewed_deck(pipeline_case):
+    job, work, _, _, calls = pipeline_case
+    setup(job.parent, job, work)
+    first = review(job, work)
+    assert first["status"] == "awaiting_review"
+    assert "deck" not in first
+    assert Path(first["review_panel"]).is_file()
+    assert list(work.rglob("*.pptx")) == []
+    assert "当前 PPTX" not in (work / "summary.md").read_text(encoding="utf-8")
+    with pytest.raises(ValueError, match="workbuddy review"):
+        run_deck.run(job, work)
+    final = work / "final" / "slidemuse.pptx"
+    with pytest.raises(ValueError, match="尚未验收通过"):
+        publish(job, work)
+    assert not final.exists()
+    review_fixture(pipeline_case)
+    assert review(job, work)["status"] == "complete"
+    assert calls == [[1, 2]]
+    assert list(work.rglob("*.pptx")) == []
+    result = publish(job, work)
+    assert result["file"] == str(final)
+    assert list(work.rglob("*.pptx")) == [final]
+    event = {"hook_event_name": "PreToolUse", "tool_input": {"files": [str(final)]}}
+    assert hook(event, "pre", job.parent, job, work) == {}
+    original = final.read_bytes()
+    final.write_bytes(b"different deck")
+    assert hook(event, "pre", job.parent, job, work)["hookSpecificOutput"]["permissionDecision"] == "deny"
+    final.write_bytes(original)
+    scene = job.parent / "scene.json"
+    scene.write_bytes(scene.read_bytes() + b"\n")
+    with pytest.raises(ValueError, match="不匹配"):
+        hook(event, "pre", job.parent, job, work)
 
 
 def read_status(work):

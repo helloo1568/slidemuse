@@ -10,7 +10,7 @@ import os
 import shutil
 import tempfile
 import time
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
 from audit_chart_geometry import charts as geometry_charts
@@ -27,6 +27,7 @@ from deck_diagnostics import (
     preflight,
     print_result,
 )
+from deck_draft import MANAGED, office_draft
 from evaluate_delivery import evaluate, review_template, verified_visual_review
 from json_io import read_json
 from pptx import Presentation
@@ -183,7 +184,7 @@ def save_state(work, state):
 
 
 @contextmanager
-def locked_workspace(config_path, work):
+def locked_workspace(config_path, work, *, managed=False, initialize=False):
     owner = work / "owner.json"
     if work.exists() and any(work.iterdir()) and not owner.is_file():
         raise ValueError("Use a new or previously owned pipeline workspace")
@@ -206,10 +207,18 @@ def locked_workspace(config_path, work):
                     raise ValueError("Workspace belongs to a different job")
             else:
                 write(owner, {"version": "1.0", "config": str(config_path)})
-            if (work / ".review-import.json").exists():
-                from review_panel import recover_import
-                recover_import(config_path, work)
-            yield
+            marker = work / MANAGED
+            if initialize and managed and not marker.is_file():
+                if (work / "state.json").exists():
+                    raise ValueError("Use a new review workspace to enable managed WorkBuddy delivery")
+                write(marker, {"version": "1.0"})
+            if marker.is_file() != managed:
+                raise ValueError("Use the configured workbuddy review or publish command for this workspace")
+            with office_draft(work) if managed else nullcontext():
+                if (work / ".review-import.json").exists():
+                    from review_panel import recover_import
+                    recover_import(config_path, work)
+                yield
         finally:
             lock.seek(0)
             if os.name == "nt":
@@ -328,7 +337,7 @@ def summary(work, result):
     lines = ["# SlideMuse 交付待办", "", "当前状态：" + result["status_label"], "", "| 阶段 | 结果 | 用时（秒） |", "|---|---|---:|"]
     lines += [f"| {labels.get(name, name)} | {values.get(value, value)} | {result.get('timings_seconds', {}).get(name, '')} |" for name, value in result.get("stages", {}).items()]
     for key, label in (("deck", "当前 PPTX"), ("review_sheet", "画面核对总览"), ("review_panel", "本地逐页审阅面板")):
-        if result.get(key):
+        if result.get(key) and (key != "deck" or not (work / MANAGED).is_file()):
             lines += ["", f"{label}：[{Path(result[key]).name}](<{result[key]}>)"]
     lines += ["", "## 接下来处理", ""]
     if result.get("panel_note"):
@@ -352,11 +361,11 @@ def summary(work, result):
     return result
 
 
-def run(config_path, work, stop_after=None, refresh_render=False):
+def run(config_path, work, stop_after=None, refresh_render=False, *, managed=False):
     began = time.perf_counter()
     config_path, work = config_path.resolve(), work.resolve()
     inputs = load_inputs(config_path, work)
-    with locked_workspace(config_path, work), rendering_options(
+    with locked_workspace(config_path, work, managed=managed), rendering_options(
             timeout=inputs["config"].get("render_timeout", 120), retries=inputs["config"].get("render_retries", 1),
             measure_text=inputs["config"].get("measure_text", False)):
         state = cached_state(work)

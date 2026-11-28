@@ -21,6 +21,7 @@ The launcher prefers `.venv/Scripts/python.exe` on Windows or `.venv/bin/python`
 | `run task/job.json task-output` | `scripts/run_deck.py` | Build, render, evaluate or resume |
 | `render deck.pptx previews` | `scripts/render_deck.py` | Render an actual PPTX |
 | `style-overview --compare 01.png 02.png 03.png 04.png comparison.png --html` | `scripts/build_style_overview.py` | Combine four numbered style cards with an offline HTML preview |
+| `workbuddy setup project` / `workbuddy review project` / `workbuddy publish project` | `scripts/workbuddy_delivery.py` | Configure project checks, prepare rendered reviews, and publish the approved PPTX |
 | `validate page-spec.json --strict` | `scripts/validate_page_spec.py` | Validate specifications |
 | `style-reference page-spec.json --box x y w h --output styles/reference.png` | `scripts/style_reference.py` | Register a style reference bound to the selected source |
 | `produce prepare page-spec.json` | `scripts/page_production.py` | [Resume image production](../references/page-production.md): original snapshots, protected evidence composition, bound reviews and region updates |

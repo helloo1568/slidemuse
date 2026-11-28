@@ -21,6 +21,7 @@ python slidemuse.py doctor
 | `run task/job.json task-output` | `scripts/run_deck.py` | 编译、渲染、评分或接续任务 |
 | `render deck.pptx previews` | `scripts/render_deck.py` | 生成真实渲染预览 |
 | `style-overview --compare 01.png 02.png 03.png 04.png comparison.png --html` | `scripts/build_style_overview.py` | 按原编号合成四张标注图，附离线 HTML 预览 |
+| `workbuddy setup project` / `workbuddy review project` / `workbuddy publish project` | `scripts/workbuddy_delivery.py` | 配置项目检查、生成审阅画面并发布已验收的 PPTX |
 | `validate page-spec.json --strict` | `scripts/validate_page_spec.py` | 验证规格 |
 | `style-reference page-spec.json --box x y w h --output styles/reference.png` | `scripts/style_reference.py` | 从所选图登记风格参考与来源绑定 |
 | `produce prepare page-spec.json` | `scripts/page_production.py` | [图片制作与恢复](../references/page-production.md)：宿主原图归档、精确证据合成、逐页审阅和坐标修改 |

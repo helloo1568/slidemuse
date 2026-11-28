@@ -3,7 +3,7 @@ name: slidemuse
 description: 将书籍、PDF、论文、报告或文字制作成视觉统一的图片版 PPT，适用于挑战杯、创新大赛、计算机设计、软件杯、服创、信息安全、集成电路、嵌入式、机械创新、化工设计、结构设计、智能车外赛项、研创赛等学科竞赛答辩，MPA/MPAcc 等案例陈述，教创赛与师范生说课，以及路演、答辩、课程展示和读书分享；按需还原可编辑 PPTX，也支持直接还原已有图片、PDF 或图片版 PPTX。不用于普通修改已有可编辑 PPTX。
 ---
 
-# SlideMuse · 2.30.0
+# SlideMuse · 2.31.0
 
 新材料按 **内容提炼 → 图片 PPT → 按需可编辑还原** 制作。已有页面要求还原时直接进入重建。内容与视觉应准确、清楚、统一；检查服务于这几个结果。
 
@@ -41,6 +41,8 @@ description: 将书籍、PDF、论文、报告或文字制作成视觉统一的�
 - 状态码、哈希、日志与检查文件由 Agent 管理，不要求用户理解或填写。进度只说明当前成果、需要选择的内容和实际阻塞项。
 
 任务文件放到独立工作目录。用 `deck-spec.md` 保存内容稿、采用的需求、用户授权和当前进度；[规格模板](references/deck-spec-template.md)可按任务规模选用，保留实际信息，不机械填满无关栏目。恢复旧任务或修改已有交付时再读[变更与恢复](references/workflow-updates.md)。
+
+WorkBuddy 中，使用 Page Spec / Scene 流水线时，按[项目交付检查](docs/clients.md#workbuddy-项目交付检查)配置工具钩子并从同一个目录开启任务。检查已加载后再展示风格和正式交付。直接进入完整重建后端的 Manifest 任务沿用其自有的逐页验收。
 
 ## 1. 内容方案
 
@@ -91,13 +93,15 @@ python "<skill-dir>/slidemuse.py" render "<work>/output/image-deck.pptx" "<work>
 
 文字、简单形状、表格和有可靠数据的图表用原生对象；照片、人物及复杂插画用可独立移动的图片。从背景移除原生化文字和已拆主体，避免重影。整页截图不能充当可编辑底图。合并单元格和不等行高见[表格适配](references/upstream-editable.md)。
 
+配置项目钩子的 WorkBuddy 任务统一走 `workbuddy review`。样页也用单独的审阅任务进行实渲染；用画面总览或审阅面板核对。`workbuddy publish` 通过当前验收后才写正式 PPTX。以下独立命令供其他客户端或本地调试使用。
+
 ```sh
 python "<skill-dir>/scripts/build_editable_ppt.py" "<work>/scene.json" "<work>/output/editable.pptx" --page-spec "<work>/page-spec.json"
 python "<skill-dir>/slidemuse.py" audit "<work>/output/editable.pptx" --scene "<work>/scene.json" --output "<work>/output/editability.json"
 python "<skill-dir>/slidemuse.py" render "<work>/output/editable.pptx" "<work>/output/editable-review" --page-spec "<work>/page-spec.json"
 ```
 
-逐页查看 `review.png` 的基准图和实际渲染，抽查用户需要的编辑操作。数据修改时同步相关占比、差额、结论和讲稿，[数据依赖](references/data-bindings.md)可辅助；依赖未声明时仍需实际核对。局部修改复用有效页面，保留原版与失败记录。讲稿需求见[演讲备注](references/speaker-notes.md)。
+逐页查看 `review.png` 的基准图和实际渲染，抽查用户需要的编辑操作。WorkBuddy 在专用入口中完成逐页验收，见[客户端交付检查](docs/clients.md#workbuddy-项目交付检查)。数据修改时同步相关占比、差额、结论和讲稿，[数据依赖](references/data-bindings.md)可辅助；依赖未声明时仍需实际核对。局部修改复用有效页面，保留原版与失败记录。讲稿需求见[演讲备注](references/speaker-notes.md)。
 
 ## 检查与交付
 

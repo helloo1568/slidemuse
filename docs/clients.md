@@ -51,3 +51,18 @@ Trae / Qoder 国内版与国际版的目录区分也可参照 [Skills CLI 的客
 2.30.0 修复了选定总览后正式请求只保留文字风格、未附视觉参考的断点。更新后沿用已确认内容和选中的那一套图，用 `style-reference` 登记完整单页参考，再通过 `produce request` 或 `generate prepare --page-spec` 生成。真实图像调用必须附参考图，不能只发送路径或 JSON 文字；逐页检查 `style_consistency`。参考裁切仅用于风格输入，不能当最终页交付。
 
 排查现有产物时比较三份材料：所选风格图、同一页组装前的 PNG/JPEG、最终 PPTX。如果单页原图已偏离，应修生成；原图正确而可编辑版不同，应修 Scene/Manifest 并真实渲染对照。标准 Page Spec 图片导出直接嵌入指定原图，不重新设计；不要把含预览和旧稿的混合目录交给旧目录合并入口。既有材料与选择均保留，不必重新做四套选型。
+
+## WorkBuddy 项目交付检查
+
+在独立的 SlideMuse 项目中配置一次，再把同一目录选为 WorkBuddy 任务目录：
+
+```sh
+python slidemuse.py workbuddy setup <project>
+```
+
+命令在项目内配置 `.workbuddy/settings.local.json` 和专用审阅目录。WorkBuddy 若弹出打开方式，由用户为该项目选择「正常打开」以加载本地钩子。默认读取项目根目录的 `job.json`，使用 `.slidemuse-review`。自定义时，为 `setup`、`review` 和 `publish` 使用相同的 `--job` 和 `--work`。
+
+- 样图阶段把 `styles/compare-4-styles.html` 和同名 PNG 一起交给 `present_files`。即使面板未打开，PNG 已可点开，钩子会说明备用入口。只发送 PNG 时直接进入备用状态。
+- Page Spec / Scene 任务用 `slidemuse.py workbuddy review <project>` 实渲染并准备逐页复核。若用审阅面板导出的记录，先运行 `workbuddy review <project> --import-record <record.json>`，再运行 `workbuddy review <project>` 重新评分。审阅命令结束后只保留内部草稿数据和审阅画面，没有独立草稿 PPTX。`slidemuse.py workbuddy publish <project>` 在当前验收通过后原子写入 `final/slidemuse.pptx`，仅把这个命令返回的文件交给 `present_files`。
+
+检查作用于启用项目钩子的 WorkBuddy `present_files`。WorkBuddy 5.11.3 会提前索引已存在的文件，项目入口通过推迟生成独立 PPTX 来避免待审稿出现附件卡片。既有外部 `.pptx` 应留在原处，用作输入或本地对照。完整重建后端的 Manifest 流程继续使用其自有的逐页验收。
