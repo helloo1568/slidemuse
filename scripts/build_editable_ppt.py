@@ -20,7 +20,7 @@ from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.xmlchemy import OxmlElement
 from pptx.util import Inches, Pt
-from scene import asset_path, load_scene
+from scene import asset_path, check_scene_canvas, load_scene
 from speaker_notes import check_notes, check_scene_notes, scene_notes
 from table_layout import grid_lengths, merge_owners
 from text_layout import inspect_deck, risk_warning
@@ -292,6 +292,7 @@ def build_deck(scene_path: Path, output: Path, page_spec_path: Path | None = Non
     if page_spec_path:
         from validate_page_spec import load_page_spec
         spec, _ = load_page_spec(page_spec_path)
+        check_scene_canvas(spec, scene)
         if errors := check_scene_notes(spec, scene):
             raise ValueError("; ".join(errors))
     canvas = scene["canvas"]

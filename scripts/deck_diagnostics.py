@@ -8,7 +8,7 @@ from pathlib import Path
 from json_io import read_json
 from PIL import Image
 from runtime_environment import renderer_environment
-from scene import load_scene
+from scene import check_scene_canvas, load_scene
 from speaker_notes import check_scene_notes
 from validate_page_spec import _relative_path, load_page_spec
 
@@ -105,6 +105,8 @@ def preflight(config_path, work, *, check_renderer=True):
         if scene_path:
             try:
                 scene, _ = load_scene(scene_path)
+                if spec:
+                    check_scene_canvas(spec, scene)
                 if spec and (errors := check_scene_notes(spec, scene)):
                     raise ValueError("; ".join(errors))
                 result["checks"].append("重建规格、素材、页序与已声明讲稿通过")

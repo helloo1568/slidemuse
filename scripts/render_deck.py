@@ -200,41 +200,62 @@ def main() -> None:
     if args.slides and (len(set(args.slides)) != len(args.slides) or any(not 1 <= n <= count for n in args.slides)):
         parser.error("selected slide numbers must be unique and inside the deck")
     numbers = sorted(args.slides) if args.slides else list(range(1, count + 1))
-    references = reference_files(args.page_spec.resolve(), count) if args.page_spec else None
+    spec = args.page_spec.resolve() if args.page_spec else None
+    references = reference_files(spec, count) if spec else None
     height = round(args.width * presentation.slide_height / presentation.slide_width)
-    if output.exists() and (not output.is_dir() or any(output.iterdir())) and not args.overwrite:
+    if output.exists() and not output.is_dir():
+        parser.error("output must be a directory")
+    if output.exists() and any(output.iterdir()) and not args.overwrite:
         parser.error("output directory is not empty; pass --overwrite to replace its review files")
+    old_pages = [path for path in output.iterdir()
+                 if re.fullmatch(r"[0-9]{3,}\.(?:png|layout\.json)", path.name)] if output.exists() else []
+    outputs = [*old_pages, output / "review.png", output / "render-report.json",
+               *(output / f"{n:03d}.{suffix}" for n in numbers for suffix in ("png", "layout.json"))]
+    inputs = {deck, spec, *(references or [])}
+    if any(path.resolve() in inputs for path in outputs):
+        parser.error("render outputs must not overwrite the deck, Page Spec or reference images")
+    if any(path.is_dir() for path in outputs):
+        parser.error("a render output path is occupied by a directory")
     output.mkdir(parents=True, exist_ok=True)
-    # Measurements belong to the render that created them. A successful render
-    # without COM measurements must not inherit an older deck's bounds.
-    for pattern in ("[0-9][0-9][0-9].png", "[0-9][0-9][0-9].layout.json"):
-        for path in output.glob(pattern):
-            path.unlink()
+    with tempfile.TemporaryDirectory(prefix=".render-", dir=output) as temporary:
+        render_cli(args, presentation, deck, spec, references, numbers, height, count,
+                   Path(temporary), output, old_pages)
+
+
+def render_cli(args, presentation, deck, spec, references, numbers, height, count, staging, output, old_pages):
     backends = [args.backend] if args.backend != "auto" else (["powerpoint", "libreoffice"] if os.name == "nt" else ["libreoffice"])
     errors = []
     with rendering_options(timeout=args.timeout, retries=args.retries, measure_text=args.measure_text):
         if args.slides:
-            with tempfile.TemporaryDirectory(prefix=".render-", dir=output) as staging:
-                backend = render_selected(deck, Path(staging), args.width, args.backend, numbers)
-                for path in Path(staging).iterdir():
-                    path.replace(output / path.name)
+            backend = render_selected(deck, staging, args.width, args.backend, numbers)
         else:
-            backend = _render_cli(backends, deck, output, args, height, count, errors)
-    images = [output / f"{index:03d}.png" for index in numbers]
+            backend = _render_cli(backends, deck, staging, args, height, count, errors)
+    images = [staging / f"{index:03d}.png" for index in numbers]
     if any(not path.is_file() for path in images):
         raise SystemExit("Renderer output is incomplete")
-    slides = build_review(images, output, references, numbers)
+    slides = build_review(images, staging, references, numbers)
+    for slide, image in zip(slides, images):
+        slide["rendered"] = str(output / image.name)
     from measured_layout import findings
     from render_environment import fingerprint, font_preflight
     fonts = font_preflight(presentation, backend)
     report = {"deck": str(deck), "deck_sha256": sha256(deck), "backend": backend,
               "environment": fingerprint(), "font_preflight": fonts,
-              "measured_layout": [item for n in range(1, count + 1) if (output / f"{n:03d}.layout.json").is_file()
-                                  for item in findings(read_json(output / f"{n:03d}.layout.json"), f"s{n:02d}")],
-              "page_spec_sha256": sha256(args.page_spec.resolve()) if args.page_spec else None,
+              "measured_layout": [item for n in numbers if (staging / f"{n:03d}.layout.json").is_file()
+                                  for item in findings(read_json(staging / f"{n:03d}.layout.json"), f"s{n:02d}")],
+              "page_spec_sha256": sha256(spec) if spec else None,
               "slides": slides, "deck_slide_count": count, "review_sheet": str(output / "review.png"),
               "note": "Pixel differences are diagnostic only; inspect typography, clipping, content and composition manually."}
-    (output / "render-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    report_file = staging / "render-report.json"
+    report_file.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    names = {"review.png", *(image.name for image in images),
+             *(f"{n:03d}.layout.json" for n in numbers if (staging / f"{n:03d}.layout.json").is_file())}
+    for name in sorted(names):
+        (staging / name).replace(output / name)
+    for path in old_pages:
+        if path.name not in names:
+            path.unlink(missing_ok=True)
+    report_file.replace(output / report_file.name)
     print(json.dumps({"backend": backend, "slides": len(slides), "review": str(output / "review.png"), "font_preflight": fonts}, ensure_ascii=False))
 
 

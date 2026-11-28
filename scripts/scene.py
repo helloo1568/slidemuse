@@ -13,6 +13,12 @@ from table_layout import merge_owners
 SCHEMA = Path(__file__).resolve().parents[1] / "references" / "scene.schema.json"
 
 
+def check_scene_canvas(spec: dict, scene: dict) -> None:
+    source, target = spec["canvas"], scene["canvas"]
+    if not math.isclose(source["width"] / source["height"], target["width"] / target["height"], rel_tol=1e-6):
+        raise ValueError("Scene canvas aspect ratio differs from Page Spec")
+
+
 def walk(elements):
     for element in elements:
         yield element

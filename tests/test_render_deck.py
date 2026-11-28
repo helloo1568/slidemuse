@@ -105,6 +105,49 @@ def test_cli_selected_comparison_uses_original_slide_numbers(tmp_path, monkeypat
     assert not (output / "002.png").exists()
 
 
+@pytest.mark.parametrize("name", ["001.png", "review.png", "009.png"])
+def test_overwrite_rejects_reference_paths_before_rendering(tmp_path, monkeypatch, capsys, name):
+    deck = tmp_path / "deck.pptx"
+    prs = Presentation()
+    prs.slides.add_slide(prs.slide_layouts[6])
+    prs.save(deck)
+    reference = tmp_path / name
+    Image.new("RGB", (160, 90), "red").save(reference)
+    original = reference.read_bytes()
+    spec = tmp_path / "page-spec.json"
+    spec.write_text(json.dumps({"slides": [{"id": "s01", "image_status": "approved", "image_file": reference.name}]}))
+    monkeypatch.setattr(sys, "argv", ["render_deck.py", str(deck), str(tmp_path),
+                                      "--backend", "powerpoint", "--page-spec", str(spec), "--overwrite"])
+    with pytest.raises(SystemExit) as error:
+        render_deck.main()
+    assert error.value.code == 2
+    assert "must not overwrite" in capsys.readouterr().err
+    assert reference.read_bytes() == original
+
+
+def test_failed_overwrite_keeps_previous_render(tmp_path, monkeypatch):
+    deck = tmp_path / "deck.pptx"
+    prs = Presentation()
+    prs.slides.add_slide(prs.slide_layouts[6])
+    prs.save(deck)
+    output = tmp_path / "render"
+    output.mkdir()
+    previous = output / "001.png"
+    Image.new("RGB", (160, 90), "red").save(previous)
+    original = previous.read_bytes()
+
+    def fail(_deck, staging, width, height):
+        Image.new("RGB", (width, height), "white").save(staging / "001.png")
+        raise RuntimeError("render failed")
+
+    monkeypatch.setattr(render_deck, "render_powerpoint", fail)
+    monkeypatch.setattr(sys, "argv", ["render_deck.py", str(deck), str(output),
+                                      "--backend", "powerpoint", "--overwrite"])
+    with pytest.raises(SystemExit, match="render failed"):
+        render_deck.main()
+    assert previous.read_bytes() == original
+
+
 def test_selected_render_keeps_original_index_and_checks_dimensions(tmp_path, monkeypatch):
     deck = tmp_path / "deck.pptx"
     presentation = Presentation()

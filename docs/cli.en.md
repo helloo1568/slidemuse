@@ -32,6 +32,8 @@ The launcher prefers `.venv/Scripts/python.exe` on Windows or `.venv/bin/python`
 
 Prefix each command with `python slidemuse.py`. Arguments pass through unchanged, and `<command> --help` displays the original tool's help. Advanced tools remain available as `scripts/*.py`; use the installed `.venv` interpreter or the path recorded in `.skill-python` for direct invocation.
 
+With `--overwrite`, render outputs must use separate paths from the deck, Page Spec, and reference images. The previous results are replaced after rendering and comparison succeed. Editable jobs require the Scene and Page Spec to use the same aspect ratio. WorkBuddy checks the current render settings and page review records before publishing.
+
 Pipeline exit codes are preserved: 0 means the requested command succeeded, possibly only saving a requested stage; 1 means failed checks or blocked input; 3 means review is pending. Invalid arguments normally return 2. `check` is read-only and never creates a workspace or approves assets. Options such as `run --stop-after` and `run --status` remain controlled by the original script. Content approval, style selection and visual review follow the existing Skill contract.
 
 `style-overview --compare` takes four PNGs labeled with `--option` and `--name`. Add `--html` for a preview that WorkBuddy can open. `render deck.pptx previews --page-spec page-spec.json --slides 3 5 11` renders the specified original slide numbers beside their source images. Omit `--slides` for final review of the deck.

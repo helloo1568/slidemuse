@@ -32,6 +32,8 @@ python slidemuse.py doctor
 
 为表内命令添加 `python slidemuse.py` 前缀。各命令的参数原样交给对应脚本，`<命令> --help` 展示其原有帮助。其他高级工具仍可直接运行 `scripts/*.py`；安装版直接调用脚本时，使用 `.skill-python` 所记录的解释器或当前安装目录下的 `.venv` Python。
 
+渲染使用 `--overwrite` 时，输出文件必须与演示文稿、Page Spec 和参考图分开。渲染和对照图生成成功后才替换上一次结果。可编辑任务的 Scene 和 Page Spec 必须使用相同画幅。WorkBuddy 发布前会复核当前渲染设置和逐页审阅记录。
+
 流水线原有退出码保持不变：0 表示本次命令成功（也可能只是保存了请求阶段），1 表示检查失败或输入阻塞，3 表示等待审阅。参数错误通常返回 2。`check` 只读，不会创建工作目录或批准素材；`run` 的 `--stop-after`、`--status` 等选项仍由原脚本解释。内容确认、风格选择和逐页视觉检查仍按 Skill 契约执行。
 
 `style-overview --compare` 接收四张已用 `--option` 和 `--name` 标注的 PNG。WorkBuddy 用 `--html` 生成可打开的预览页。`render deck.pptx previews --page-spec page-spec.json --slides 3 5 11` 只渲染指定的原始页码，并与对应原图并排。整套交付时省略 `--slides`。

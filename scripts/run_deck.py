@@ -34,7 +34,7 @@ from pptx import Presentation
 from render_deck import build_review, reference_files, render_selected, sha256
 from render_environment import environment_key, fingerprint, font_preflight
 from render_process import rendering_options, validate_options
-from scene import load_scene, walk
+from scene import check_scene_canvas, load_scene, walk
 from speaker_notes import check_scene_notes
 from update_data_bindings import inspect as inspect_bindings
 from update_data_bindings import page_dependencies
@@ -99,6 +99,8 @@ def load_inputs(config_path, work):
     spec, _ = load_page_spec(spec_path, strict=True, require_images=config["mode"] == "image")
     references = reference_files(spec_path, len(spec["slides"]))
     scene = load_scene(scene_path)[0] if scene_path else None
+    if scene:
+        check_scene_canvas(spec, scene)
     if scene and (errors := check_scene_notes(spec, scene)):
         raise ValueError("; ".join(errors))
     assets = set(references)
@@ -158,6 +160,27 @@ def valid_artifact(record, key, work):
         return False
     path = Path(record["path"]).resolve()
     return path.is_relative_to(work) and path.is_file() and record.get("sha256") == sha256(path)
+
+
+def verify_current_render(inputs, state, work):
+    from evaluate_delivery import verified_render
+
+    backend = state.get("backend")
+    if backend not in ("powerpoint", "libreoffice"):
+        raise ValueError("Rendered pages are stale; rerun the review pipeline")
+    wanted = keys(inputs, backend)
+    pages = state.get("pages", {})
+    measured = backend == "powerpoint" and inputs["config"].get("measure_text")
+    if (state.get("spec") != inputs["spec"] or state.get("review_keys") != wanted
+            or any(not valid_artifact(pages.get(sid), key, work)
+                   or measured and not valid_artifact(pages[sid].get("layout"), key, work)
+                   for sid, key in wanted.items())):
+        raise ValueError("Rendered pages are stale; rerun the review pipeline")
+    render, deck = verified_render(work / "render-report.json", inputs["spec_path"], len(wanted))
+    if (render != state.get("render") or str(deck) != state["build"]["path"]
+            or any(page["rendered"] != pages[sid]["path"] for sid, page in zip(wanted, render["slides"]))):
+        raise ValueError("Render report differs from the owned pipeline state")
+    return render, deck
 
 
 def artifact(path, key):
@@ -262,6 +285,8 @@ def update_templates(inputs, work, report, page_keys, previous):
         try:
             # Keep current, genuinely recorded judgments. No automatic pending->pass.
             verified_visual_review(review_path, spec, report)
+            if previous.get("review_keys") != page_keys:
+                raise ValueError("Review inputs changed")
         except (ValueError, KeyError, TypeError):
             old = None
             if previous.get("spec") and previous.get("render"):

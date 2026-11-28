@@ -107,7 +107,13 @@ def ready_deck(job: Path, work: Path) -> tuple[Path, str]:
     from audit_chart_geometry import charts as geometry_charts
     from evaluate_delivery import evaluate
     from render_deck import sha256
-    from run_deck import build_key, cached_state, load_inputs, valid_artifact
+    from run_deck import (
+        build_key,
+        cached_state,
+        load_inputs,
+        valid_artifact,
+        verify_current_render,
+    )
 
     summary = read_json(work / "summary.json")
     recorded = read_json(work / "scorecard.json")
@@ -120,7 +126,7 @@ def ready_deck(job: Path, work: Path) -> tuple[Path, str]:
     build = state.get("build")
     if not valid_artifact(build, build_key(inputs), work):
         raise ValueError("当前材料与已审的 PPTX 不匹配")
-    deck = Path(build["path"]).resolve()
+    _, deck = verify_current_render(inputs, state, work)
     optional = inputs["optional"]
     visual = optional.get("visual_review", work / "visual-review.json")
     observations = inputs["observations"] or [work / "content-observations.json"]

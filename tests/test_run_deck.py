@@ -130,6 +130,32 @@ def read_status(work):
     return json.loads((work / "summary.json").read_text(encoding="utf-8"))["status"]
 
 
+def test_workbuddy_requires_current_render_settings_before_publishing(pipeline_case):
+    job, work, _, _, _ = pipeline_case
+    setup(job.parent, job, work)
+    review(job, work)
+    review_fixture(pipeline_case)
+    assert review(job, work)["status"] == "complete"
+    config = run_deck.read(job)
+    save(job, {**config, "width": 640})
+    with pytest.raises(ValueError, match="Rendered pages are stale"):
+        publish(job, work)
+    assert not (work / "final" / "slidemuse.pptx").exists()
+    assert review(job, work)["status"] == "awaiting_review"
+
+
+def test_editable_build_and_pipeline_reject_different_canvas_aspect(pipeline_case):
+    job, work, _, scene, _ = pipeline_case
+    scene["canvas"]["height"] = 1200
+    scene_path = job.parent / "scene.json"
+    save(scene_path, scene)
+    with pytest.raises(ValueError, match="canvas aspect ratio"):
+        run_deck.build_editable(scene_path, work / "deck.pptx", job.parent / "page-spec.json")
+    with pytest.raises(ValueError, match="canvas aspect ratio"):
+        run_deck.run(job, work)
+    assert not work.exists()
+
+
 def test_changed_page_only_renders_that_page_and_invalidates_its_review(pipeline_case):
     job, work, spec, scene, calls = pipeline_case
     run_deck.run(job, work)

@@ -14,7 +14,7 @@ from pathlib import Path
 from audit_page_content import audit as audit_content
 from audit_page_content import template as content_template
 from deck_diagnostics import error_action, print_result
-from evaluate_delivery import review_template, verified_render, verified_visual_review
+from evaluate_delivery import review_template, verified_visual_review
 from PIL import Image
 from render_deck import sha256
 
@@ -25,10 +25,10 @@ def context(config_path, work):
     from run_deck import (
         build_key,
         cached_state,
-        keys,
         load_inputs,
         read,
         valid_artifact,
+        verify_current_render,
     )
     if read(work / "owner.json") != {"version": "1.0", "config": str(config_path)}:
         raise ValueError("Workspace belongs to a different job")
@@ -38,14 +38,7 @@ def context(config_path, work):
     state = cached_state(work)
     if not valid_artifact(state.get("build"), build_key(inputs), work):
         raise ValueError("Current build is stale; rerun run_deck.py before reviewing")
-    wanted = keys(inputs, state.get("backend"))
-    if (state.get("spec") != inputs["spec"] or state.get("review_keys") != wanted
-            or any(not valid_artifact(state.get("pages", {}).get(sid), key, work) for sid, key in wanted.items())):
-        raise ValueError("Rendered pages are stale; rerun run_deck.py before reviewing")
-    render, deck = verified_render(work / "render-report.json", inputs["spec_path"], len(wanted))
-    if (render != state.get("render") or str(deck) != state["build"]["path"]
-            or any(page["rendered"] != state["pages"][sid]["path"] for sid, page in zip(wanted, render["slides"]))):
-        raise ValueError("Render report differs from the owned pipeline state")
+    render, _ = verify_current_render(inputs, state, work)
     paths = {"job": config_path, "page_spec": inputs["spec_path"], "state": work / "state.json",
              "render_report": work / "render-report.json", **{name: work / name for name in TARGETS}}
     if inputs["scene_path"]:
