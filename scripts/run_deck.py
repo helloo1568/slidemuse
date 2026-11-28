@@ -30,6 +30,7 @@ from deck_diagnostics import (
 from deck_draft import MANAGED, office_draft
 from evaluate_delivery import evaluate, review_template, verified_visual_review
 from json_io import read_json
+from json_io import write_json as write
 from pptx import Presentation
 from render_deck import build_review, reference_files, render_selected, sha256
 from render_environment import environment_key, fingerprint, font_preflight
@@ -52,17 +53,6 @@ def digest(value):
 
 def read(path):
     return read_json(path)
-
-
-def write(path, value):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, temporary = tempfile.mkstemp(prefix=".pipeline-", dir=path.parent)
-    os.close(fd)
-    try:
-        Path(temporary).write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
-        os.replace(temporary, path)
-    finally:
-        Path(temporary).unlink(missing_ok=True)
 
 
 def runtime_key():
@@ -291,7 +281,7 @@ def update_templates(inputs, work, report, page_keys, previous):
             old = None
             if previous.get("spec") and previous.get("render"):
                 try:
-                    old = verified_visual_review(review_path, previous["spec"], previous["render"])
+                    old = verified_visual_review(review_path, previous["spec"], previous["render"], reopen_blank_notes=True)
                 except (ValueError, KeyError, TypeError):
                     pass
             if old:

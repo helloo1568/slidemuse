@@ -10,8 +10,9 @@ from audit_chart_geometry import audit as audit_geometry
 from audit_editability import audit as audit_editability
 from audit_page_content import audit as audit_content
 from audit_speaker_notes import audit as audit_notes
-from json_io import read_json
+from json_io import read_json, write_json
 from render_deck import reference_files, sha256
+from scene import walk
 from update_data_bindings import inspect as inspect_bindings
 from validate_page_spec import load_page_spec
 
@@ -55,21 +56,32 @@ def review_template(spec: dict, render: dict) -> dict:
     ]}
 
 
-def verified_visual_review(review_path: Path, spec: dict, render: dict) -> dict:
+def verified_visual_review(review_path: Path, spec: dict, render: dict, *, reopen_blank_notes: bool = False) -> dict:
     review = read_json(review_path)
+    if not isinstance(review, dict):
+        raise TypeError("Visual review must contain a JSON object")
     if (review.get("version") != "1.2" or review.get("deck_sha256") != render["deck_sha256"]
             or review.get("page_spec_sha256") != render["page_spec_sha256"]
             or review.get("render_backend") != render["backend"]):
         raise ValueError("Visual review is stale or has an invalid version; create a new --init-review template")
-    items = review.get("slides", [])
+    items = review.get("slides")
+    if not isinstance(items, list):
+        raise TypeError("Visual review slides must be a JSON array")
     if len(items) != len(spec["slides"]):
         raise ValueError("Visual review slide count differs from Page Spec")
     for slide, page, item in zip(spec["slides"], render["slides"], items):
+        if not isinstance(item, dict):
+            raise TypeError(f"Visual review entry at {slide['id']} must be a JSON object")
         if (item.get("id") != slide["id"] or item.get("rendered_sha256") != page["rendered_sha256"]
                 or item.get("reference_sha256") != page["reference_sha256"]):
             raise ValueError(f"Visual review is stale or out of order at {slide['id']}")
-        if item.get("status") not in ("pass", "fail", "pending") or not isinstance(item.get("notes"), str):
+        status, notes = item.get("status"), item.get("notes")
+        if status not in ("pass", "fail", "pending") or not isinstance(notes, str):
             raise ValueError(f"Invalid visual review status at {slide['id']}")
+        if status in ("pass", "fail") and not notes.strip():
+            if not reopen_blank_notes:
+                raise ValueError(f"Visual review requires notes for pass or fail at {slide['id']}")
+            item["status"] = "pending"
         expected_ids = {element["id"] for element in slide["elements"] if element["kind"] in ("chart", "table")}
         expected_elements = {element["id"]: element for element in slide["elements"] if element["id"] in expected_ids}
         inventory = item.get("data_visual_inventory", {"status": "pending", "notes": "", "observed_element_ids": []})
@@ -120,10 +132,30 @@ def verified_visual_review(review_path: Path, spec: dict, render: dict) -> dict:
     return review
 
 
+def check_output_path(output, spec_path, spec, render, scene_path, inputs):
+    paths = [*inputs, render["deck"], render.get("review_sheet")]
+    paths.extend(page[field] for page in render["slides"] for field in ("rendered", "reference"))
+    tokens = spec["style"].get("tokens", {})
+    paths.extend(spec_path.parent / name for name in tokens.get("reference_images", []))
+    if style_reference := spec["style"].get("generation_reference"):
+        paths.extend(spec_path.parent / style_reference[field] for field in ("source", "image"))
+    paths.extend(spec_path.parent / element["preserve_asset"]["file"]
+                 for page in spec["slides"] for element in page["elements"] if "preserve_asset" in element)
+    if scene_path:
+        scene = read_json(scene_path)
+        for slide in scene["slides"]:
+            if slide.get("source_image"):
+                paths.append(scene_path.parent / slide["source_image"])
+            paths.extend(scene_path.parent / element["path"] for element in walk(slide["elements"])
+                         if element["type"] == "image")
+    if output in {Path(path).resolve() for path in paths if isinstance(path, (str, Path)) and path}:
+        raise ValueError("Scorecard output must not overwrite an input or review artifact")
+
+
 def evaluate(spec_path: Path, render_path: Path, review_path: Path,
              observation_paths: list[Path], scene_path: Path | None = None,
              chart_observation_path: Path | None = None,
-             data_bindings_path: Path | None = None) -> dict:
+             data_bindings_path: Path | None = None, *, output_path: Path | None = None) -> dict:
     spec, _ = load_page_spec(spec_path)
     render, deck = verified_render(render_path, spec_path, len(spec["slides"]))
     review = verified_visual_review(review_path, spec, render)
@@ -153,7 +185,7 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
         status = "incomplete"
     else:
         status = "pass"
-    return {
+    result = {
         "status": status,
         "deck": str(deck), "deck_sha256": render["deck_sha256"],
         "page_spec_sha256": sha256(spec_path),
@@ -188,6 +220,13 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
                         "text_layout": editability["text_layout"] if editability else []},
         "note": "A pass reflects recorded checks for this artifact version; pixel difference is diagnostic, not a quality threshold.",
     }
+    if output_path is not None:
+        output = output_path.resolve()
+        check_output_path(output, spec_path, spec, render, scene_path,
+                          [spec_path, render_path, review_path, *observation_paths,
+                           scene_path, chart_observation_path, data_bindings_path])
+        write_json(output, result)
+    return result
 
 
 def main() -> None:
@@ -214,14 +253,15 @@ def main() -> None:
         review_path.write_text(json.dumps(review_template(spec, render), ensure_ascii=False, indent=2), encoding="utf-8")
         print(review_path)
         return
-    result = evaluate(spec_path, render_path, review_path,
-                      [path.resolve() for path in args.observations],
-                      args.scene.resolve() if args.scene else None,
-                      args.chart_observations.resolve() if args.chart_observations else None,
-                      args.data_bindings.resolve() if args.data_bindings else None)
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        result = evaluate(spec_path, render_path, review_path,
+                          [path.resolve() for path in args.observations],
+                          args.scene.resolve() if args.scene else None,
+                          args.chart_observations.resolve() if args.chart_observations else None,
+                          args.data_bindings.resolve() if args.data_bindings else None,
+                          output_path=args.output)
+    except (ValueError, OSError, KeyError, TypeError) as error:
+        parser.exit(2, f"evaluate_delivery: {error}\n")
     print(json.dumps({"status": result["status"], "slides": result["slides"],
                       "content_issues": result["content"]["issues"],
                       "visual_pending": len(result["visual"]["pending"]),

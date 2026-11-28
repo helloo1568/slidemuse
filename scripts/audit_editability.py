@@ -14,7 +14,7 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 from zipfile import BadZipFile, ZipFile
 
-from chart_style import style_errors
+from chart_style import CHART_TYPES, style_errors
 from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
@@ -291,6 +291,10 @@ def audit(pptx: Path, scene_path: Path | None = None) -> dict:
                                   table_errors(shape.table, e, wanted_box[2], wanted_box[3]))
                 if e["type"] == "chart":
                     chart = shape.chart
+                    expected_type = CHART_TYPES[e["chart_type"]]
+                    if len(chart.plots) != 1 or chart.chart_type != expected_type:
+                        errors.append(f"{label}: chart type differs from scene (expected {expected_type.name})")
+                        continue
                     actual = [
                         {"name": s.name, "values": list(s.values)} for s in chart.series
                     ]

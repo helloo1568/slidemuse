@@ -2,6 +2,7 @@
 
 from pptx.dml.color import RGBColor
 from pptx.enum.chart import (
+    XL_CHART_TYPE,
     XL_LABEL_POSITION,
     XL_LEGEND_POSITION,
     XL_TICK_LABEL_POSITION,
@@ -10,6 +11,13 @@ from pptx.oxml.xmlchemy import OxmlElement
 from pptx.util import Pt
 
 NS = "{http://schemas.openxmlformats.org/drawingml/2006/chart}"
+CHART_TYPES = {
+    "bar": XL_CHART_TYPE.BAR_CLUSTERED,
+    "column": XL_CHART_TYPE.COLUMN_CLUSTERED,
+    "line": XL_CHART_TYPE.LINE,
+    "pie": XL_CHART_TYPE.PIE,
+    "doughnut": XL_CHART_TYPE.DOUGHNUT,
+}
 LABEL_POSITIONS = {
     "outside_end": XL_LABEL_POSITION.OUTSIDE_END,
     "inside_end": XL_LABEL_POSITION.INSIDE_END,

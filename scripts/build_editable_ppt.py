@@ -10,12 +10,12 @@ import os
 import tempfile
 from pathlib import Path
 
-from chart_style import apply_style
+from chart_style import CHART_TYPES, apply_style
 from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
-from pptx.enum.chart import XL_CHART_TYPE, XL_LABEL_POSITION, XL_LEGEND_POSITION
+from pptx.enum.chart import XL_LABEL_POSITION, XL_LEGEND_POSITION
 from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.xmlchemy import OxmlElement
@@ -33,13 +33,6 @@ SHAPES = {
     "diamond": MSO_SHAPE.DIAMOND,
     "chevron": MSO_SHAPE.CHEVRON,
     "rightArrow": MSO_SHAPE.RIGHT_ARROW,
-}
-CHARTS = {
-    "bar": XL_CHART_TYPE.BAR_CLUSTERED,
-    "column": XL_CHART_TYPE.COLUMN_CLUSTERED,
-    "line": XL_CHART_TYPE.LINE,
-    "pie": XL_CHART_TYPE.PIE,
-    "doughnut": XL_CHART_TYPE.DOUGHNUT,
 }
 
 
@@ -226,7 +219,7 @@ def add_element(shapes, e, base, sx, sy):
         data.categories = e["categories"]
         for series in e["series"]:
             data.add_series(series["name"], series["values"])
-        shape = shapes.add_chart(CHARTS[e["chart_type"]], *box, data)
+        shape = shapes.add_chart(CHART_TYPES[e["chart_type"]], *box, data)
         chart = shape.chart
         chart.has_title = False
         chart.has_legend = e.get("legend", len(e["series"]) > 1)

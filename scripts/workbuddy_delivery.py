@@ -134,8 +134,6 @@ def ready_deck(job: Path, work: Path) -> tuple[Path, str]:
     if (chart_checks is None and inputs["config"]["mode"] == "image"
             and inputs["spec"].get("content_policy") == "1.1" and geometry_charts(inputs["spec"])):
         chart_checks = work / "chart-observations.json"
-    if inputs["scene_path"] and any(not item.get("notes", "").strip() for item in read_json(visual)["slides"]):
-        raise ValueError("可编辑版每页都需要记录实际看图结论")
     current = evaluate(inputs["spec_path"], work / "render-report.json", visual, observations,
                        inputs["scene_path"], chart_checks, optional.get("data_bindings"))
     if (current["status"] != "pass" or current != recorded or Path(current["deck"]).resolve() != deck

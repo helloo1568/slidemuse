@@ -84,8 +84,24 @@ def test_required_numeric_values_must_not_match_inside_larger_numbers():
     from audit_page_content import text_present
     assert not text_present("32%", "132%")
     assert not text_present("351", "1351")
-    assert text_present("32", "32%")
+    assert not text_present("32", "32%")
     assert text_present("32%", "覆盖率32%，另一个值132%")
+
+
+@pytest.mark.parametrize(("expected", "observed", "matches"), [
+    ("32万元", "投资额132万元，涉及32个项目", False),
+    ("32万元", "投资额-32万元，涉及32个项目", False),
+    ("32%", "覆盖率132%，另一项为32 %", True),
+    ("32", "覆盖率32%\n实测32个", True),
+    ("金额 1,200 万元", "金额1200万元", True),
+    ("2.5万元", "12.5万元，涉及2.5吨", False),
+    ("5万元", ".5万元，涉及5个项目", False),
+    ("32", "项目编号SKU32", False),
+    ("-5%", "YoY− 5%", True),
+    ("2020-2024", "2020 - 2024", True),
+])
+def test_numbers_are_checked_at_the_matched_text_position(expected, observed, matches):
+    assert audit_page_content.text_present(expected, observed) is matches
 
 
 @pytest.mark.parametrize("minus", ["−", "－", "﹣", "-"])

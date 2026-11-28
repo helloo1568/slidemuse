@@ -144,6 +144,26 @@ def test_workbuddy_requires_current_render_settings_before_publishing(pipeline_c
     assert review(job, work)["status"] == "awaiting_review"
 
 
+def test_workbuddy_image_publication_checks_notes_in_current_review(pipeline_case):
+    job, work, _, _, _ = pipeline_case
+    config = run_deck.read(job)
+    config.pop("scene")
+    save(job, {**config, "mode": "image"})
+    setup(job.parent, job, work)
+    assert review(job, work)["status"] == "awaiting_review"
+    review_fixture(pipeline_case)
+    assert review(job, work)["status"] == "complete"
+    record = work / "visual-review.json"
+    reviewed = run_deck.read(record)
+    reviewed["slides"][0]["notes"] = ""
+    save(record, reviewed)
+    with pytest.raises(ValueError, match="requires notes for pass or fail"):
+        publish(job, work)
+    assert not (work / "final" / "slidemuse.pptx").exists()
+    assert review(job, work)["status"] == "awaiting_review"
+    assert [slide["status"] for slide in run_deck.read(record)["slides"]] == ["pending", "pass"]
+
+
 def test_editable_build_and_pipeline_reject_different_canvas_aspect(pipeline_case):
     job, work, _, scene, _ = pipeline_case
     scene["canvas"]["height"] = 1200
@@ -276,6 +296,46 @@ def test_old_pass_scorecard_is_removed_from_current_outputs_on_failure(pipeline_
     assert run_deck.run(job, work, refresh_render=True)["status"] == "failed"
     assert not (work / "scorecard.json").exists()
     assert list((work / "review-history").glob("scorecard-*.json"))
+
+
+@pytest.mark.parametrize("damage", ["root", "slides", "entry"])
+def test_malformed_local_review_is_archived_and_summary_is_updated(pipeline_case, damage):
+    job, work, _, _, _ = pipeline_case
+    assert run_deck.run(job, work)["status"] == "awaiting_review"
+    review_fixture(pipeline_case)
+    assert run_deck.run(job, work)["status"] == "complete"
+    record = work / "visual-review.json"
+    reviewed = run_deck.read(record)
+    if damage == "root":
+        reviewed = []
+    elif damage == "slides":
+        reviewed["slides"] = {}
+    else:
+        reviewed["slides"][0] = "invalid entry"
+    save(record, reviewed)
+    corrupt = record.read_bytes()
+    result = run_deck.run(job, work)
+    assert result["status"] == read_status(work) == "awaiting_review"
+    assert run_deck.read(work / "scorecard.json")["status"] == "incomplete"
+    assert [item["status"] for item in run_deck.read(record)["slides"]] == ["pending", "pending"]
+    assert corrupt in [path.read_bytes() for path in (work / "review-history").glob("visual-review-*.json")]
+
+
+def test_malformed_external_review_preserves_file_and_saves_failure(pipeline_case):
+    job, work, _, _, _ = pipeline_case
+    external = job.parent / "external-review.json"
+    config = run_deck.read(job)
+    save(job, {**config, "visual_review": external.name})
+    assert run_deck.run(job, work)["status"] == "awaiting_review"
+    review_fixture(pipeline_case)
+    external.write_bytes((work / "visual-review.json").read_bytes())
+    assert run_deck.run(job, work)["status"] == "complete"
+    external.write_bytes(b"[]")
+    result = run_deck.run(job, work)
+    assert result["status"] == read_status(work) == "failed"
+    assert result["failed_stage"] == "evaluate"
+    assert not (work / "scorecard.json").exists()
+    assert external.read_bytes() == b"[]"
 
 
 def test_image_mode_uses_approved_images_and_no_native_scene(pipeline_case):

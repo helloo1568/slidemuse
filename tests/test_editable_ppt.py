@@ -205,6 +205,19 @@ def test_chart_types(scene_file, chart_type):
     assert audit(output, scene_file)["errors"] == []
 
 
+@pytest.mark.parametrize("wrong_type", ["bar", "pie"])
+def test_audit_rejects_different_chart_type_with_same_data(scene_file, wrong_type):
+    scene, _ = load_scene(scene_file)
+    scene["slides"][0]["elements"][-1]["chart_type"] = wrong_type
+    changed = scene_file.with_name("changed.json")
+    changed.write_text(json.dumps(scene), encoding="utf-8")
+    output = scene_file.with_suffix(".pptx")
+    build_deck(changed, output)
+    assert audit(output, scene_file)["errors"] == [
+        "Slide 1/chart: chart type differs from scene (expected COLUMN_CLUSTERED)"
+    ]
+
+
 def test_chart_style_roundtrip_and_audit(scene_file):
     scene, _ = load_scene(scene_file)
     chart = scene["slides"][0]["elements"][-1]

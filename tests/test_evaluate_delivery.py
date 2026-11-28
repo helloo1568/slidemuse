@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 
 import audit_page_content
@@ -50,7 +51,7 @@ def test_scorecard_needs_visual_review_and_current_artifacts(tmp_path):
     assert result["status"] == "incomplete"
     assert result["content"]["issues"] == 0
     reviewed = json.loads(review.read_text(encoding="utf-8"))
-    reviewed["slides"][0]["status"] = "pass"
+    reviewed["slides"][0].update(status="pass", notes="Checked the current rendering")
     reviewed["slides"][0]["data_visual_inventory"].update(status="pass", notes="No data visuals observed", observed_element_ids=[])
     review.write_text(json.dumps(reviewed), encoding="utf-8")
     assert evaluate_delivery.evaluate(spec, render, review, [observation])["status"] == "pass"
@@ -91,12 +92,50 @@ def test_scorecard_rejects_render_without_current_page_spec(tmp_path):
 
 def mark_visual_pass(review_path):
     review = json.loads(review_path.read_text(encoding="utf-8"))
-    review["slides"][0]["status"] = "pass"
+    review["slides"][0].update(status="pass", notes="Checked the current rendering")
     review["slides"][0]["data_visual_inventory"].update(
         status="pass", notes="Observed only declared data visuals",
         observed_element_ids=[item["element_id"] for item in review["slides"][0]["data_reviews"]])
     review_path.write_text(json.dumps(review), encoding="utf-8")
     return review
+
+
+@pytest.mark.parametrize("status", ["pass", "fail"])
+def test_visual_review_decision_requires_nonblank_notes(tmp_path, status):
+    spec, render, review, observation, _ = make_case(tmp_path)
+    reviewed = mark_visual_pass(review)
+    reviewed["slides"][0].update(status=status, notes=" \t")
+    review.write_text(json.dumps(reviewed), encoding="utf-8")
+    with pytest.raises(ValueError, match="requires notes for pass or fail"):
+        evaluate_delivery.evaluate(spec, render, review, [observation])
+
+
+@pytest.mark.parametrize("target", ["spec", "render", "review", "observations", "deck", "rendered", "reference"])
+def test_cli_scorecard_does_not_replace_evidence(tmp_path, monkeypatch, capsys, target):
+    spec, render, review, observations, rendered = make_case(tmp_path)
+    mark_visual_pass(review)
+    data = json.loads(render.read_text(encoding="utf-8"))
+    inputs = {"spec": spec, "render": render, "review": review, "observations": observations,
+              "deck": Path(data["deck"]), "rendered": rendered, "reference": Path(data["slides"][0]["reference"])}
+    output = inputs[target]
+    original = output.read_bytes()
+    monkeypatch.setattr(sys, "argv", ["evaluate_delivery.py", str(spec), str(render), str(review),
+                                      "--observations", str(observations), "--output", str(output)])
+    with pytest.raises(SystemExit) as error:
+        evaluate_delivery.main()
+    assert error.value.code == 2
+    assert "must not overwrite" in capsys.readouterr().err
+    assert output.read_bytes() == original
+
+
+def test_cli_writes_a_separate_scorecard(tmp_path, monkeypatch):
+    spec, render, review, observations, _ = make_case(tmp_path)
+    mark_visual_pass(review)
+    output = tmp_path / "scorecard.json"
+    monkeypatch.setattr(sys, "argv", ["evaluate_delivery.py", str(spec), str(render), str(review),
+                                      "--observations", str(observations), "--output", str(output)])
+    evaluate_delivery.main()
+    assert json.loads(output.read_text(encoding="utf-8"))["status"] == "pass"
 
 
 def test_changed_reference_rejects_old_render_even_with_new_observations(tmp_path):

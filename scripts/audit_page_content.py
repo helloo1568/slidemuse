@@ -13,6 +13,10 @@ from content_density import CONTENT_POLICIES, WORKFLOW_POLICY, visible_text
 from json_io import read_json
 from validate_page_spec import load_page_spec
 
+NUMBER = re.compile(
+    r"(?:(?<!\d)[+-]|(?<![A-Za-z0-9]))(?:\d+(?:,\d{3})*(?:\.\d+)?|\.\d+)(?:[^\S\r\n]*[%‰])?"
+)
+
 
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -27,37 +31,54 @@ def normalized_numbers(value: str) -> str:
     normalized = unicodedata.normalize("NFKC", value)
     # Rendering may detach a signed number. Only join horizontal space
     # after explicit arithmetic signs; plain hyphens may be date ranges.
-    normalized = re.sub(r"(?<![A-Za-z0-9])([−+])[ \t]+(?=\d)", r"\1", normalized)
+    normalized = re.sub(r"(?<!\d)([−+])[ \t]+(?=\d)", r"\1", normalized)
     return normalized.replace("\u2212", "-")
 
 
+def compact_chars(value: str) -> str:
+    return "".join(char for char in value if char.isalnum() or char in ".%‰+-/")
+
+
 def compact(value: str) -> str:
-    normalized = normalized_numbers(value).casefold()
-    return "".join(char for char in normalized if char.isalnum() or char in ".%‰+-/")
+    return compact_chars(normalized_numbers(value).casefold())
 
 
 def numbers(value: str) -> list[str]:
-    normalized = normalized_numbers(value)
-    return re.findall(r"(?<![A-Za-z0-9])[+-]?\d+(?:,\d{3})*(?:\.\d+)?(?:%|‰)?", normalized)
+    return NUMBER.findall(normalized_numbers(value))
 
 
 def compact_number(value: str) -> str:
-    return compact(value).replace(",", "")
+    return compact(value)
+
+
+def compact_with_number_offsets(value: str) -> tuple[str, dict[int, str]]:
+    normalized = normalized_numbers(value).casefold()
+    parts, offsets = [], {}
+    cursor = position = 0
+    for number in NUMBER.finditer(normalized):
+        prefix = compact_chars(normalized[cursor:number.start()])
+        token = compact_chars(number.group())
+        position += len(prefix)
+        offsets[position] = token
+        parts.extend((prefix, token))
+        position += len(token)
+        cursor = number.end()
+    parts.append(compact_chars(normalized[cursor:]))
+    return "".join(parts), offsets
 
 
 def text_present(expected: str, observed: str) -> bool:
-    """Substring text matching must not accept 132% as the required 32%."""
-    if compact(expected) not in compact(observed):
-        return False
-    actual = [compact_number(value) for value in numbers(observed)]
-    for number in numbers(expected):
-        token = compact_number(number)
-        if token.endswith(("%", "‰")):
-            if token not in actual:
-                return False
-        elif not any(token == value.rstrip("%‰") for value in actual):
-            return False
-    return True
+    """Match each whole numeric token at its position inside the matched text."""
+    wanted, required = compact_with_number_offsets(expected)
+    if not required:
+        return wanted in compact(observed)
+    text, actual = compact_with_number_offsets(observed)
+    start = text.find(wanted)
+    while start != -1:
+        if all(actual.get(start + offset) == token for offset, token in required.items()):
+            return True
+        start = text.find(wanted, start + 1)
+    return False
 
 
 def image_path(spec_path: Path, slide: dict) -> Path:
