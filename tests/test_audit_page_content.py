@@ -126,3 +126,96 @@ def test_renderer_spacing_keeps_the_sign_without_turning_ranges_into_negatives()
     assert not match("同比 −6.9%", "同比 6.9%")
     assert not match("同比 −6.9%", "同比 − 16.9%")
     assert audit_page_content.numbers("2019 - 2020") == ["2019", "2020"]
+
+
+@pytest.mark.parametrize(("expected", "observed", "matches"), [
+    ("样本编号 A-32", "样本编号 A - 32", True),
+    ("样本编号 A - 32", "样本编号 A-32", True),
+    ("样本编号 SKU-32", "样本编号 SKU - 32", True),
+    ("样本编号 A-32", "样本编号 A - 320", False),
+    ("-32", "样本编号 A - 32", False),
+    ("32", "样本编号 A-32", False),
+    ("32万元", "同比 - 32 万元", False),
+    ("同比-32万元", "同比 - 32 万元", True),
+    ("-32万元", "Q1 - 32 万元", True),
+    ("32万元", "Q1 - 32 万元", False),
+    ("同比-.5%", "同比 - .5%", True),
+    (".5%", "同比 - .5%", False),
+    ("-32%", "YoY - 32%", True),
+    ("2019-2020", "2019 -2020", True),
+    ("2019-2020", "2019- 2020", True),
+    ("2019-2020", "2019 − 2020", True),
+    ("20%-30%", "20% - 30%", True),
+    ("排放量32", "排放量32e6", False),
+    ("排放量32", "排放量32E-6，另测32", False),
+    ("排放量 32e-6", "排放量32E−6", True),
+    ("32e6", "32e60", False),
+    ("32e6", "- 32e6", False),
+    ("覆盖率32%", "覆盖率32\n %", True),
+    ("覆盖率32", "覆盖率32\r\n %", False),
+    ("32‰", "32\n‰", True),
+])
+def test_number_boundaries_preserve_identifiers_signs_exponents_and_wrapped_units(expected, observed, matches):
+    assert audit_page_content.text_present(expected, observed) is matches
+
+
+@pytest.mark.parametrize(("expected", "observed", "passed"), [
+    ("样本编号 A-32", "样本编号 A - 32", True),
+    ("32万元", "同比 - 32 万元", False),
+    ("排放量32", "排放量32e6", False),
+    ("覆盖率32%", "覆盖率32\n%", True),
+])
+def test_full_content_audit_checks_the_required_literal(tmp_path, expected, observed, passed):
+    path, spec = make_spec(tmp_path)
+    slide = spec["slides"][0]
+    slide["required_visible_values"] = [expected]
+    observations = audit_page_content.template(path, [slide])
+    text = [element["text"] for element in slide["elements"] if element["kind"] == "text"]
+    observations["slides"][0].update(status="complete", observed_text="\n".join([*text, observed]))
+    assert audit_page_content.audit(path, [slide], observations)["pass"] is passed
+
+
+@pytest.mark.parametrize("bad", [
+    "[]", '{"version":"1.0","slides":null}', '{"version":"1.0","slides":[null]}',
+    '{"version":"1.0","slides":[{"id":[]}]}', '{"version":"1.0","slides":[',
+])
+@pytest.mark.parametrize("selected", [False, True])
+def test_content_cli_reports_malformed_records_before_filtering(tmp_path, monkeypatch, capsys, bad, selected):
+    spec, _ = make_spec(tmp_path)
+    observations = tmp_path / "external.json"
+    observations.write_text(bad, encoding="utf-8")
+    arguments = ["audit_page_content.py", str(spec), str(observations)]
+    if selected:
+        arguments += ["--slide", "s01"]
+    monkeypatch.setattr(sys, "argv", arguments)
+    with pytest.raises(SystemExit) as error:
+        audit_page_content.main()
+    assert error.value.code == 2
+    stderr = capsys.readouterr().err
+    assert f"Invalid observation file {observations}" in stderr
+    assert "Traceback" not in stderr
+
+
+@pytest.mark.parametrize("target", ["spec", "observations", "image", "report"])
+def test_content_cli_only_writes_a_separate_report(tmp_path, monkeypatch, capsys, target):
+    spec, document = make_spec(tmp_path)
+    observations = tmp_path / "observations.json"
+    observations.write_text(json.dumps(audit_page_content.template(spec, document["slides"])), encoding="utf-8")
+    image = tmp_path / document["slides"][0]["image_file"]
+    files = {"spec": spec, "observations": observations, "image": image}
+    original = {path: path.read_bytes() for path in files.values()}
+    destination = files.get(target, tmp_path / "report.json")
+    subdir = destination.parent / "subdir"
+    subdir.mkdir()
+    alias = subdir / ".." / destination.name
+    monkeypatch.setattr(sys, "argv", ["audit_page_content.py", str(spec), str(observations),
+                                      "--output", str(alias)])
+    if target == "report":
+        audit_page_content.main()
+        assert json.loads(destination.read_bytes())["incomplete"] == 1
+    else:
+        with pytest.raises(SystemExit) as error:
+            audit_page_content.main()
+        assert error.value.code == 2
+        assert "must not overwrite" in capsys.readouterr().err
+    assert {path: path.read_bytes() for path in files.values()} == original

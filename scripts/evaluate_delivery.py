@@ -9,12 +9,13 @@ from pathlib import Path
 from audit_chart_geometry import audit as audit_geometry
 from audit_editability import audit as audit_editability
 from audit_page_content import audit as audit_content
+from audit_page_content import read_observations
 from audit_speaker_notes import audit as audit_notes
-from json_io import read_json, write_json
+from json_io import checked_output_path, read_json, write_json
 from render_deck import reference_files, sha256
-from scene import walk
+from scene import scene_asset_names
 from update_data_bindings import inspect as inspect_bindings
-from validate_page_spec import load_page_spec
+from validate_page_spec import load_page_spec, page_asset_names
 
 
 def data_checks(element):
@@ -132,24 +133,15 @@ def verified_visual_review(review_path: Path, spec: dict, render: dict, *, reope
     return review
 
 
-def check_output_path(output, spec_path, spec, render, scene_path, inputs):
+def report_inputs(spec_path, spec, render, scene_path, inputs):
     paths = [*inputs, render["deck"], render.get("review_sheet")]
     paths.extend(page[field] for page in render["slides"] for field in ("rendered", "reference"))
-    tokens = spec["style"].get("tokens", {})
-    paths.extend(spec_path.parent / name for name in tokens.get("reference_images", []))
-    if style_reference := spec["style"].get("generation_reference"):
-        paths.extend(spec_path.parent / style_reference[field] for field in ("source", "image"))
-    paths.extend(spec_path.parent / element["preserve_asset"]["file"]
-                 for page in spec["slides"] for element in page["elements"] if "preserve_asset" in element)
+    paths.extend(spec_path.resolve().parent / name for name in page_asset_names(spec))
     if scene_path:
         scene = read_json(scene_path)
-        for slide in scene["slides"]:
-            if slide.get("source_image"):
-                paths.append(scene_path.parent / slide["source_image"])
-            paths.extend(scene_path.parent / element["path"] for element in walk(slide["elements"])
-                         if element["type"] == "image")
-    if output in {Path(path).resolve() for path in paths if isinstance(path, (str, Path)) and path}:
-        raise ValueError("Scorecard output must not overwrite an input or review artifact")
+        paths.extend(scene_path.resolve().parent / name
+                     for slide in scene["slides"] for name in scene_asset_names(slide))
+    return [path for path in paths if isinstance(path, (str, Path)) and path]
 
 
 def evaluate(spec_path: Path, render_path: Path, review_path: Path,
@@ -161,10 +153,7 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
     review = verified_visual_review(review_path, spec, render)
     observations = {"version": "1.0", "slides": []}
     for path in observation_paths:
-        item = read_json(path)
-        if item.get("version") != "1.0" or not isinstance(item.get("slides"), list):
-            raise ValueError(f"Invalid observation file: {path}")
-        observations["slides"].extend(item["slides"])
+        observations["slides"].extend(read_observations(path))
     content = audit_content(spec_path, spec["slides"], observations)
     visual_failed = [item["id"] for item in review["slides"] if item["status"] == "fail"]
     visual_pending = [item["id"] for item in review["slides"] if item["status"] == "pending"]
@@ -221,10 +210,9 @@ def evaluate(spec_path: Path, render_path: Path, review_path: Path,
         "note": "A pass reflects recorded checks for this artifact version; pixel difference is diagnostic, not a quality threshold.",
     }
     if output_path is not None:
-        output = output_path.resolve()
-        check_output_path(output, spec_path, spec, render, scene_path,
-                          [spec_path, render_path, review_path, *observation_paths,
-                           scene_path, chart_observation_path, data_bindings_path])
+        inputs = [spec_path, render_path, review_path, *observation_paths,
+                  scene_path, chart_observation_path, data_bindings_path]
+        output = checked_output_path(output_path, report_inputs(spec_path, spec, render, scene_path, inputs))
         write_json(output, result)
     return result
 

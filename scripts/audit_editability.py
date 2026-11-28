@@ -15,11 +15,12 @@ from xml.etree import ElementTree as ET
 from zipfile import BadZipFile, ZipFile
 
 from chart_style import CHART_TYPES, style_errors
+from json_io import checked_output_path, write_json
 from PIL import Image, ImageOps
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.util import Inches
-from scene import asset_path, load_scene, walk
+from scene import SHAPE_TYPES, asset_path, load_scene, scene_asset_names, walk
 from speaker_notes import check_notes
 from table_layout import table_errors
 from text_layout import inspect_deck, risk_warning
@@ -185,9 +186,16 @@ def group_transform_matches(shape, box):
     return not (transform.flipH or transform.flipV)
 
 
-def audit(pptx: Path, scene_path: Path | None = None) -> dict:
+def audit(pptx: Path, scene_path: Path | None = None, *, output_path: Path | None = None) -> dict:
     prs = Presentation(pptx)
     scene, warnings = load_scene(scene_path) if scene_path else (None, [])
+    output = None
+    if output_path is not None:
+        paths = [pptx, scene_path]
+        if scene:
+            paths.extend(scene_path.resolve().parent / name
+                         for slide in scene["slides"] for name in scene_asset_names(slide))
+        output = checked_output_path(output_path, paths)
     errors, pages = [], []
     text_layout = inspect_deck(prs, [s['id'] for s in scene['slides']] if scene else None)
     warnings.extend(risk_warning(finding) for finding in text_layout if finding['status'] == 'risk')
@@ -278,8 +286,11 @@ def audit(pptx: Path, scene_path: Path | None = None) -> dict:
                         errors.append(f"{label}: image flip differs from scene")
                 if e["type"] == "text" and shape.text != e["text"]:
                     errors.append(f"{label}: text differs from scene")
-                if e["type"] == "shape" and "corner_radius" in e and abs(shape.adjustments[0] - e["corner_radius"]) > 1.1e-5:
-                    errors.append(f"{label}: corner radius differs from scene")
+                if e["type"] == "shape":
+                    if shape.shape_type != MSO_SHAPE_TYPE.AUTO_SHAPE or shape.auto_shape_type != SHAPE_TYPES[e["shape"]]:
+                        errors.append(f"{label}: shape type differs from scene (expected {e['shape']})")
+                    elif "corner_radius" in e and abs(shape.adjustments[0] - e["corner_radius"]) > 1.1e-5:
+                        errors.append(f"{label}: corner radius differs from scene")
                 if e["type"] == "group":
                     if not group_transform_matches(shape, wanted_box):
                         errors.append(f"{label}: group transform differs from scene")
@@ -383,7 +394,7 @@ def audit(pptx: Path, scene_path: Path | None = None) -> dict:
                 ],
             }
         )
-    return {
+    report = {
         "pptx": str(pptx.resolve()),
         "scene_compared": bool(scene),
         "slides": pages,
@@ -394,6 +405,9 @@ def audit(pptx: Path, scene_path: Path | None = None) -> dict:
         "visual_review": "not performed by this script",
         "scope": "Checks declared objects, not recovery of every source pixel or visual fidelity.",
     }
+    if output is not None:
+        write_json(output, report, ensure_ascii=True)
+    return report
 
 
 def main():
@@ -408,19 +422,10 @@ def main():
     )
     args = parser.parse_args()
     try:
-        report = audit(args.pptx, args.scene)
+        report = audit(args.pptx, args.scene, output_path=args.output)
     except (ValueError, OSError) as error:
         parser.exit(2, f"audit_editability: {error}\n")
-    data = json.dumps(report, ensure_ascii=True, indent=2)
-    if args.output:
-        if args.output.resolve() in {
-            args.pptx.resolve(),
-            args.scene.resolve() if args.scene else None,
-        }:
-            parser.error("report output must not overwrite an input")
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(data + "\n", encoding="utf-8")
-    print(data)
+    print(json.dumps(report, ensure_ascii=True, indent=2))
     raise SystemExit(
         1 if report["errors"] or (args.strict and report["warnings"]) else 0
     )

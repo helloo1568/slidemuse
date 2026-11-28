@@ -138,6 +138,24 @@ def test_cli_writes_a_separate_scorecard(tmp_path, monkeypatch):
     assert json.loads(output.read_text(encoding="utf-8"))["status"] == "pass"
 
 
+@pytest.mark.parametrize("bad", [b"[]", b'{"version":"1.0","slides":[null]}', b"{"])
+def test_cli_rejects_malformed_observations_without_replacing_report(tmp_path, monkeypatch, capsys, bad):
+    spec, render, review, observations, _ = make_case(tmp_path)
+    mark_visual_pass(review)
+    output = tmp_path / "scorecard.json"
+    evaluate_delivery.evaluate(spec, render, review, [observations], output_path=output)
+    original = output.read_bytes()
+    observations.write_bytes(bad)
+    monkeypatch.setattr(sys, "argv", ["evaluate_delivery.py", str(spec), str(render), str(review),
+                                      "--observations", str(observations), "--output", str(output)])
+    with pytest.raises(SystemExit) as error:
+        evaluate_delivery.main()
+    assert error.value.code == 2
+    assert f"Invalid observation file {observations}" in capsys.readouterr().err
+    assert output.read_bytes() == original
+    assert observations.read_bytes() == bad
+
+
 def test_changed_reference_rejects_old_render_even_with_new_observations(tmp_path):
     spec, render, review, observation, _ = make_case(tmp_path)
     mark_visual_pass(review)

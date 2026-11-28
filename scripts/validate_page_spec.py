@@ -37,6 +37,19 @@ def _relative_path(base: Path, value: str) -> Path:
     return resolved
 
 
+def page_asset_names(spec):
+    style = spec["style"]
+    yield from style.get("tokens", {}).get("reference_images", [])
+    if reference := style.get("generation_reference"):
+        yield reference["source"]
+        yield reference["image"]
+    for slide in spec["slides"]:
+        yield slide["image_file"]
+        for element in slide["elements"]:
+            if "preserve_asset" in element:
+                yield element["preserve_asset"]["file"]
+
+
 def _validate_workflow(spec: dict) -> None:
     workflow = spec["workflow"]
     if (not workflow["approved_content_version"].strip()

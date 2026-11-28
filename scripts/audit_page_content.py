@@ -10,11 +10,13 @@ import unicodedata
 from pathlib import Path
 
 from content_density import CONTENT_POLICIES, WORKFLOW_POLICY, visible_text
-from json_io import read_json
-from validate_page_spec import load_page_spec
+from json_io import checked_output_path, read_json, write_json
+from validate_page_spec import load_page_spec, page_asset_names
 
 NUMBER = re.compile(
-    r"(?:(?<!\d)[+-]|(?<![A-Za-z0-9]))(?:\d+(?:,\d{3})*(?:\.\d+)?|\.\d+)(?:[^\S\r\n]*[%‰])?"
+    r"(?:(?P<sign>[-−]|(?<!\d)\+)[ \t]*|(?<![A-Za-z0-9]))"
+    r"(?P<magnitude>(?:\d+(?:,\d{3})*(?:\.\d+)?|\.\d+)(?:[eE][+\-−]?\d+)?)"
+    r"(?P<ratio>[ \t]*(?:\r?\n[ \t]*)?[%‰])?"
 )
 
 
@@ -26,43 +28,57 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def normalized_numbers(value: str) -> str:
-    # NFKC covers fullwidth/small signs, but does not map the mathematical minus.
-    normalized = unicodedata.normalize("NFKC", value)
-    # Rendering may detach a signed number. Only join horizontal space
-    # after explicit arithmetic signs; plain hyphens may be date ranges.
-    normalized = re.sub(r"(?<!\d)([−+])[ \t]+(?=\d)", r"\1", normalized)
-    return normalized.replace("\u2212", "-")
+def number_spans(value: str):
+    previous_number_end = -1
+    for number in NUMBER.finditer(value):
+        start, end = number.span()
+        identifier = False
+        if number["sign"] in ("-", "−"):
+            before = start
+            while before and value[before - 1] in " \t":
+                before -= 1
+            left = value[before - 1] if before else ""
+            # Ranges keep two unsigned endpoints. An ASCII label joined to a
+            # bare integer (A-32) keeps a boundary without implying a negative.
+            if before == previous_number_end:
+                start = number.start("magnitude")
+            else:
+                identifier = (number["sign"] == "-" and left.isascii() and left.isalpha()
+                              and number["magnitude"].isdecimal() and number["ratio"] is None)
+        if not identifier:
+            previous_number_end = end
+        yield start, end, identifier
 
 
 def compact_chars(value: str) -> str:
-    return "".join(char for char in value if char.isalnum() or char in ".%‰+-/")
+    return "".join(char for char in value.replace("−", "-") if char.isalnum() or char in ".%‰+-/")
 
 
 def compact(value: str) -> str:
-    return compact_chars(normalized_numbers(value).casefold())
+    return compact_chars(unicodedata.normalize("NFKC", value).casefold())
 
 
 def numbers(value: str) -> list[str]:
-    return NUMBER.findall(normalized_numbers(value))
+    value = unicodedata.normalize("NFKC", value)
+    return [value[start:end].replace("−", "-") for start, end, identifier in number_spans(value) if not identifier]
 
 
 def compact_number(value: str) -> str:
     return compact(value)
 
 
-def compact_with_number_offsets(value: str) -> tuple[str, dict[int, str]]:
-    normalized = normalized_numbers(value).casefold()
+def compact_with_number_offsets(value: str) -> tuple[str, dict[int, tuple[str, bool]]]:
+    normalized = unicodedata.normalize("NFKC", value).casefold()
     parts, offsets = [], {}
     cursor = position = 0
-    for number in NUMBER.finditer(normalized):
-        prefix = compact_chars(normalized[cursor:number.start()])
-        token = compact_chars(number.group())
+    for start, end, identifier in number_spans(normalized):
+        prefix = compact_chars(normalized[cursor:start])
+        token = compact_chars(normalized[start:end])
         position += len(prefix)
-        offsets[position] = token
+        offsets[position] = (token, identifier)
         parts.extend((prefix, token))
         position += len(token)
-        cursor = number.end()
+        cursor = end
     parts.append(compact_chars(normalized[cursor:]))
     return "".join(parts), offsets
 
@@ -99,17 +115,38 @@ def template(spec_path: Path, slides: list[dict]) -> dict:
     ]}
 
 
+def observation_entries(observations) -> list[dict]:
+    if (not isinstance(observations, dict) or observations.get("version") != "1.0"
+            or not isinstance(observations.get("slides"), list)):
+        raise ValueError("Observations must contain a JSON object with version 1.0 and a slides array")
+    seen = set()
+    for index, entry in enumerate(observations["slides"], 1):
+        slide_id = entry.get("id") if isinstance(entry, dict) else None
+        if not isinstance(slide_id, str) or not slide_id:
+            raise ValueError(f"Observation entry {index} must be an object with a nonempty slide ID")
+        if slide_id in seen:
+            raise ValueError(f"Unknown or duplicate observation slide: {slide_id}")
+        seen.add(slide_id)
+    return observations["slides"]
+
+
+def read_observations(path: Path) -> list[dict]:
+    try:
+        return observation_entries(read_json(path))
+    except ValueError as error:
+        raise ValueError(f"Invalid observation file {path}: {error}") from error
+
+
 def audit(spec_path: Path, slides: list[dict], observations: dict) -> dict:
-    if observations.get("version") != "1.0" or not isinstance(observations.get("slides"), list):
-        raise ValueError("Observations must contain version 1.0 and a slides array")
+    entries = observation_entries(observations)
     policy = read_json(spec_path).get("content_policy") if spec_path.is_file() else None
     by_id = {slide["id"]: slide for slide in slides}
     seen = set()
     results = []
-    for observation in observations["slides"]:
-        slide_id = observation.get("id")
-        if slide_id not in by_id or slide_id in seen:
-            raise ValueError(f"Unknown or duplicate observation slide: {slide_id}")
+    for observation in entries:
+        slide_id = observation["id"]
+        if slide_id not in by_id:
+            raise ValueError(f"Unknown observation slide: {slide_id}")
         seen.add(slide_id)
         slide = by_id[slide_id]
         current_hash = sha256(image_path(spec_path, slide))
@@ -163,26 +200,37 @@ def main() -> None:
     parser.add_argument("--output", type=Path, help="Write JSON audit report")
     parser.add_argument("--require-complete", action="store_true")
     args = parser.parse_args()
+    try:
+        run_cli(args)
+    except (OSError, ValueError) as error:
+        parser.exit(2, f"audit_page_content: {error}\n")
+
+
+def run_cli(args) -> None:
     spec_path = args.page_spec.resolve()
     spec, _ = load_page_spec(spec_path)
     ids = set(args.slide)
     if ids - {slide["id"] for slide in spec["slides"]}:
-        parser.error(f"Unknown slide IDs: {', '.join(sorted(ids - {slide['id'] for slide in spec['slides']}))}")
+        raise ValueError(f"Unknown slide IDs: {', '.join(sorted(ids - {slide['id'] for slide in spec['slides']}))}")
     slides = [slide for slide in spec["slides"] if not ids or slide["id"] in ids]
+    inputs = [spec_path, *(spec_path.parent / name for name in page_asset_names(spec))]
     if args.init:
+        checked_output_path(args.observations, inputs)
         if args.observations.exists():
-            parser.error("observation file already exists")
+            raise ValueError("observation file already exists")
+        record = template(spec_path, slides)
         args.observations.parent.mkdir(parents=True, exist_ok=True)
-        args.observations.write_text(json.dumps(template(spec_path, slides), ensure_ascii=False, indent=2), encoding="utf-8")
+        with args.observations.open("x", encoding="utf-8") as stream:
+            json.dump(record, stream, ensure_ascii=False, indent=2)
         print(args.observations)
         return
-    observations = read_json(args.observations)
+    entries = read_observations(args.observations)
     if ids:
-        observations = {**observations, "slides": [item for item in observations["slides"] if item.get("id") in ids]}
-    report = audit(spec_path, slides, observations)
+        entries = [item for item in entries if item["id"] in ids]
+    report = audit(spec_path, slides, {"version": "1.0", "slides": entries})
     if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        output = checked_output_path(args.output, [args.observations, *inputs])
+        write_json(output, report)
     print(json.dumps({"issues": report["issues"], "incomplete": report["incomplete"], "pass": report["pass"]}, ensure_ascii=False))
     if report["issues"] or (args.require_complete and report["incomplete"]):
         raise SystemExit(1)

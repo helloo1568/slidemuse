@@ -16,24 +16,14 @@ from pptx import Presentation
 from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
 from pptx.enum.chart import XL_LABEL_POSITION, XL_LEGEND_POSITION
-from pptx.enum.shapes import MSO_CONNECTOR, MSO_SHAPE
+from pptx.enum.shapes import MSO_CONNECTOR
 from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.oxml.xmlchemy import OxmlElement
 from pptx.util import Inches, Pt
-from scene import asset_path, check_scene_canvas, load_scene
+from scene import SHAPE_TYPES, asset_path, check_scene_canvas, load_scene
 from speaker_notes import check_notes, check_scene_notes, scene_notes
 from table_layout import grid_lengths, merge_owners
 from text_layout import inspect_deck, risk_warning
-
-SHAPES = {
-    "rect": MSO_SHAPE.RECTANGLE,
-    "roundRect": MSO_SHAPE.ROUNDED_RECTANGLE,
-    "ellipse": MSO_SHAPE.OVAL,
-    "triangle": MSO_SHAPE.ISOSCELES_TRIANGLE,
-    "diamond": MSO_SHAPE.DIAMOND,
-    "chevron": MSO_SHAPE.CHEVRON,
-    "rightArrow": MSO_SHAPE.RIGHT_ARROW,
-}
 
 
 def rgb(value):
@@ -134,7 +124,7 @@ def add_element(shapes, e, base, sx, sy):
         shape = shapes.add_textbox(*box)
         text_frame(shape.text_frame, e["text"], e)
     elif kind == "shape":
-        shape = shapes.add_shape(SHAPES[e["shape"]], *box)
+        shape = shapes.add_shape(SHAPE_TYPES[e["shape"]], *box)
         fill_and_line(shape, e)
         if "corner_radius" in e:
             shape.adjustments[0] = e["corner_radius"]

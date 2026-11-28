@@ -218,6 +218,76 @@ def test_audit_rejects_different_chart_type_with_same_data(scene_file, wrong_typ
     ]
 
 
+@pytest.mark.parametrize("with_radius", [False, True])
+def test_strict_audit_rejects_wrong_shape_inside_group(scene_file, with_radius):
+    scene = json.loads(scene_file.read_bytes())
+    node = scene["slides"][0]["elements"][2]["children"][0]
+    if with_radius:
+        node["corner_radius"] = 0.04
+        scene_file.write_text(json.dumps(scene), encoding="utf-8")
+    original = scene_file.with_suffix(".pptx")
+    build_deck(scene_file, original)
+    assert audit(original, scene_file)["errors"] == []
+
+    node["shape"] = "ellipse"
+    node.pop("corner_radius", None)
+    changed_scene = scene_file.with_name("changed.json")
+    changed_scene.write_text(json.dumps(scene), encoding="utf-8")
+    changed_deck = changed_scene.with_suffix(".pptx")
+    build_deck(changed_scene, changed_deck)
+    cli = Path(__file__).resolve().parents[1] / "slidemuse.py"
+    result = subprocess.run([sys.executable, str(cli), "audit", str(changed_deck),
+                             "--scene", str(scene_file), "--strict"],
+                            capture_output=True, text=True, encoding="utf-8", check=False)
+    assert result.returncode == 1, result.stderr
+    assert json.loads(result.stdout)["errors"] == ["Slide 1/node: shape type differs from scene (expected roundRect)"]
+
+
+def test_supported_native_shape_types_round_trip(scene_file):
+    scene = json.loads(scene_file.read_bytes())
+    children = scene["slides"][0]["elements"][2]["children"]
+    template = children[0]
+    children[:] = [
+        {**template, "id": f"node-{kind}", "shape": kind, "x": 100 + index * 190, "w": 165}
+        for index, kind in enumerate(("rect", "roundRect", "ellipse", "triangle", "diamond", "chevron", "rightArrow"))
+    ]
+    scene_file.write_text(json.dumps(scene), encoding="utf-8")
+    output = scene_file.with_suffix(".pptx")
+    build_deck(scene_file, output)
+    assert audit(output, scene_file)["errors"] == []
+
+
+@pytest.mark.parametrize("target", ["deck", "scene", "nested_asset", "source_image", "report"])
+def test_audit_cli_protects_scene_inputs_and_assets(scene_file, target):
+    scene = json.loads(scene_file.read_bytes())
+    scene["slides"][0]["source_image"] = "source.png"
+    source_image = scene_file.with_name("source.png")
+    Image.new("RGB", (1600, 900), (220, 180, 50)).save(source_image)
+    elements = scene["slides"][0]["elements"]
+    elements[2]["children"].append(elements[1])
+    del elements[1]
+    scene_file.write_text(json.dumps(scene), encoding="utf-8")
+    deck = scene_file.with_suffix(".pptx")
+    build_deck(scene_file, deck)
+    inputs = {"deck": deck, "scene": scene_file,
+              "nested_asset": scene_file.with_name("asset.png"), "source_image": source_image}
+    original = {path: path.read_bytes() for path in inputs.values()}
+    output = inputs.get(target, scene_file.with_name("report.json"))
+    subdir = output.parent / "subdir"
+    subdir.mkdir()
+    cli = Path(__file__).resolve().parents[1] / "slidemuse.py"
+    result = subprocess.run([sys.executable, str(cli), "audit", str(deck), "--scene", str(scene_file), "--strict",
+                             "--output", str(subdir / ".." / output.name)],
+                            capture_output=True, text=True, encoding="utf-8", check=False)
+    if target == "report":
+        assert result.returncode == 0, result.stderr
+        assert json.loads(output.read_bytes())["errors"] == []
+    else:
+        assert result.returncode == 2
+        assert "must not overwrite" in result.stderr
+    assert {path: path.read_bytes() for path in inputs.values()} == original
+
+
 def test_chart_style_roundtrip_and_audit(scene_file):
     scene, _ = load_scene(scene_file)
     chart = scene["slides"][0]["elements"][-1]

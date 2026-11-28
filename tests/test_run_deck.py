@@ -338,6 +338,120 @@ def test_malformed_external_review_preserves_file_and_saves_failure(pipeline_cas
     assert external.read_bytes() == b"[]"
 
 
+@pytest.mark.parametrize("bad", [
+    b"[]", b'{"version":"1.0","slides":null}', b'{"version":"1.0","slides":[null]}',
+    b'{"version":"1.0","slides":[{"id":[]}]}', b"{",
+])
+def test_malformed_external_observations_save_new_failure_and_keep_evidence(pipeline_case, bad):
+    job, work, _, _, _ = pipeline_case
+    external = job.parent / "external-observations.json"
+    save(job, {**run_deck.read(job), "observations": [external.name]})
+    assert run_deck.run(job, work)["status"] == "awaiting_review"
+    review_fixture(pipeline_case)
+    external.write_bytes((work / "content-observations.json").read_bytes())
+    assert run_deck.run(job, work)["status"] == "complete"
+    scorecard = work / "scorecard.json"
+    previous = scorecard.read_bytes()
+
+    external.write_bytes(bad)
+    result = run_deck.run(job, work)
+    assert result["status"] == read_status(work) == "failed"
+    assert result["failed_stage"] == "evaluate"
+    assert any(f"Invalid observation file {external}" in item.get("detail", "") for item in result["actions"])
+    assert not scorecard.exists()
+    assert previous in [file.read_bytes() for file in (work / "review-history").glob("scorecard-*.json")]
+    assert external.read_bytes() == bad
+
+
+@pytest.mark.parametrize("bad", [b'{"version":"1.0","slides":[null]}', b"{"])
+def test_malformed_default_observations_are_archived_and_reopened(pipeline_case, bad):
+    job, work, _, _, _ = pipeline_case
+    run_deck.run(job, work)
+    review_fixture(pipeline_case)
+    assert run_deck.run(job, work)["status"] == "complete"
+    observations = work / "content-observations.json"
+    observations.write_bytes(bad)
+    result = run_deck.run(job, work)
+    assert result["status"] == read_status(work) == "awaiting_review"
+    assert run_deck.read(work / "scorecard.json")["status"] == "incomplete"
+    assert [slide["status"] for slide in run_deck.read(observations)["slides"]] == ["partial", "partial"]
+    history = (work / "review-history").glob("content-observations-*.json")
+    assert bad in [file.read_bytes() for file in history]
+
+
+def test_workbuddy_rejects_malformed_external_observations_before_publish(pipeline_case):
+    job, work, _, _, _ = pipeline_case
+    external = job.parent / "external-observations.json"
+    save(job, {**run_deck.read(job), "observations": [external.name]})
+    setup(job.parent, job, work)
+    assert review(job, work)["status"] == "awaiting_review"
+    review_fixture(pipeline_case)
+    external.write_bytes((work / "content-observations.json").read_bytes())
+    assert review(job, work)["status"] == "complete"
+    damaged = b'{"version":"1.0","slides":[null]}'
+    external.write_bytes(damaged)
+    with pytest.raises(ValueError, match="Invalid observation file"):
+        publish(job, work)
+    assert not (work / "final" / "slidemuse.pptx").exists()
+    assert external.read_bytes() == damaged
+
+
+@pytest.mark.parametrize(("field", "target"), [
+    ("observations", "scorecard.json"),
+    ("observations", "content-observations.json"),
+    ("visual_review", "visual-review.json"),
+    ("visual_review", "review-history/external.json"),
+    ("chart_observations", "chart-observations.json"),
+    ("data_bindings", "summary.json"),
+])
+def test_preflight_rejects_evidence_at_pipeline_output_before_writing(pipeline_case, field, target):
+    job, work, _, _, calls = pipeline_case
+    run_deck.run(job, work)
+    path = work / target
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        path.write_bytes(b"external evidence")
+    original = path.read_bytes()
+    name = path.relative_to(job.parent).as_posix()
+    save(job, {**run_deck.read(job), field: [name] if field == "observations" else name})
+    check = run_deck.preflight(job, work, check_renderer=False)
+    assert check["status"] == "blocked"
+    assert any("reserved workspace output" in action.get("detail", "") for action in check["actions"])
+    with pytest.raises(ValueError, match="reserved workspace output"):
+        run_deck.run(job, work)
+    assert path.read_bytes() == original
+    assert calls == [[1, 2]]
+
+
+def test_run_cli_does_not_remove_an_observation_at_the_scorecard_path(pipeline_case):
+    job, work, _, _, _ = pipeline_case
+    run_deck.run(job, work)
+    review_fixture(pipeline_case)
+    file = work / "scorecard.json"
+    data = (work / "content-observations.json").read_bytes()
+    file.write_bytes(data)
+    save(job, {**run_deck.read(job), "observations": [file.relative_to(job.parent).as_posix()]})
+    cli = Path(__file__).resolve().parents[1] / "slidemuse.py"
+    result = subprocess.run([sys.executable, str(cli), "run", str(job), str(work)],
+                            capture_output=True, check=False)
+    assert result.returncode == 1
+    assert b"reserved workspace output" in result.stdout
+    assert file.read_bytes() == data
+
+
+def test_run_accepts_read_only_observations_at_a_separate_path(pipeline_case):
+    job, work, _, _, _ = pipeline_case
+    run_deck.run(job, work)
+    review_fixture(pipeline_case)
+    external = work / "manual-evidence" / "observations.json"
+    external.parent.mkdir()
+    data = (work / "content-observations.json").read_bytes()
+    external.write_bytes(data)
+    save(job, {**run_deck.read(job), "observations": [external.relative_to(job.parent).as_posix()]})
+    assert run_deck.run(job, work)["status"] == "complete"
+    assert external.read_bytes() == data
+
+
 def test_image_mode_uses_approved_images_and_no_native_scene(pipeline_case):
     job, work, _, _, calls = pipeline_case
     save(job, {"version": "1.0", "mode": "image", "page_spec": "page-spec.json", "backend": "powerpoint", "width": 320})

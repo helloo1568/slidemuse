@@ -8,9 +8,19 @@ from pathlib import Path
 from json_io import read_json
 from jsonschema import Draft202012Validator
 from PIL import Image
+from pptx.enum.shapes import MSO_SHAPE
 from table_layout import merge_owners
 
 SCHEMA = Path(__file__).resolve().parents[1] / "references" / "scene.schema.json"
+SHAPE_TYPES = {
+    "rect": MSO_SHAPE.RECTANGLE,
+    "roundRect": MSO_SHAPE.ROUNDED_RECTANGLE,
+    "ellipse": MSO_SHAPE.OVAL,
+    "triangle": MSO_SHAPE.ISOSCELES_TRIANGLE,
+    "diamond": MSO_SHAPE.DIAMOND,
+    "chevron": MSO_SHAPE.CHEVRON,
+    "rightArrow": MSO_SHAPE.RIGHT_ARROW,
+}
 
 
 def check_scene_canvas(spec: dict, scene: dict) -> None:
@@ -24,6 +34,12 @@ def walk(elements):
         yield element
         if element["type"] == "group":
             yield from walk(element["children"])
+
+
+def scene_asset_names(slide):
+    if slide.get("source_image"):
+        yield slide["source_image"]
+    yield from (element["path"] for element in walk(slide["elements"]) if element["type"] == "image")
 
 
 def asset_path(base: Path, value: str) -> Path:

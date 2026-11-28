@@ -16,6 +16,7 @@ from pathlib import Path
 from audit_chart_geometry import charts as geometry_charts
 from audit_chart_geometry import template as geometry_template
 from audit_editability import audit as audit_objects
+from audit_page_content import observation_entries, read_observations
 from audit_page_content import template as content_template
 from build_editable_ppt import build_deck as build_editable
 from build_image_ppt import DEFAULT_EXTENSIONS
@@ -27,7 +28,7 @@ from deck_diagnostics import (
     preflight,
     print_result,
 )
-from deck_draft import MANAGED, office_draft
+from deck_draft import MANAGED, PACKAGE, office_draft
 from evaluate_delivery import evaluate, review_template, verified_visual_review
 from json_io import read_json
 from json_io import write_json as write
@@ -35,7 +36,7 @@ from pptx import Presentation
 from render_deck import build_review, reference_files, render_selected, sha256
 from render_environment import environment_key, fingerprint, font_preflight
 from render_process import rendering_options, validate_options
-from scene import check_scene_canvas, load_scene, walk
+from scene import check_scene_canvas, load_scene, scene_asset_names
 from speaker_notes import check_scene_notes
 from update_data_bindings import inspect as inspect_bindings
 from update_data_bindings import page_dependencies
@@ -44,6 +45,12 @@ from validate_page_spec import _relative_path, load_page_spec
 ROOT = Path(__file__).resolve().parents[1]
 FIELDS = {"version", "page_spec", "mode", "scene", "backend", "width", "visual_review",
           "observations", "chart_observations", "data_bindings", "render_timeout", "render_retries", "measure_text", "work_log"}
+WORKSPACE_FILES = (
+    ".run.lock", ".review-import.json", MANAGED, PACKAGE, "owner.json", "state.json", "object-audit.json",
+    "render-report.json", "review.png", "review-panel.html", "visual-review.json", "content-observations.json",
+    "chart-observations.json", "scorecard.json", "summary.json", "summary.md",
+)
+WORKSPACE_DIRECTORIES = ("cache", "review-history", "final")
 
 
 def digest(value):
@@ -98,10 +105,7 @@ def load_inputs(config_path, work):
                   for resolve_path in [_relative_path(spec_path.parent, name)])
     per_slide_assets = {}
     for slide in scene["slides"] if scene else []:
-        names = [e["path"] for e in walk(slide["elements"]) if e["type"] == "image"]
-        if slide.get("source_image"):
-            names.append(slide["source_image"])
-        paths = [_relative_path(scene_path.parent, name) for name in names]
+        paths = [_relative_path(scene_path.parent, name) for name in scene_asset_names(slide)]
         assets.update(paths)
         per_slide_assets[slide["id"]] = {str(p): sha256(p) for p in paths}
     inputs = {config_path, spec_path, *assets, *([scene_path] if scene_path else [])}
@@ -109,6 +113,12 @@ def load_inputs(config_path, work):
         raise ValueError("Pipeline workspace must not contain job inputs or source assets")
     optional = {name: resolve(config[name]) for name in ("visual_review", "chart_observations", "data_bindings") if config.get(name)}
     observations = [resolve(name) for name in config.get("observations", [])]
+    if optional or observations:
+        reserved_files = {(work / name).resolve() for name in WORKSPACE_FILES}
+        reserved_directories = [(work / name).resolve() for name in WORKSPACE_DIRECTORIES]
+        for path in (*optional.values(), *observations):
+            if path in reserved_files or any(path.is_relative_to(directory) for directory in reserved_directories):
+                raise ValueError(f"Explicit evidence must not use a reserved workspace output: {path}")
     work_log = resolve(config["work_log"]) if config.get("work_log") else None
     if work_log:
         if work_log.is_relative_to(work):
@@ -299,11 +309,11 @@ def update_templates(inputs, work, report, page_keys, previous):
     observation_path = work / "content-observations.json"
     observation = content_template(inputs["spec_path"], spec["slides"])
     if observation_path.exists():
-        old = read(observation_path)
-        entries = old.get("slides", []) if isinstance(old, dict) and old.get("version") == "1.0" else []
-        by_id = {s.get("id"): s for s in entries if isinstance(s, dict)}
-        if len(by_id) != len(entries):
-            by_id = {}  # Duplicate/malformed transcriptions cannot be silently accepted.
+        try:
+            old = read(observation_path)
+            by_id = {s["id"]: s for s in observation_entries(old)}
+        except ValueError:
+            old, by_id = None, {}
         for item in observation["slides"]:
             before = by_id.get(item["id"])
             if (before and previous.get("review_keys", {}).get(item["id"]) == page_keys[item["id"]]
@@ -528,7 +538,6 @@ def run(config_path, work, stop_after=None, refresh_render=False, *, managed=Fal
                 chart_path = default_chart_observations(inputs["spec_path"], inputs["spec"], work)
             scorecard = evaluate(inputs["spec_path"], work / "render-report.json", review_path, observations,
                                  inputs["scene_path"], chart_path, inputs["optional"].get("data_bindings"))
-            write(work / "scorecard.json", scorecard)
             # Existing current-hash visual review is the gate for layout. Keep
             # estimates in the report, but do not ask again after genuine review.
             pending_layout = set(scorecard['visual']['pending'] + scorecard['visual']['failed'])
@@ -546,13 +555,13 @@ def run(config_path, work, stop_after=None, refresh_render=False, *, managed=Fal
             for sid in scorecard["data_visual_inventory"]["pending"] + scorecard["data_visual_inventory"]["failed"]:
                 result["actions"].append(review_action("visual_inventory", sid, "记录实际图表和表格清单；无数据图的页面也要确认没有多余数据视觉。", review_path))
             if scorecard["content"]["issues"] or scorecard["content"]["incomplete"]:
-                observed_pages = [page for path in observations for page in read(path)["slides"]]
-                for page in observed_pages:
-                    if page["status"] != "complete" or page["id"] in scorecard["content"]["findings"]:
-                        owner = next(path for path in observations if any(s["id"] == page["id"] for s in read(path)["slides"]))
-                        item = review_action("content_observations", page["id"], "查看源图片并核对实际可见文字，补齐或修正此页文字观测。", owner)
-                        item["files"] = [str(p) for p in observations]
-                        result["actions"].append(item)
+                files = [str(path) for path in observations]
+                for path in observations:
+                    for page in read_observations(path):
+                        if page["status"] != "complete" or page["id"] in scorecard["content"]["findings"]:
+                            item = review_action("content_observations", page["id"], "查看源图片并核对实际可见文字，补齐或修正此页文字观测。", path)
+                            item["files"] = files
+                            result["actions"].append(item)
                 for sid in scorecard["content"]["missing_observations"]:
                     result["actions"].append(review_action("content_observations", sid, "缺少此页文字观测。实际查看源图片后补充记录。", observations[0]))
             if scorecard["chart_geometry"].get("status") in ("fail", "incomplete"):
@@ -562,6 +571,7 @@ def run(config_path, work, stop_after=None, refresh_render=False, *, managed=Fal
             if result["status"] != "complete" and not result["actions"]:
                 result["actions"].append(action("delivery_checks", "查看当前评分卡，解决失败项后再交付。", file=work / "scorecard.json"))
             result["deck"] = str(deck)
+            write(work / "scorecard.json", scorecard)
             return summary(work, result)
         except (ValueError, OSError, RuntimeError, KeyError, TypeError) as error:
             result.update(status="failed", failed_stage=current_stage)
